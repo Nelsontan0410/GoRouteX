@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>West Coast live route validation</title>
+  <link rel="stylesheet" href="../lorry-safety.css">
+  <style>body{font:14px Arial,sans-serif;margin:16px;color:#183334}#map{height:520px;border:1px solid #bbb;border-radius:8px}#result{white-space:pre-wrap;padding:12px;background:#f4f6f8;border-radius:8px;margin-bottom:12px}</style>
+  <script src="../lorry-restrictions.js"></script>
+  <script src="../restriction-routing.js"></script>
+  <script src="../route-safety.js"></script>
+  <script src="../map-handler.js"></script>
+</head>
+<body>
+  <h1>West Coast actual Google route check</h1>
+  <div id="result">Requesting Google Directions…</div><div id="map"></div>
+  <script>
+    localStorage.setItem('goroutex.lorry.settings.device', JSON.stringify({ enabled: true, selectedCodes: ['4002'] }));
+    window.AppState = { plannedRoutes: [] };
+    window.initLiveRouteTest = async function () {
+      const output = document.getElementById('result');
+      try {
+        const origin = '48 Toh Guan Road East, Singapore 608586';
+        const stops = ['194 Pandan Loop, Singapore', '26 Third Lok Yang Road, Singapore'];
+        const service = MapHandler.initDirectionsService();
+        const original = await Promise.race([
+          MapHandler.route(service, {
+            origin,
+            destination: origin,
+            waypoints: stops.map((location) => ({ location, stopover: true })),
+            optimizeWaypoints: false,
+            travelMode: 'DRIVING',
+            region: 'sg'
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Google Directions timed out; check API referrer authorization.')), 15000))
+        ]);
+        const route = { id: 'west-coast', label: 'West Coast acceptance route', optimizedStops: [origin, ...stops, origin], directionsResult: original, safetyWaypoints: [] };
+        const map = MapHandler.initMap('map', { center: { lat: 1.32, lng: 103.74 }, zoom: 12 });
+        const originalRenderer = MapHandler.initDirectionsRenderer({ map, suppressMarkers: false, polylineOptions: { strokeColor: '#64748b', strokeOpacity: .35, strokeWeight: 8 } });
+        MapHandler.setDirections(originalRenderer, original);
+        await RouteSafety.validateRoutes([route], { context: 'manual', forceRefresh: true, reuse: false });
+        const finalRenderer = MapHandler.initDirectionsRenderer({ map, suppressMarkers: true, polylineOptions: { strokeColor: route.lorryValidation?.status === 'SAFE' ? '#167454' : '#b64520', strokeOpacity: .95, strokeWeight: 5 } });
+        MapHandler.setDirections(finalRenderer, route.directionsResult);
+        RouteSafety.showConflicts(map, [route], { context: 'manual' });
+        const validation = route.lorryValidation || {};
+        output.textContent = JSON.stringify({
+          status: validation.status,
+          initialConflicts: validation.initialConflicts,
+          remainingConflicts: (validation.conflicts || []).map((item) => item.restrictionId),
+          includes120054: (validation.conflicts || []).some((item) => item.restrictionId === '120054'),
+          avoidedConflicts: validation.avoidedConflicts,
+          extraGoogleRequests: validation.reroutes,
+          rerouteReason: validation.rerouteReason,
+          issues: validation.issues,
+          datasetVersion: validation.datasetVersion
+        }, null, 2);
+      } catch (error) {
+        output.textContent = `LIVE TEST ERROR\n${error.code || ''}\n${error.message || error}`;
+      }
+    };
+  </script>
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA0rhYLn9QRwRw8VRqXSKMMij1snRsYsQ8&callback=initLiveRouteTest&libraries=geocoding,marker,places&loading=async&language=en"></script>
+</body>
+</html>

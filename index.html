@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoRouteX | Simple Delivery Route Planner</title>
+  <meta name="description" content="GoRouteX is a simple delivery route planning web app for small teams. Save stops, build routes, and share ETA updates by WhatsApp.">
+  <meta name="theme-color" content="#2456c4">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="GoRouteX | Simple Delivery Route Planner">
+  <meta property="og:description" content="Plan daily routes, save stops, and share ETA updates by WhatsApp with one simple web app.">
+  <link rel="icon" type="image/svg+xml" href="marketing-favicon.svg">
+  <link rel="preload" as="image" href="marketing-delivery-hero.webp" imagesrcset="marketing-delivery-hero-small.webp 768w, marketing-delivery-hero.webp 1536w" imagesizes="(max-width:767px) calc(100vw - 40px), 50vw" fetchpriority="high">
+  <link rel="stylesheet" href="marketing-site.css?v=20260922-taste-1">
+  <script src="route-planner-product.js" defer></script>
+  <script src="marketing-site.js?v=20260930-stripe-pricing-1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to content</a>
+  <header class="site-header">
+    <div class="shell site-header-inner">
+      <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true">GX</span><span class="brand-copy"><span>GoRouteX</span><small>Delivery Route Planner</small></span></a>
+      <button id="menuToggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="siteNav">Menu</button>
+      <nav id="siteNav" class="nav" aria-label="Primary navigation">
+        <div class="nav-links"><a href="#benefits">Free Features</a><a href="#how-it-works">Everyday Use</a><a href="#teams">How It Works</a><a href="#pricing">Compare Plans</a><a href="#faq">FAQ</a></div>
+        <div class="nav-actions"><a class="login-link" href="login.html">Login</a><a class="button-primary" href="login.html?mode=signup&amp;next=app.html">Start Free <span aria-hidden="true">↗</span></a></div>
+      </nav>
+    </div>
+  </header>
+  <main id="mainContent">
+    <section id="top" class="hero shell">
+      <div class="hero-copy"><p class="eyebrow">Less planning. More delivering.</p><h1>Better routes.<br><span>Lower costs.</span></h1><p class="hero-description">Optimise your delivery runs, organise every stop, and keep customers updated. All from your browser.</p><div class="button-row"><a class="button-primary" href="login.html?mode=signup&amp;next=app.html">Start Free <span aria-hidden="true">↗</span></a><a class="text-link" href="#teams">See how it works <span aria-hidden="true">↓</span></a></div></div>
+      <figure class="hero-image"><img src="marketing-delivery-hero.webp" srcset="marketing-delivery-hero-small.webp 768w, marketing-delivery-hero.webp 1536w" sizes="(max-width:767px) calc(100vw - 40px), 50vw" width="1536" height="1024" alt="A blue delivery van following a curved road through a landscaped neighbourhood" fetchpriority="high"></figure>
+    </section>
+    <section id="benefits" class="section benefits shell">
+      <div class="section-heading"><h2>A lighter workload.<br>A clearer day ahead.</h2><p>Start with the free Basic plan. Keep your stops, routes, and customer updates together.</p></div>
+      <div class="benefit-grid">
+        <article><strong class="benefit-value" data-basic-limit="maxSavedStops">50</strong><h3>Saved stops</h3><p>Save addresses and notes once. Use them again tomorrow.</p></article>
+        <article><strong class="benefit-value" data-basic-limit="maxStopsPerRoute">8</strong><h3>Stops per route</h3><p>Bring your daily deliveries into one clear route.</p></article>
+        <article><strong class="benefit-value" data-basic-limit="maxSavedRoutesPerDay">1</strong><h3>Saved route a day</h3><p>Keep your daily plan ready when you need it.</p></article>
+        <article><strong class="benefit-word">WhatsApp</strong><h3>Customers in the loop</h3><p>Share an ETA or an unable-to-visit notice in a few taps.</p></article>
+      </div>
+    </section>
+    <section id="how-it-works" class="section use-section">
+      <div class="shell use-layout">
+        <figure class="work-image"><img src="marketing-delivery-work.webp" srcset="marketing-delivery-work-small.webp 768w, marketing-delivery-work.webp 1536w" sizes="(max-width:767px) calc(100vw - 40px), 50vw" width="1536" height="1024" alt="A delivery worker checking a phone while organising parcels beside a van" loading="lazy"></figure>
+        <div class="use-copy"><p class="eyebrow">Built around your working day</p><h2>Wherever work<br>takes you.</h2><p class="section-lead">One planner for deliveries, customer visits, field work, and your own multi-stop trips.</p><div class="use-list"><article><h3>Delivery runs</h3><p>Keep addresses, delivery notes, and the next stop together.</p></article><article><h3>Sales visits</h3><p>Organise customer visits before you head out.</p></article><article><h3>Field work</h3><p>Plan a practical order for your daily appointments.</p></article><article><h3>Personal trips</h3><p>Bring all your errands into a single plan.</p></article></div></div>
+      </div>
+    </section>
+    <section id="teams" class="section shell workflow-section">
+      <div class="section-heading"><h2>Your stops. Your route.<br>Ready to go.</h2><p>A straightforward workflow, from the first address to the next delivery.</p></div>
+      <ol class="workflow"><li><span class="step-number" aria-hidden="true">01</span><div><h3>Save your stops</h3><p>Add locations, contact details, and delivery notes. Reuse them whenever you need to.</p></div></li><li><span class="step-number" aria-hidden="true">02</span><div><h3>Build your route</h3><p>Choose your stops, arrange the route, and review your plan before heading out.</p></div></li><li><span class="step-number" aria-hidden="true">03</span><div><h3>Share updates</h3><p>Send ETA updates or unable-to-visit notices through WhatsApp when needed.</p></div></li></ol>
+    </section>
+    <section id="features" class="section feature-section shell">
+      <div class="feature-intro"><h2>Less switching.<br>More doing.</h2><p>Keep the details that matter in the same place as your route.</p></div><div class="feature-list"><article><h3>Less confusion</h3><p>Stops, notes, and route order stay together.</p></article><article><h3>Faster planning</h3><p>Reuse saved stops instead of copying addresses from chat threads.</p></article><article><h3>Clearer communication</h3><p>Share through WhatsApp, without changing your daily routine.</p></article></div>
+    </section>
+    <section id="pricing" class="section pricing-section">
+      <div class="shell"><div class="section-heading"><p class="eyebrow">Room to grow</p><h2>Start small. Plan bigger.</h2><p>Start free. Upgrade when you need more capacity and cloud-backed planning.</p></div>
+        <div id="pricingPlanCards" class="pricing-plan-grid" aria-label="GoRouteX plan cards"><p class="pricing-fallback">Basic is free. Paid plan prices appear here when billing is configured. <a href="login.html?mode=signup&amp;next=app.html%3Fpage%3Daccount">View plans in your account</a>.</p></div>
+        <p class="pricing-note">Configured paid prices are shown in SGD. Available currency options and the final amount are shown at checkout.</p>
+        <details id="planCompareTable" class="plan-details"><summary>Compare all plan features <span aria-hidden="true">+</span></summary><div id="pricingComparisonTable" class="table-wrap"><p>Sign in to view the full plan comparison.</p></div></details>
+        <p class="coming-soon">Driver GPS tracking and proof of delivery are Coming Soon and are not included in the ready features.</p>
+      </div>
+    </section>
+    <section id="faq" class="section shell faq-section">
+      <div class="section-heading"><h2>A few things<br>worth knowing.</h2><p>Simple answers before you get started.</p></div><div class="faq-list">
+        <details><summary>Is GoRouteX really free to use?</summary><p>Yes. The Basic plan is free and lets you save up to 50 stops, build 1 saved route a day, and plan up to 8 stops per route.</p></details>
+        <details><summary>Who is it for?</summary><p>It works well for deliveries, sales visits, field work, and personal multi-stop planning.</p></details>
+        <details><summary>Do I need training to use it?</summary><p>No. Save your stops, choose your route, and review it before you go.</p></details>
+        <details><summary>Can I share ETA by WhatsApp?</summary><p>Yes. Basic includes WhatsApp ETA sharing and unable-to-visit notices.</p></details>
+        <details><summary>Are driver GPS tracking and proof of delivery ready?</summary><p>Not yet. They are Coming Soon and are not part of the ready public plan promise.</p></details>
+        <details><summary>Do I need to install anything?</summary><p>No. GoRouteX runs in your browser on desktop or mobile.</p></details>
+      </div>
+    </section>
+    <section class="closing-section shell"><div><h2>Make your next<br>run a better one.</h2><p>Your first route starts with a single stop.</p></div><a class="button-primary" href="login.html?mode=signup&amp;next=app.html">Start Free <span aria-hidden="true">↗</span></a></section>
+  </main>
+  <footer class="site-footer shell"><div><strong>GoRouteX</strong><p>Simple route planning for the work ahead.</p></div><div class="footer-links"><a href="login.html">Login</a><a href="login.html?mode=signup&amp;next=app.html">Start Free</a></div></footer>
+</body>
+</html>

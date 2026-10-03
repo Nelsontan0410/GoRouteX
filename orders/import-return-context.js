@@ -1,0 +1,10 @@
+const DB='goroutex-order-hub-drafts',STORE='drafts',CONTEXT='goroutex-order-hub-return';
+function open(){return new Promise((resolve,reject)=>{const request=indexedDB.open(DB,1);request.onupgradeneeded=()=>request.result.createObjectStore(STORE,{keyPath:'key'});request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});}
+async function transact(mode,fn){const db=await open();try{return await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);const request=fn(store);let result;request.onsuccess=()=>{result=request.result;};request.onerror=()=>reject(request.error);tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('Import draft transaction was aborted.'));});}finally{db.close();}}
+export async function saveDraft(uid,draft){const id=draft.sessionId||crypto.randomUUID();await transact('readwrite',store=>store.put({...draft,sessionId:id,key:`${uid}:${id}`}));return id;}
+export async function loadDraft(uid,id){return transact('readonly',store=>store.get(`${uid}:${id}`));}
+export async function deleteDraft(uid,id){await transact('readwrite',store=>store.delete(`${uid}:${id}`));}
+export function beginReturn(context){sessionStorage.setItem(CONTEXT,JSON.stringify({...context,createdAt:Date.now()}));}
+export function readReturn(uid){try{const value=JSON.parse(sessionStorage.getItem(CONTEXT)||'null');return value?.uid===uid&&Date.now()-value.createdAt<86400000?value:null;}catch{return null;}}
+export function completeReturn(uid,assignment){const context=readReturn(uid);if(!context)return false;sessionStorage.setItem(`${CONTEXT}:assignment`,JSON.stringify({...context,...assignment}));sessionStorage.removeItem(CONTEXT);return true;}
+export function takeAssignment(uid){try{const key=`${CONTEXT}:assignment`,value=JSON.parse(sessionStorage.getItem(key)||'null');if(value?.uid!==uid)return null;sessionStorage.removeItem(key);return value;}catch{return null;}}

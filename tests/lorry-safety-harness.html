@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="../"><title>Lorry validation test harness</title><link rel="stylesheet" href="lorry-safety.css"><script src="lorry-restrictions.js"></script><script src="restriction-routing.js"></script><script src="route-safety.js"></script></head>
+<body style="max-width:900px;margin:24px auto;font-family:system-ui"><h1>Code selection integration test</h1><p>Synthetic route crossing the vicinity of official sign 125153. No Google routing request or navigation is made.</p>
+<style>
+/* Reproduce the app's broad input rule to catch checkbox width regressions. */
+#page-select-stops input { width:100%;padding:10px;margin-bottom:10px;border-radius:8px;background:#2d3748;color:white; }
+.route-settings-container { border:1px solid #8ba99f;border-radius:8px;padding:12px; }
+</style>
+<div id="page-select-stops"><div class="select-page-route-settings"><div class="route-settings-container"><strong>Route Settings</strong><div class="route-settings-body"></div></div></div></div><div id="page-optimized-routes"></div>
+<button id="fixture">Load synthetic route</button><button id="handoff">Test handoff gate</button><button id="mutate">Change route geometry</button><p id="test-result" role="status"></p>
+<script>
+window.AppState = { plannedRoutes: [] };
+window.FirebaseApp = { auth: { getCurrentUser: () => ({ uid: '__lorry_test_only__' }) } };
+document.getElementById('fixture').onclick = async () => {
+ window.AppState.plannedRoutes = [{ id: 1, label: 'Synthetic test route', optimizedStops: ['test-origin', 'test-destination'], directionsResult: { routes: [{ legs: [{ start_location: {lat:1.322554,lng:103.8385}, end_location: {lat:1.322554,lng:103.8395}, steps: [{ path: [{lat:1.322554,lng:103.8385},{lat:1.322554,lng:103.8395}] }] }] }] } }];
+ await RouteSafety.validateRoutes();
+};
+document.getElementById('handoff').onclick = () => { document.getElementById('test-result').textContent = RouteSafety.gate(AppState.plannedRoutes[0]) ? 'Handoff permitted' : 'Handoff prevented'; };
+document.getElementById('mutate').onclick = () => { if(AppState.plannedRoutes[0]) AppState.plannedRoutes[0].optimizedStops.push('changed-stop'); RouteSafety.render(); };
+</script></body></html>

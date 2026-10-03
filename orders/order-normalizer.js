@@ -1,0 +1,12 @@
+import { FIELDS } from './order-schema.js';
+const empty=new Set(['','-','n/a','na','nil','null','none']);
+export function clean(value){if(value===null||value===undefined)return null;const text=String(value).trim().replace(/\s+/g,' ');return empty.has(text.toLowerCase())?null:text;}
+function validDate(y,m,d){const date=new Date(Date.UTC(y,m-1,d));return date.getUTCFullYear()===y&&date.getUTCMonth()===m-1&&date.getUTCDate()===d?date.toISOString().slice(0,10):null;}
+export function normalizeDate(value){if(value===null||value===undefined||value==='')return null;if(typeof value==='number'&&Number.isFinite(value)){const date=new Date(Date.UTC(1899,11,30)+Math.round(value)*86400000);return Number.isNaN(date.getTime())?null:date.toISOString().slice(0,10);}const text=clean(value);if(!text)return null;let m=text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);if(m)return validDate(+m[1],+m[2],+m[3]);m=text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);return m?validDate(+m[3],+m[2],+m[1]):null;}
+export function normalizeOrder(raw,context={}){const issues=[],order={};for(const [key,value] of Object.entries(raw))if(FIELDS.some(([field])=>field===key))order[key]=clean(value);
+ if(order.phone)order.phone=order.phone.replace(/[\s().-]/g,'');
+ for(const key of ['quantity','weight','volume','serviceTimeMinutes','latitude','longitude']){if(order[key]==null)continue;const value=Number(String(order[key]).replace(/,/g,''));if(!Number.isFinite(value)||(key!=='latitude'&&key!=='longitude'&&value<0)||(key==='latitude'&&Math.abs(value)>90)||(key==='longitude'&&Math.abs(value)>180)){issues.push(`${key} is not a valid number.`);order[key]=null;}else order[key]=value;}
+ if(order.deliveryDate){const date=normalizeDate(raw.deliveryDate);if(!date)issues.push('Delivery date is invalid. Use YYYY-MM-DD or DD/MM/YYYY.');order.deliveryDate=date;}
+ if(!order.address)order.address=[order.addressLine1,order.addressLine2,order.postcode,order.city,order.state,order.country].filter(Boolean).join(', ')||null;
+ order.rawAddress=clean(raw.address);order.rawInput=Object.fromEntries(FIELDS.filter(([key])=>Object.hasOwn(raw,key)).map(([key])=>[key,raw[key]]));
+ order.orderId ||= `GRX-${crypto.randomUUID().slice(0,8).toUpperCase()}`;order.internalId=context.internalId||crypto.randomUUID();order.source=context.source||'MANUAL';order.importBatchId=context.importBatchId||null;order.locationStatus=order.latitude!=null&&order.longitude!=null?'COORDINATES_PROVIDED':'UNRESOLVED';return {order,issues};}

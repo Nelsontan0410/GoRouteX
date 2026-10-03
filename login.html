@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoRouteX - Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #f6f7f9;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: #6b7280;
+      margin: 1.5rem 0;
+    }
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid #d1d5db;
+    }
+    .divider span {
+      padding: 0 1rem;
+      font-size: 0.875rem;
+    }
+    .google-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      background: white;
+      border: 1px solid #d1d5db;
+      padding: 0.625rem 1rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .google-btn:hover {
+      background-color: #f9fafb;
+    }
+    .google-btn img {
+      width: 20px;
+      height: 20px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      background: #e5e7eb;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .tab-btn.active {
+      background: #2563eb;
+      color: white;
+    }
+    .tab-btn:first-child {
+      border-radius: 0.375rem 0 0 0.375rem;
+    }
+    .tab-btn:last-child {
+      border-radius: 0 0.375rem 0.375rem 0;
+    }
+    .loading-spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #2563eb;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    [hidden] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      .loading-spinner {
+        animation: none;
+      }
+    }
+
+    @media (max-width: 767px) {
+      body {
+        display: block !important;
+        min-height: var(--app-mobile-vh, 100dvh) !important;
+        padding: 12px !important;
+      }
+
+      .auth-card {
+        margin-top: max(8px, env(safe-area-inset-top, 0));
+        margin-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+      }
+    }
+  </style>
+  <script>
+    (function setMobileViewportHeight() {
+      function updateViewportVar() {
+        document.documentElement.style.setProperty('--app-mobile-vh', window.innerHeight + 'px');
+      }
+      updateViewportVar();
+      window.addEventListener('resize', updateViewportVar, { passive: true });
+      window.addEventListener('orientationchange', updateViewportVar, { passive: true });
+    })();
+  </script>
+  <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
+  <link rel="stylesheet" href="styles/typography.css">
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="auth-card bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">GoRouteX</h1>
+      <p class="text-gray-600">Route planning for Singapore and Malaysia SMEs</p>
+    </div>
+
+    <!-- Tab Buttons -->
+    <div class="flex mb-6">
+      <button class="tab-btn active" id="loginTab" onclick="showTab('login')">Login</button>
+      <button class="tab-btn" id="signupTab" onclick="showTab('signup')">Sign Up</button>
+      <button class="tab-btn" id="driverTab" onclick="showTab('driver')">Driver Login</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+        <input type="email" id="loginEmail" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+      </div>
+
+      <div>
+        <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+        <input type="password" id="loginPassword" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        <div class="mt-2 text-right">
+          <button type="button" id="forgotPasswordBtn" class="text-sm text-blue-600 hover:text-blue-800 underline">Forgot password?</button>
+        </div>
+      </div>
+
+      <button type="submit" id="loginBtn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+        Login
+      </button>
+    </form>
+
+    <form id="driverLoginForm" class="space-y-4 hidden" autocomplete="on">
+      <p class="text-sm text-gray-600">Sign in to your assigned routes with the username and Driver PIN from your dispatcher.</p>
+      <div><label for="driverUsername" class="block text-sm font-medium text-gray-700 mb-2">Driver Username</label><input id="driverUsername" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></div>
+      <div><label for="driverPin" class="block text-sm font-medium text-gray-700 mb-2">8-digit Driver PIN</label><input id="driverPin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" pattern="[0-9]{8}" minlength="8" maxlength="8" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></div>
+      <button id="driverLoginBtn" type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md">Sign In</button>
+      <p class="text-sm text-gray-500">Need help? Contact your dispatcher.</p>
+    </form>
+
+    <!-- Sign Up Form (Hidden by default) -->
+    <form id="signupForm" class="space-y-4 hidden">
+      <div>
+        <label for="signupName" class="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+        <input type="text" id="signupName" name="displayName" autocomplete="name" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+      </div>
+
+      <div>
+        <label for="signupEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+        <input type="email" id="signupEmail" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+      </div>
+
+      <div>
+        <label for="signupPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+        <input type="password" id="signupPassword" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" minlength="6" required>
+        <p class="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+      </div>
+
+      <div>
+        <label for="signupConfirmPassword" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+        <input type="password" id="signupConfirmPassword" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+      </div>
+
+      <button type="submit" id="signupBtn" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+        Create Account
+      </button>
+    </form>
+
+    <div id="ownerAuthOptions">
+    <!-- Divider -->
+    <div class="divider"><span>or</span></div>
+
+    <!-- Google Sign In -->
+    <button id="googleSignInBtn" class="google-btn w-full">
+      <svg width="20" height="20" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      <span class="text-gray-700 font-medium">Continue with Google</span>
+    </button>
+
+    </div>
+    <!-- Error/Success Message -->
+    <div id="messageBox" class="hidden mt-4 p-3 rounded"></div>
+
+    <div class="mt-6 text-center text-sm text-gray-500">
+      <p>Cloud-synced across all devices</p>
+      <div class="mt-4">
+        <a href="index.html" class="text-blue-600 hover:text-blue-800 underline">Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let firebaseAuthInstance;
+    let authApi = null;
+    try {
+      const initOk = window.FirebaseApp && typeof window.FirebaseApp.init === 'function' && window.FirebaseApp.init();
+      if (initOk && firebase?.apps?.length) {
+        firebaseAuthInstance = firebase.auth();
+        authApi = window.FirebaseApp.auth;
+      }
+    } catch (error) {
+      console.error('Firebase initialization error:', error);
+    }
+
+    // Workspace sessions must restore in direct links and new tabs. Driver PIN
+    // sessions retain tab-scoped persistence in Safari.
+    const isSafariBrowser = /Safari/.test(navigator.userAgent)
+      && !/(Chrome|Chromium|CriOS|FxiOS|EdgiOS|Android)/.test(navigator.userAgent);
+    function setLoginPersistence(isDriver = false) {
+      if (!isSafariBrowser || !firebaseAuthInstance) return Promise.resolve();
+      return firebaseAuthInstance.setPersistence(isDriver
+        ? firebase.auth.Auth.Persistence.SESSION
+        : firebase.auth.Auth.Persistence.LOCAL);
+    }
+    let loginAttemptInProgress = false;
+    const googleRedirectKey = 'grxGoogleRedirectPending';
+    let redirectCompletion = Promise.resolve();
+    let redirectError = null;
+    try {
+      if (sessionStorage.getItem(googleRedirectKey) === '1' && firebaseAuthInstance) {
+        redirectCompletion = firebaseAuthInstance.getRedirectResult().then(async result => {
+          if (result?.user && result.additionalUserInfo?.isNewUser) {
+            const provisioned = await authApi.ensureInitialProfileForNewAccount(result.user, result.user.displayName);
+            if (!provisioned.success) throw Error(provisioned.error || 'Account profile could not be created.');
+          }
+        }).catch(error => { redirectError = error; showMessage(getAuthErrorMessage(error)); })
+          .finally(() => sessionStorage.removeItem(googleRedirectKey));
+      }
+    } catch (error) {
+      redirectError = error;
+    }
+
+    function withDeadline(promise, milliseconds, message) {
+      let timer;
+      return Promise.race([
+        Promise.resolve(promise),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), milliseconds); })
+      ]).finally(() => clearTimeout(timer));
+    }
+
+    async function finishLogin(user) {
+      handleLoginSuccess(user);
+    }
+
+    function getLoginTarget() {
+      const params = new URLSearchParams(window.location.search);
+      const requestedTarget = params.get('next');
+      if (authApi && typeof authApi.sanitizeNextTarget === 'function') {
+        return authApi.sanitizeNextTarget(requestedTarget);
+      }
+      return 'app.html';
+    }
+
+    // Tab switching
+    function showTab(tab) {
+      for (const name of ['login', 'signup', 'driver']) {
+        document.getElementById(name === 'driver' ? 'driverLoginForm' : name + 'Form').classList.toggle('hidden', name !== tab);
+        document.getElementById(name + 'Tab').classList.toggle('active', name === tab);
+      }
+      document.getElementById('ownerAuthOptions').hidden = tab === 'driver';
+      hideMessage();
+    }
+
+    (function applyInitialMode() {
+      const mode = new URLSearchParams(window.location.search).get('mode');
+      if (mode === 'signup') showTab('signup');
+      if (mode === 'driver') showTab('driver');
+    })();
+
+    // Show message
+    function showMessage(message, isError = true) {
+      const messageBox = document.getElementById('messageBox');
+      messageBox.textContent = message;
+      messageBox.className = isError
+        ? 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded'
+        : 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded';
+      messageBox.classList.remove('hidden');
+    }
+
+    function hideMessage() {
+      document.getElementById('messageBox').classList.add('hidden');
+    }
+
+    function getAuthErrorMessage(error) {
+      if (!error || !error.code) return error?.message || 'Authentication failed. Please try again.';
+      switch (error.code) {
+        case 'auth/popup-closed-by-user':
+          return 'Sign in cancelled.';
+        case 'auth/popup-blocked':
+          return 'Popup blocked by browser. Redirecting to Google sign-in...';
+        case 'auth/operation-not-supported-in-this-environment':
+          return 'Popup sign-in is not supported in this browser. Redirecting to Google sign-in...';
+        case 'auth/operation-not-allowed':
+          return 'Google sign-in is not enabled in Firebase Auth. Please enable Google provider in Firebase Console.';
+        case 'auth/unauthorized-domain':
+          return 'This domain is not authorized in Firebase Auth. Add it to Authorized domains.';
+        case 'auth/account-exists-with-different-credential':
+          return 'This email already exists with a different sign-in method.';
+        case 'auth/network-request-failed':
+          return 'Network error. Please check your connection and try again.';
+        default:
+          return error.message || 'Authentication failed. Please try again.';
+      }
+    }
+
+    function ensureAuthReady() {
+      if (!firebaseAuthInstance || !authApi) {
+        showMessage('Authentication service is unavailable. Please refresh and try again.');
+        return false;
+      }
+      return true;
+    }
+
+    // Set loading state
+    function setLoading(button, loading) {
+      if (loading) {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading-spinner"></span>Please wait...';
+      } else {
+        button.disabled = false;
+        if (button.id === 'loginBtn') {
+          button.textContent = 'Login';
+        } else if (button.id === 'driverLoginBtn') {
+          button.textContent = 'Sign In';
+        } else if (button.id === 'signupBtn') {
+          button.textContent = 'Create Account';
+        } else if (button.id === 'googleSignInBtn') {
+          button.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span class="text-gray-700 font-medium">Continue with Google</span>
+          `;
+        }
+      }
+    }
+
+    // Handle successful login
+    function handleLoginSuccess(user) {
+      if (authApi?.isDriverAccount?.(user)) {
+        window.location.href = 'driver.html';
+        return;
+      }
+      try {
+        localStorage.setItem('bjsLoggedIn', 'true');
+        localStorage.setItem('bjsUsername', user.displayName || user.email);
+        localStorage.setItem('bjsUserId', user.uid);
+        localStorage.setItem('bjsLoginTime', new Date().toISOString());
+      } catch (error) {
+        console.warn('Browser storage is unavailable; Firebase session will be used:', error);
+      }
+      window.location.href = authApi?.isDriverAccount?.(user)
+        ? 'driver.html'
+        : getLoginTarget();
+    }
+
+    document.getElementById('driverLoginForm').addEventListener('submit', async event => {
+      event.preventDefault(); hideMessage();
+      if (!ensureAuthReady()) return;
+      const button = document.getElementById('driverLoginBtn');
+      const username = document.getElementById('driverUsername').value.trim();
+      const pin = document.getElementById('driverPin').value;
+      if (!/^[0-9]{8}$/.test(pin)) return showMessage('Driver PIN must contain exactly 8 digits.');
+      loginAttemptInProgress = true; setLoading(button, true);
+      try {
+        await withDeadline(setLoginPersistence(true), 8000, 'Session storage is not responding. Please reload and try again.');
+        const response = await withDeadline(fetch('/.netlify/functions/driver-login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, pin })
+        }), 25000, 'Driver sign-in is taking too long. Please retry.');
+        const result = await response.json();
+        if (!response.ok || !result.success || !result.token) throw Error(result.error || 'Invalid username or PIN.');
+        const credential = await firebaseAuthInstance.signInWithCustomToken(result.token);
+        await finishLogin(credential.user);
+      } catch (error) { showMessage(error.message || 'Driver sign-in failed. Please retry.'); setLoading(button, false); }
+      finally { document.getElementById('driverPin').value = ''; loginAttemptInProgress = false; }
+    });
+
+    // Login form handler
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      hideMessage();
+      if (!ensureAuthReady()) return;
+
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const loginBtn = document.getElementById('loginBtn');
+
+      loginAttemptInProgress = true;
+      setLoading(loginBtn, true);
+
+      try {
+        await withDeadline(setLoginPersistence(false), 8000, 'Safari account storage is not responding. Please reload and try again.');
+        const userCredential = await withDeadline(
+          firebaseAuthInstance.signInWithEmailAndPassword(email, password),
+          20000,
+          'Sign-in is taking too long. Please check your connection and try again.'
+        );
+        await finishLogin(userCredential.user);
+      } catch (error) {
+        console.error('Login error:', error);
+        if (firebaseAuthInstance.currentUser?.email?.toLowerCase() === email.trim().toLowerCase()) {
+          await finishLogin(firebaseAuthInstance.currentUser);
+          return;
+        }
+        let errorMessage = error.message || 'Login failed. Please try again.';
+
+        switch (error.code) {
+          case 'auth/user-not-found':
+            errorMessage = 'No account found with this email.';
+            break;
+          case 'auth/wrong-password':
+            errorMessage = 'Incorrect password.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many failed attempts. Please try again later.';
+            break;
+        }
+
+        showMessage(errorMessage);
+        setLoading(loginBtn, false);
+      } finally {
+        loginAttemptInProgress = false;
+      }
+    });
+
+    // Signup form handler
+    document.getElementById('signupForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      hideMessage();
+      if (!ensureAuthReady()) return;
+
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const confirmPassword = document.getElementById('signupConfirmPassword').value;
+      const signupBtn = document.getElementById('signupBtn');
+
+      if (!name) {
+        showMessage('Enter your Display Name.');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showMessage('Passwords do not match.');
+        return;
+      }
+
+      if (password.length < 6) {
+        showMessage('Password must be at least 6 characters.');
+        return;
+      }
+
+      loginAttemptInProgress = true;
+      setLoading(signupBtn, true);
+
+      try {
+        await withDeadline(setLoginPersistence(false), 8000, 'Safari account storage is not responding. Please reload and try again.');
+        const userCredential = await firebaseAuthInstance.createUserWithEmailAndPassword(email, password);
+
+        // Update display name
+        await userCredential.user.updateProfile({
+          displayName: name
+        });
+        const provisioned = await authApi.ensureInitialProfileForNewAccount(userCredential.user, name);
+        if (!provisioned.success) throw Error(provisioned.error || 'Account profile could not be created.');
+
+        handleLoginSuccess(userCredential.user);
+      } catch (error) {
+        console.error('Signup error:', error);
+        let errorMessage = 'Sign up failed. Please try again.';
+
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = 'An account with this email already exists.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'Password is too weak. Use at least 6 characters.';
+            break;
+        }
+
+        showMessage(errorMessage);
+        setLoading(signupBtn, false);
+      } finally {
+        loginAttemptInProgress = false;
+      }
+    });
+
+    // Google Sign In handler
+    document.getElementById('googleSignInBtn').addEventListener('click', async function() {
+      hideMessage();
+      if (!ensureAuthReady()) return;
+      const googleBtn = this;
+
+      loginAttemptInProgress = true;
+      setLoading(googleBtn, true);
+
+      try {
+        await withDeadline(setLoginPersistence(false), 8000, 'Safari account storage is not responding. Please reload and try again.');
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const userCredential = await withDeadline(
+          firebaseAuthInstance.signInWithPopup(provider),
+          30000,
+          'Google sign-in is taking too long. Please retry.'
+        );
+        if (userCredential.additionalUserInfo?.isNewUser) {
+          const provisioned = await authApi.ensureInitialProfileForNewAccount(userCredential.user, userCredential.user.displayName);
+          if (!provisioned.success) throw Error(provisioned.error || 'Account profile could not be created.');
+        }
+        await finishLogin(userCredential.user);
+      } catch (error) {
+        console.error('Google sign in error:', error);
+        const errorMessage = getAuthErrorMessage(error);
+        const shouldUseRedirect = error.code === 'auth/popup-blocked' || error.code === 'auth/operation-not-supported-in-this-environment';
+
+        if (shouldUseRedirect) {
+          showMessage(errorMessage, false);
+          try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            try { sessionStorage.setItem(googleRedirectKey, '1'); } catch {}
+            await firebaseAuthInstance.signInWithRedirect(provider);
+            return;
+          } catch (redirectError) {
+            console.error('Google redirect sign in error:', redirectError);
+            showMessage(getAuthErrorMessage(redirectError));
+            setLoading(googleBtn, false);
+            return;
+          }
+        }
+
+        showMessage(errorMessage);
+        setLoading(googleBtn, false);
+      } finally {
+        loginAttemptInProgress = false;
+      }
+    });
+
+    // Forgot password handler
+    document.getElementById('forgotPasswordBtn').addEventListener('click', async function() {
+      hideMessage();
+      if (!ensureAuthReady()) return;
+      const email = (document.getElementById('loginEmail').value || '').trim();
+      if (!email) {
+        showMessage('Enter your email first, then click Forgot password.');
+        return;
+      }
+
+      this.disabled = true;
+      this.textContent = 'Sending...';
+      try {
+        await firebaseAuthInstance.sendPasswordResetEmail(email);
+        showMessage('Password reset link sent. Please check your email inbox.', false);
+      } catch (error) {
+        console.error('Forgot password error:', error);
+        let errorMessage = 'Unable to send reset email. Please try again.';
+        if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email address.';
+        if (error.code === 'auth/user-not-found') errorMessage = 'No account found with this email.';
+        if (error.code === 'auth/too-many-requests') errorMessage = 'Too many attempts. Please try again later.';
+        showMessage(errorMessage);
+      } finally {
+        this.disabled = false;
+        this.textContent = 'Forgot password?';
+      }
+    });
+
+    // Check if already logged in
+    if (firebaseAuthInstance && authApi) {
+      firebaseAuthInstance.onAuthStateChanged(async function(user) {
+        if (!user || loginAttemptInProgress) return;
+        try {
+          await redirectCompletion;
+          if (redirectError) throw redirectError;
+          if (!loginAttemptInProgress) await finishLogin(user);
+        } catch (error) {
+          console.error('Session restoration error:', error);
+          showMessage(error.message || 'Could not restore your session. Please sign in again.');
+        }
+      });
+    } else {
+      showMessage('Unable to connect to Firebase Auth. Check your configuration and network.');
+    }
+  </script>
+</body>
+</html>

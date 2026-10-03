@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Settings | GoRouteX</title><link rel="icon" href="marketing-favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/typography.css"><link rel="stylesheet" href="settings/settings.css"><link rel="stylesheet" href="styles/workspace-layout.css">
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script defer src="firebase-config.js"></script>
+  <script defer src="route-planner-product.js"></script>
+  <script defer src="account-context.js"></script>
+  <script defer type="module" src="settings/settings-page.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#settingsMain">Skip to settings</a>
+<div class="settings-shell">
+  <aside class="settings-sidebar" aria-label="Settings navigation">
+    <a class="settings-brand" href="app.html">GoRoute<span>X</span></a>
+    <a class="settings-back" href="app.html">← Route workspace</a>
+    <nav id="settingsNav" aria-label="Settings sections">
+      <button type="button" data-section="company" aria-current="page">Company &amp; Resources</button>
+      <button type="button" data-section="drivers">Drivers</button>
+      <button type="button" data-section="vehicles">Vehicles</button>
+      <button type="button" data-section="orders">Orders &amp; Delivery</button>
+      <button type="button" data-section="driverApp">Driver App</button>
+    </nav>
+    <p class="settings-sidebar-note">Company defaults apply to this workspace. Driver overrides and route choices can be more specific.</p>
+  </aside>
+  <main id="settingsMain" class="settings-main">
+    <header class="settings-header"><div><h1>Settings</h1><p>Define how your company plans routes and delivers orders.</p></div><span id="settingsAccount" class="settings-account">Loading account…</span></header>
+    <div id="settingsNotice" class="settings-notice" role="status" aria-live="polite">Checking your account…</div>
+    <form id="settingsForm" novalidate hidden>
+      <section id="section-company" class="settings-section" aria-labelledby="companyHeading">
+        <div class="section-heading"><h2 id="companyHeading">Company &amp; Resources</h2><p>Live totals come from active Driver accounts and Vehicle records.</p></div>
+        <div class="resource-grid">
+          <article><span>Active Drivers</span><strong id="activeDriverCount">—</strong><small id="driverCountNote">Loading Driver records…</small><button type="button" data-go="drivers">Manage Drivers</button></article>
+          <article><span>Active Vehicles</span><strong id="activeVehicleCount">—</strong><small id="vehicleCountNote">Loading Vehicle records…</small><button type="button" data-go="vehicles">Manage Vehicles</button></article>
+        </div>
+        <div class="settings-info"><strong>One source for each record</strong><p>Create Driver accounts here. Vehicles are maintained here as individual records. These totals are never entered manually.</p></div>
+      </section>
+      <section id="section-drivers" class="settings-section" aria-labelledby="driversHeading" hidden>
+        <div class="section-heading"><h2 id="driversHeading">Drivers</h2><p>Create Driver accounts and set company workload defaults. Each Driver can use an individual override.</p></div>
+        <div class="subsection-heading"><h3>Driver accounts</h3><p id="driverEntitlement">Loading active Driver allowance…</p><a id="driverUpgradeLink" class="text-link" href="app.html#page-account-access" hidden>Upgrade Plan →</a></div>
+        <div id="driverAccountList" class="vehicle-list"><p class="empty-state">Loading Driver accounts…</p></div>
+        <div class="subsection-heading"><h3 id="driverFormHeading">Add Driver</h3><p>Username is permanent. Share the Driver PIN privately; it cannot be shown again.</p></div>
+        <div id="driverAccountForm" class="vehicle-form">
+          <input id="driverAccountId" type="hidden">
+          <div class="field-grid">
+            <label>Driver Name<input id="driverAccountName" maxlength="80" autocomplete="off" placeholder="Ahmad Bin Ali"></label>
+            <label>Username<input id="driverAccountUsername" maxlength="20" autocapitalize="none" spellcheck="false" autocomplete="off" placeholder="ahmad01"><small>3–20 lowercase letters, numbers, underscores or periods.</small></label>
+            <label>8-digit Driver PIN<input id="driverAccountPin" type="password" inputmode="numeric" minlength="8" maxlength="8" autocomplete="new-password" placeholder="8 digits"></label>
+            <label>Confirm Driver PIN<input id="driverAccountPinConfirm" type="password" inputmode="numeric" minlength="8" maxlength="8" autocomplete="new-password" placeholder="Repeat PIN"></label>
+            <label class="policy-row"><span>Active</span><input id="driverAccountActive" type="checkbox" checked></label>
+          </div>
+          <div class="vehicle-actions"><button id="driverAccountSave" type="button" class="primary">Create Driver</button><button id="driverAccountResetPin" type="button" class="secondary" hidden>Reset PIN</button><button id="driverAccountCancel" type="button" class="secondary" hidden>Cancel</button></div>
+          <p id="driverAccountStatus" role="status" aria-live="polite"></p>
+        </div>
+        <div class="subsection-heading"><h3>Company defaults</h3><p>These apply unless a Driver has an individual override below.</p></div>
+        <div class="field-grid">
+          <label>Maximum Stops per Driver<input id="maxStops" type="number" min="1" max="200" step="1" required><small>Planning limit; working time and travel still matter.</small></label>
+          <label>Working Start<input id="workingStart" type="time" required></label>
+          <label>Working End<input id="workingEnd" type="time" required></label>
+          <label>Default Break <span class="unit">minutes</span><input id="breakMinutes" type="number" min="0" max="240" step="1" required></label>
+        </div>
+        <div class="subsection-heading"><h3>Individual overrides</h3><p>Leave a field blank to use the company default. Active Driver accounts are shown.</p></div>
+        <div id="driverOverrides" class="override-list"><p class="empty-state">Loading Drivers…</p></div>
+        <a class="text-link" href="dispatch.html">Open Dispatch →</a>
+      </section>
+      <section id="section-vehicles" class="settings-section" aria-labelledby="vehiclesHeading" hidden>
+        <div class="section-heading"><h2 id="vehiclesHeading">Vehicles</h2><p>Manage vehicle records, load capacity and the planning defaults used with them.</p></div>
+        <div id="vehicleList" class="vehicle-list"><p class="empty-state">Loading Vehicles…</p></div>
+        <div class="subsection-heading"><h3 id="vehicleFormHeading">Add Vehicle</h3><p>A registration keeps each Vehicle distinct.</p></div>
+        <div id="vehicleForm" class="vehicle-form">
+          <input id="vehicleId" type="hidden">
+          <div class="field-grid">
+            <label>Vehicle name<input id="vehicleName" maxlength="80" placeholder="Van 1" required></label>
+            <label>Registration / ID<input id="vehicleRegistration" maxlength="50" placeholder="ABC 1234" required></label>
+            <label>Vehicle type<input id="vehicleType" maxlength="60" placeholder="Van, lorry, truck"></label>
+            <label id="vehicleCapacityWrap">Capacity <span id="vehicleCapacityUnit" class="unit"></span><input id="vehicleCapacity" type="number" min="0.001" step="any" placeholder="Optional"><small>Use the capacity mode selected below.</small></label>
+          </div>
+          <label class="check-row"><input id="vehicleActive" type="checkbox" checked> Active Vehicle</label>
+          <div class="button-row"><button id="vehicleSave" type="button" class="primary">Save Vehicle</button><button id="vehicleCancel" type="button" class="secondary" hidden>Cancel edit</button><span id="vehicleStatus" role="status"></span></div>
+        </div>
+        <div class="subsection-heading"><h3>Capacity and load unit</h3><p>Choose one load unit shared by Orders and Vehicles.</p></div>
+        <label class="capacity-select">Capacity mode for Orders and Vehicles<select id="capacityMode"><option value="off">Off</option><option value="weight">Weight · kg</option><option value="pallet">Pallet</option><option value="carton">Carton / Unit</option></select></label>
+        <div class="settings-info"><strong id="capacitySummary">Capacity checks are off</strong><p id="capacityDescription">Routes can be planned without load data. No Order demand or Vehicle capacity is guessed.</p></div>
+        <p class="settings-footnote">When enabled, Order demand and Vehicle capacity must use the same unit. Missing values remain unknown; changing the mode does not rewrite existing Vehicle records.</p>
+        <div class="subsection-heading"><h3>Vehicle planning defaults</h3><p>These company defaults guide route workloads. Each route can still choose its own details.</p></div>
+        <div class="field-grid">
+          <label>Service Time per Stop <span class="unit">minutes</span><input id="serviceMinutes" type="number" min="1" max="240" step="1" required><small>Used by the existing route schedule calculation when no stop-specific time is set.</small></label>
+          <label>Maximum Route Duration <span class="unit">minutes</span><input id="maxDurationMinutes" type="number" min="30" max="1440" step="1" required><small>A planning policy for future route checks.</small></label>
+          <label>Default Number of Routes<input id="numberOfRoutes" type="number" min="1" max="50" step="1" required><small>A starting value, never a fixed route count.</small></label>
+          <label>Default Planning Time<input id="planningTime" type="time" required><small>Order delivery time and your current plan take priority.</small></label>
+          <label class="wide">Default Start Address<input id="defaultStart" maxlength="240" placeholder="Warehouse or depot address"><small>Used only when this browser has no valid last-used Start Location.</small></label>
+          <label class="wide">Default End Address<input id="defaultEnd" maxlength="240" placeholder="Leave blank to return to Start"><small>Used only when this browser has no valid last-used End Location.</small></label>
+        </div>
+      </section>
+      <section id="section-orders" class="settings-section" aria-labelledby="ordersHeading" hidden>
+        <div class="section-heading"><h2 id="ordersHeading">Orders &amp; Delivery</h2><p>Control when an Order is ready to enter Route Planning.</p></div>
+        <label class="policy-row"><span><strong>Contact Required</strong><small>When on, an Order needs a Customer, Delivery Stop, and Contact. Order Hub already uses this rule.</small></span><input id="contactRequired" type="checkbox" role="switch"></label>
+      </section>
+      <section id="section-driverApp" class="settings-section" aria-labelledby="driverAppHeading" hidden>
+        <div class="section-heading"><h2 id="driverAppHeading">Driver App</h2><p>Store the company policy for live tracking and Proof of Delivery.</p></div>
+        <label class="policy-row"><span><strong>Live Tracking</strong><small>Keep location sharing available while a route is in progress.</small></span><input id="liveTracking" type="checkbox" role="switch"></label>
+        <div class="subsection-heading"><h3>Proof of Delivery</h3><p>Choose which evidence your company expects at delivery.</p></div>
+        <label class="policy-row"><span><strong>Recipient Name</strong><small>Ask the Driver to record who received the goods.</small></span><input id="recipientRequired" type="checkbox" role="switch"></label>
+        <label class="policy-row"><span><strong>Photo</strong><small>Require a delivery photo.</small></span><input id="photoRequired" type="checkbox" role="switch"></label>
+        <label class="policy-row"><span><strong>Signature</strong><small>Policy can be saved; signature capture is not yet available in the Driver Page.</small></span><input id="signatureRequired" type="checkbox" role="switch"></label>
+      </section>
+      <div class="save-bar"><span id="saveStatus" role="status">No changes</span><button id="retryLoad" class="secondary" type="button" hidden>Retry loading</button><button id="saveSettings" class="primary" type="submit" disabled>Save Changes</button></div>
+    </form>
+  </main>
+</div>
+</body>
+</html>

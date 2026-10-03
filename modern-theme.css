@@ -1,0 +1,412 @@
+/* finesse · register=product · A=cool-slate+route-semantic · B=system-sans · C=operations-shell
+ * D=feedback-only · E=route-operations · SOUL=4 SPECTACLE=2 DENSITY=7 */
+/* Modern SaaS theme overrides (visual only). */
+
+:root {
+  --saas-primary: #2456c4;
+  --saas-primary-hover: #1d47a5;
+  --saas-bg: #f6f7f9;
+  --saas-card: #fcfdfe;
+  --saas-border: #dce3ec;
+  --saas-text: #192b40;
+  --saas-text-muted: #536479;
+  --saas-shadow: 0 1px 3px rgba(25, 43, 64, 0.06);
+  --saas-confirm: #b64d0b;
+  --saas-confirm-hover: #913d09;
+  --saas-radius: 12px;
+}
+
+html,
+body {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  color: var(--saas-text) !important;
+  background: var(--saas-bg) !important;
+}
+
+.page,
+#page-history-dashboard,
+#page-history-browser,
+#page-select-stops,
+#page-manual-assign,
+#page-optimized-routes,
+#page-maps-preview,
+#page-fullscreen-map,
+#page-gps-tracking,
+#page-add-stop {
+  color: var(--saas-text) !important;
+  background: var(--saas-bg) !important;
+}
+
+/* Surfaces */
+.dashboard-stats,
+.history-container,
+.history-item,
+.route-info-section,
+.route-list-wrapper,
+.gps-section,
+.form-section,
+.demo-section,
+#selectedListDisplay,
+#customerList,
+.individual-route-list,
+#unassignedStopsList,
+.status-message,
+.location-display,
+.stop-item,
+.add-stop-status,
+#kpiReportContent,
+.user-info-bar,
+.dashboard-header,
+.history-browser-header,
+#topBarPage2,
+#messageBar,
+.maps-preview-header,
+.fullscreen-header,
+.gps-tracking-header,
+.add-stop-header,
+.route-info-bar,
+.map-instructions {
+  background: var(--saas-card) !important;
+  color: var(--saas-text) !important;
+  border: 1px solid var(--saas-border) !important;
+  border-radius: var(--saas-radius) !important;
+  box-shadow: var(--saas-shadow) !important;
+}
+
+/* Dashboard specifics */
+#page-history-dashboard {
+  padding: 24px !important;
+  gap: 16px;
+}
+
+.dashboard-stats {
+  padding: 20px !important;
+}
+
+.stats-grid {
+  gap: 14px !important;
+}
+
+.stat-item {
+  background: #eef2f7 !important;
+  border: 1px solid var(--saas-border) !important;
+  border-radius: var(--saas-radius) !important;
+}
+
+.stat-number {
+  color: var(--saas-primary) !important;
+  font-weight: 700 !important;
+}
+
+.stat-label,
+.history-item-date,
+.history-item-details,
+.history-detail,
+.customer-item-desc small,
+.form-description,
+.status-message,
+.location-display,
+.stop-address,
+.performance-label,
+.route-info-bar span,
+#syncStatusDisplay {
+  color: var(--saas-text-muted) !important;
+}
+
+.history-item-title,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--saas-text) !important;
+}
+
+.history-item {
+  border: 1px solid var(--saas-border) !important;
+}
+
+.history-item:hover {
+  border-color: #c7d9ff !important;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.12) !important;
+}
+
+.history-item.selected {
+  border-color: var(--saas-primary) !important;
+  background: #f3f8ff !important;
+}
+
+/* Inputs */
+input,
+select,
+textarea,
+.form-group input,
+.form-group textarea,
+#page-select-stops input {
+  background: var(--saas-card) !important;
+  color: var(--saas-text) !important;
+  border: 1px solid var(--saas-border) !important;
+  border-radius: 10px !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: var(--saas-primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16) !important;
+}
+
+/* Buttons */
+button,
+.modern-action-btn,
+.route-share-btn,
+.gps-action-btn,
+.gps-nav-btn,
+.add-stop-nav-btn,
+.back-to-routes-btn,
+.exit-fullscreen-btn,
+.fullscreen-btn,
+.search-address-btn,
+#routeSwitcherContainer button,
+.share-btn,
+.google-btn,
+.submit-btn {
+  border-radius: 10px !important;
+  border: 1px solid transparent !important;
+  font-weight: 600 !important;
+}
+
+.action-button-primary,
+.action-button-success,
+.submit-btn,
+#createNewRouteBtn,
+#addNewStopDashBtn,
+#goToManualAssignBtn,
+#proceedToOptimizeBtn,
+#startGPSTrackingBtn {
+  background: var(--saas-primary) !important;
+  color: #ffffff !important;
+}
+
+#confirmRouteBtnPage3 {
+  background: var(--saas-confirm) !important;
+  color: #ffffff !important;
+}
+
+#confirmRouteBtnPage3:hover:not(:disabled) {
+  background: var(--saas-confirm-hover) !important;
+}
+
+.action-button-primary:hover:not(:disabled),
+.action-button-success:hover:not(:disabled),
+.submit-btn:hover:not(:disabled),
+#createNewRouteBtn:hover:not(:disabled),
+#addNewStopDashBtn:hover:not(:disabled),
+#goToManualAssignBtn:hover:not(:disabled),
+#proceedToOptimizeBtn:hover:not(:disabled),
+#startGPSTrackingBtn:hover:not(:disabled) {
+  background: var(--saas-primary-hover) !important;
+}
+
+.action-button-secondary,
+#topLogoutBtn,
+#manualSyncBtn,
+#browseFullHistoryBtn,
+#clearHistoryBtn,
+#clearHistoryFromBrowserBtn,
+#backFromHistoryBrowserBtn,
+#backToDashboardBtn,
+#backToSelectStopsBtnPg2 {
+  background: var(--saas-card) !important;
+  color: var(--saas-primary) !important;
+  border-color: #bfdbfe !important;
+}
+
+.action-button-secondary:hover:not(:disabled),
+#topLogoutBtn:hover:not(:disabled),
+#manualSyncBtn:hover:not(:disabled),
+#browseFullHistoryBtn:hover:not(:disabled),
+#clearHistoryBtn:hover:not(:disabled),
+#clearHistoryFromBrowserBtn:hover:not(:disabled),
+#backFromHistoryBrowserBtn:hover:not(:disabled),
+#backToDashboardBtn:hover:not(:disabled),
+#backToSelectStopsBtnPg2:hover:not(:disabled) {
+  background: #e8efff !important;
+  color: var(--saas-primary-hover) !important;
+  border-color: #93c5fd !important;
+}
+
+/* Keep Add Stop header button labels visible when header theme changes. */
+.add-stop-nav-btn {
+  color: inherit !important;
+}
+
+button:disabled,
+.modern-action-btn:disabled,
+.route-share-btn:disabled,
+.gps-action-btn:disabled,
+.gps-nav-btn:disabled,
+.add-stop-nav-btn:disabled {
+  background: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Keep utility action buttons clean and non-colorful */
+.whatsapp-notice-btn,
+.feedback-request-btn,
+.stop-call-btn,
+.stop-voice-btn,
+.delivery-not-attempted-btn,
+#clearSelectedStopsBtn,
+.delete-route-btn,
+.finish-btn,
+.pause-btn,
+.start-btn,
+.stop-btn {
+  background: var(--saas-card) !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.customer-item-label,
+.route-slot,
+.optimized-stop-item,
+.view-toggle-indicator,
+.view-toggle-hint,
+.stop-status,
+.tab-btn,
+.tab-btn.active {
+  background: var(--saas-card) !important;
+  color: var(--saas-text) !important;
+  border-color: var(--saas-border) !important;
+}
+
+.customer-item-label.selected-item,
+#routeSwitcherContainer button.active-route-btn {
+  background: #e8efff !important;
+  border-color: #93c5fd !important;
+  color: var(--saas-primary) !important;
+}
+
+.customer-item-box,
+.slot-number,
+.route-icon {
+  border-color: #93c5fd !important;
+  color: var(--saas-primary) !important;
+}
+
+/* Login page alignment */
+.auth-card {
+  background: var(--saas-card) !important;
+  color: var(--saas-text) !important;
+  border: 1px solid var(--saas-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 45px rgba(25, 43, 64, 0.1) !important;
+}
+
+.auth-card input {
+  min-height: 44px;
+  border-color: var(--saas-border) !important;
+  border-radius: 10px !important;
+  background: #f8fafc !important;
+  color: var(--saas-text) !important;
+}
+
+.auth-card input:focus {
+  border-color: var(--saas-primary) !important;
+  box-shadow: 0 0 0 3px rgba(36, 86, 196, 0.16) !important;
+}
+
+.auth-card .divider::before,
+.auth-card .divider::after {
+  border-color: var(--saas-border);
+}
+
+.auth-card .google-btn {
+  min-height: 44px;
+  border-color: var(--saas-border);
+  border-radius: 10px;
+  background: var(--saas-card);
+}
+
+.auth-card .google-btn:hover {
+  background: #f4f7fb;
+}
+
+#loginBtn,
+#signupBtn,
+#googleSignInBtn,
+#loginTab,
+#signupTab {
+  border-radius: 10px !important;
+}
+
+#loginBtn,
+#signupBtn {
+  background: var(--saas-primary) !important;
+  color: #ffffff !important;
+}
+
+#loginBtn:hover,
+#signupBtn:hover {
+  background: var(--saas-primary-hover) !important;
+}
+
+a,
+a:visited {
+  color: var(--saas-primary) !important;
+}
+
+a:hover {
+  color: var(--saas-primary-hover) !important;
+}
+
+/* Mobile shell and tabs */
+.mobile-tab-bar {
+  background: rgba(248, 250, 252, 0.96) !important;
+  border-top: 1px solid var(--saas-border) !important;
+  box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.08) !important;
+}
+
+.mobile-tab-btn {
+  background: transparent !important;
+  color: #64748b !important;
+  border-color: transparent !important;
+}
+
+.mobile-tab-btn.is-active {
+  background: #eff6ff !important;
+  color: var(--saas-primary) !important;
+  border-color: #bfdbfe !important;
+}
+
+/* Compact mobile spacing */
+@media (max-width: 768px) {
+  #page-history-dashboard {
+    padding: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

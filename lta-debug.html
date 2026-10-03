@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>LTA restriction data · Development review</title>
+  <link rel="stylesheet" href="lta-debug.css">
+  <script type="module" src="lta-debug.js"></script>
+</head>
+<body>
+  <main>
+    <a href="app.html">← Route planner</a>
+    <p class="eyebrow">DEVELOPMENT · DATA PROOF OF CONCEPT</p>
+    <h1>LTA commercial vehicle signs</h1>
+    <p>Inspect official sign locations and source limits before route validation trials.</p>
+    <div class="notice">These points are not validated restricted road segments. Supplementary plates require a parent sign. LTA specifies bearings along traffic flow; road and parent-sign associations still require review.</div>
+    <p id="status" role="status">Loading compact LTA data…</p>
+    <div class="controls">
+      <label>Sign type <select id="code" disabled><option value="4002">4002 · Exceeding 2500kg unladen weight</option></select></label>
+      <label>LTA sign ID <input id="search" type="search" placeholder="Filter by sign ID"></label>
+      <button id="load-map" disabled>Load Google map</button>
+    </div>
+    <p id="count"></p>
+    <div class="layout"><section id="map" aria-label="Restriction sign map"><p>Load the map to inspect locations using the app’s existing Google Maps configuration.</p></section>
+    <aside id="detail" aria-live="polite"><h2>Inspect a sign</h2><p>Select a row or map marker to review its source values.</p></aside></div>
+    <div class="table-wrap"><table><caption>Filtered sign records (first 200 shown; map shows up to 500)</caption><thead><tr><th>Sign ID</th><th>Type</th><th>Limit / condition</th><th>Coordinates</th><th>Review</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <p id="metadata"></p>
+    <p><a href="https://data.gov.sg/datasets/d_bbf0132c7290d6838f82003972d933d5/view" target="_blank" rel="noopener">Source: LTA Traffic Sign · data.gov.sg</a></p>
+    <footer>Route assistance only. Drivers must follow actual road signs and traffic regulations.</footer>
+  </main>
+</body>
+</html>

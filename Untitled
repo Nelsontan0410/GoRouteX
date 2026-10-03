@@ -1,0 +1,1 @@
+firebase deploy --only firestore:rules --project YOUR_FIREBASE_PROJECT_ID

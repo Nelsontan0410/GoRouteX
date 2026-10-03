@@ -1,0 +1,140 @@
+/* Shared operational shell and fluid desktop layout. */
+:root {
+  --grx-blue: #2456c4;
+  --grx-ink: #192b40;
+  --grx-muted: #536479;
+  --grx-border: #dce3ec;
+  --grx-surface: #fff;
+  --grx-canvas: #f5f7fa;
+  --grx-content-max: 1760px;
+}
+html { overflow-x: clip; }
+body { min-width: 0; }
+/* The large route and operations screens should use the available workspace. */
+@media (min-width: 981px) {
+  .operations-content { width: 100%; min-width: 0; }
+  #page-history-dashboard .dashboard-landing-shell { width: min(100%, var(--grx-content-max)); max-width: none; margin-inline: auto; }
+  #page-history-browser { width: 100%; max-width: var(--grx-content-max); margin-inline: auto; padding-inline: clamp(24px, 3vw, 56px); }
+  #page-add-stop .add-stop-form-panel { width: clamp(360px, 30%, 520px); min-width: 0; flex: 0 0 clamp(360px, 30%, 520px); }
+  #page-add-stop .add-stop-map-panel { flex: 1 1 auto; min-width: 0; }
+}
+#page-add-stop .add-stop-header,
+#page-history-browser .history-browser-header {
+  background: var(--grx-surface) !important;
+  color: var(--grx-ink) !important;
+  border-color: var(--grx-border) !important;
+  box-shadow: none !important;
+}
+#page-add-stop .add-stop-title { color: var(--grx-ink); }
+#page-add-stop .add-stop-nav-btn { background: #edf2fa; color: var(--grx-blue); }
+#page-add-stop .add-stop-nav-btn:hover { background: #e1eafd; }
+#orderContactsSection[hidden] { display: none !important; }
+#orderContactsSection { margin-top: 22px; }
+/* Settings uses the same white navigation rail and blue selected state as the route workspace. */
+.settings-shell { grid-template-columns: 204px minmax(0, 1fr); background: var(--grx-canvas); }
+.settings-sidebar { background: var(--grx-surface); color: var(--grx-ink); border-right: 1px solid var(--grx-border); padding: 24px 16px; gap: 24px; }
+.settings-brand { color: var(--grx-ink); font-size: 1.75rem; font-weight: 800; letter-spacing: -.05em; padding-inline: 12px; }
+.settings-brand span { color: var(--grx-blue); }
+.settings-back { color: var(--grx-muted); padding-inline: 12px; }
+.settings-sidebar nav button { color: var(--grx-ink); border: 1px solid transparent; border-radius: 8px; min-height: 42px; font-weight: 700; }
+.settings-sidebar nav button:hover { background: #edf2fa; color: var(--grx-ink); }
+.settings-sidebar nav button[aria-current=page] { background: #e8efff; border-color: #a8bdea; color: var(--grx-blue); }
+.settings-sidebar-note { color: var(--grx-muted); border-top: 1px solid var(--grx-border); padding-top: 16px; }
+.settings-main { width: min(100%, var(--grx-content-max)); max-width: none; margin: 0 auto; padding-inline: clamp(20px, 3vw, 56px); }
+.settings-header { min-height: 70px; align-items: center; padding-block: 0 20px; }
+.settings-header h1 { color: var(--grx-ink); }
+.settings-info { max-width: 850px; }
+/* Order Hub's table may grow; forms keep a readable measure. */
+.topbar { padding-inline: clamp(20px, 3vw, 56px); gap: clamp(18px, 3vw, 50px); }
+.shell { width: 100%; max-width: var(--grx-content-max); padding-inline: clamp(20px, 3vw, 56px); }
+.dispatch-board { width: 100%; max-width: var(--grx-content-max); padding-inline: clamp(20px, 3vw, 56px); }
+@media (max-width: 980px) {
+  .settings-shell { grid-template-columns: minmax(0, 1fr); }
+  .settings-sidebar { border-right: 0; border-bottom: 1px solid var(--grx-border); }
+  .settings-main { width: 100%; }
+}
+@media (max-width: 760px) {
+  .topbar { height: auto; min-height: 70px; flex-wrap: wrap; gap: 8px 18px; padding-block: 12px; }
+  .topbar nav { flex-wrap: wrap; gap: 10px 16px; }
+  .topbar nav .active { height: auto; min-height: 32px; }
+  .shell { padding-top: 24px; }
+  .settings-header { align-items: flex-start; }
+}
+@media (max-width: 520px) {
+  .settings-sidebar { padding: 16px; }
+  .settings-main { padding-inline: 16px; }
+  .topbar { padding-inline: 16px; }
+  .shell { padding-inline: 16px; }
+}
+
+/* The planner and Saved Stops use the Dashboard's open title/divider treatment. */
+#page-select-stops .workspace-intro-header,
+#page-add-stop .workspace-intro-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  min-height: 0;
+  padding: 0 0 26px;
+  color: var(--grx-ink) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--grx-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+#page-select-stops .workspace-intro-header { margin: 12px 0 24px; }
+#page-add-stop .workspace-intro-header { margin: 40px clamp(24px, 3vw, 56px) 24px; flex: 0 0 auto; }
+#page-select-stops .workspace-intro-header h2,
+#page-add-stop .workspace-intro-header .add-stop-title {
+  margin: 0 !important;
+  color: var(--grx-ink) !important;
+  font-size: clamp(2rem, 3vw, 2.65rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: -.035em;
+  line-height: 1.1;
+  text-align: left !important;
+}
+#page-select-stops .workspace-intro-header h2 { margin-left: clamp(8px, 1vw, 18px) !important; }
+#page-select-stops .workspace-intro-actions,
+#page-add-stop .workspace-intro-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: auto;
+  flex: 0 0 auto;
+}
+#page-select-stops .workspace-intro-actions button,
+#page-add-stop .workspace-intro-actions button {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 46px;
+  margin: 0 !important;
+  padding: 10px 18px !important;
+  border: 1px solid #cbd7ea !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: var(--grx-blue) !important;
+  box-shadow: none !important;
+  font-size: 1rem !important;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+#page-select-stops .workspace-intro-actions button:hover,
+#page-add-stop .workspace-intro-actions button:hover { background: #edf2ff !important; }
+@media (max-width: 900px) {
+  #page-select-stops .workspace-intro-header,
+  #page-add-stop .workspace-intro-header { align-items: flex-start; flex-wrap: wrap; padding-bottom: 18px; }
+  #page-select-stops .workspace-intro-header { margin-top: 8px; }
+  #page-add-stop .workspace-intro-header { margin: 24px 16px 18px; }
+  #page-select-stops .workspace-intro-header h2 { margin-left: 8px !important; }
+}
+@media (max-width: 560px) {
+  #page-select-stops .workspace-intro-actions,
+  #page-add-stop .workspace-intro-actions { width: 100%; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #page-select-stops .workspace-intro-actions button,
+  #page-add-stop .workspace-intro-actions button { width: 100% !important; }
+}

@@ -1,0 +1,27 @@
+{
+  "production_source_changes": [],
+  "baseline_files": 75,
+  "preview_viewports": [
+    [
+      390,
+      844
+    ],
+    [
+      1440,
+      900
+    ]
+  ],
+  "mobile_document_width": 390,
+  "desktop_document_width": 1440,
+  "checked": [
+    "Dashboard and planner screenshots",
+    "restriction Edit/Done toggle",
+    "production hashes unchanged"
+  ],
+  "not_checked": [
+    "real route calculation",
+    "payment",
+    "physical touch",
+    "full WCAG/performance audit"
+  ]
+}

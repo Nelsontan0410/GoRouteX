@@ -1,0 +1,56 @@
+.dispatch-board { max-width: 1220px; width: 100%; margin: 0 auto; padding: 28px 24px 60px; color: #183047; font-family: Inter, sans-serif; }
+.dispatch-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+.dispatch-heading h1 { margin: 5px 0 4px; font-size: clamp(2rem, 4vw, 2.9rem); letter-spacing: -.045em; line-height: 1.08; }
+.dispatch-heading p { margin: 0; color: #607389; }
+.dispatch-eyebrow { color: #0a7177; font-size: .72rem; font-weight: 800; letter-spacing: .14em; }
+.dispatch-plan-summary { margin: 22px 0; padding: 14px 18px; border: 1px solid #dce8ed; border-radius: 12px; background: #f3f8fa; font-weight: 650; }
+.dispatch-toolbar { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.dispatch-toolbar form { min-width: min(100%, 360px); }
+.dispatch-toolbar label { display: block; font-size: .82rem; font-weight: 750; margin-bottom: 7px; }
+.dispatch-toolbar form div { display: flex; flex-wrap: wrap; gap: 8px; }
+.dispatch-toolbar input { flex: 1; min-width: 170px; min-height: 42px; padding: 9px 12px; border: 1px solid #ccd9e2; border-radius: 9px; background: #fff; }
+.dispatch-toolbar button, .dispatch-actions button, .dispatch-actions a { width: auto; min-height: 42px; padding: 9px 15px; border-radius: 9px; text-decoration: none; font: inherit; font-weight: 700; }
+.dispatch-notice { padding: 12px 15px; margin-bottom: 18px; border-radius: 10px; background: #e9f4f3; color: #075a5e; }
+.dispatch-notice.is-error { background: #fff0ed; color: #a53023; }
+.dispatch-routes { display: grid; gap: 18px; }
+.dispatch-route-card { background: #fff; border: 1px solid #dce5eb; border-radius: 16px; padding: 22px; box-shadow: 0 12px 28px rgba(25, 57, 72, .045); }
+.dispatch-route-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dispatch-route-head h3 { margin: 0; font-size: 1.4rem; }
+.dispatch-status { display: inline-flex; padding: 5px 10px; border-radius: 50px; background: #e6f5ef; color: #19744e; font-size: .72rem; font-weight: 800; letter-spacing: .045em; }
+.dispatch-route-metrics { margin: 9px 0 12px; color: #0c6770; font-weight: 750; }
+.dispatch-route-meta { margin: 5px 0; color: #566a7e; font-size: .88rem; }
+.dispatch-assignment { margin-top: 18px; }
+.dispatch-assignment label { display: grid; gap: 7px; width: min(100%, 360px); font-size: .82rem; font-weight: 750; }
+.dispatch-assignment select { min-height: 43px; padding: 9px 12px; border: 1px solid #cbd8e0; border-radius: 9px; background: #fff; color: #183047; }
+.dispatch-actions { display: flex; gap: 9px; flex-wrap: wrap; margin: 17px 0; }
+.dispatch-progress { margin: 12px 0 4px; color: #0a6268; font-weight: 650; }
+.dispatch-stop-list { list-style: none; margin: 22px 0 0; padding: 0; border-top: 1px solid #e7eef1; }
+.dispatch-stop { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) auto; gap: 4px 14px; align-items: start; padding: 13px 0; border-bottom: 1px solid #edf1f3; }
+.dispatch-stop strong { font-size: .9rem; }
+.dispatch-stop span, .dispatch-stop small { color: #566b7d; overflow-wrap: anywhere; }
+.dispatch-stop small { grid-column: 1 / 3; }
+.dispatch-stop b { color: #0a6268; text-align: right; font-size: .84rem; white-space: nowrap; }
+.dispatch-empty { padding: 36px 20px; text-align: center; color: #607389; background: #fff; border: 1px dashed #cbd8e0; border-radius: 14px; }
+@media (max-width: 680px) { .dispatch-board { padding: 20px 15px 45px; } .dispatch-route-card { padding: 17px; } .dispatch-stop { grid-template-columns: 1fr auto; } .dispatch-stop span, .dispatch-stop small { grid-column: 1 / 3; } .dispatch-stop b { grid-column: 2; grid-row: 1; } }
+
+/* Standalone Dispatch uses the shared workspace navigation visual language. */
+body { margin: 0; }
+.dispatch-shell *, .dispatch-shell *::before, .dispatch-shell *::after { box-sizing: border-box; }
+.dispatch-shell { display: grid; grid-template-columns: 204px minmax(0, 1fr); min-height: 100vh; background: #f5f7fa; }
+.dispatch-shell .operations-sidebar { display: flex; }
+.dispatch-shell .operations-nav a, .dispatch-shell .operations-sidebar-account a, .dispatch-shell .operations-sidebar-account button { display: block; width: 100%; min-height: 42px; padding: 9px 12px; color: #192b40; border: 1px solid transparent; border-radius: 8px; background: transparent; font: inherit; font-weight: 700; text-decoration: none; text-align: left; cursor: pointer; }
+.dispatch-shell .operations-nav a:hover, .dispatch-shell .operations-sidebar-account a:hover { background: #edf2fa; }
+.dispatch-shell .operations-nav a[aria-current="page"] { color: #2456c4; border-color: #a8bdea; background: #e8efff; }
+.dispatch-main { min-width: 0; }
+.dispatch-page-state { max-width: 1220px; margin: 24px auto 0; padding: 15px 24px; color: #4b6074; }
+.dispatch-page-state.is-error { color: #a53023; }
+.dispatch-page-state a { color: #2456c4; font-weight: 700; }
+.dispatch-route-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.dispatch-route-tab { min-height: 40px; padding: 8px 15px; border: 1px solid #cbd8e0; border-radius: 8px; background: #fff; color: #192b40; font: inherit; font-weight: 700; cursor: pointer; }
+.dispatch-route-tab[aria-selected="true"] { color: #2456c4; background: #e8efff; border-color: #a8bdea; }
+.dispatch-route-card[hidden] { display: none; }
+.dispatch-board .action-button-primary { color: #fff; background: #2456c4; border: 1px solid #2456c4; border-radius: 9px; cursor: pointer; }
+.dispatch-board .action-button-secondary { color: #2456c4; background: #fff; border: 1px solid #b8c9e8; border-radius: 9px; cursor: pointer; text-decoration: none; }
+.dispatch-board button:disabled { opacity: .5; cursor: not-allowed; }
+.dispatch-mobile-nav { display: none; }
+@media (max-width: 980px) { .dispatch-shell { display: block; } .dispatch-shell .operations-sidebar { display: none; } .dispatch-mobile-nav { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 13px 16px; background: #fff; border-bottom: 1px solid #dce3ec; } .dispatch-mobile-nav a { color: #2456c4; font-weight: 700; text-decoration: none; } }

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Manual restriction status UI harness</title>
+  <link rel="stylesheet" href="../lorry-safety.css">
+  <style>
+    body{margin:0;background:#eef2f7;color:#183334;font:14px Arial,sans-serif}
+    #page-manual-assign{max-width:1100px;margin:auto;padding:12px}
+    #messageBar{padding:10px 14px;border-radius:6px;background:#e6eefb}
+    .map-content-area{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;margin:8px 14px}
+    .mock-map,.mock-routes{min-height:360px;border-radius:8px;background:#dce6e2;display:grid;place-items:center;font-weight:700}
+    .mock-routes{background:#fff}
+    @media(max-width:768px){#page-manual-assign{padding:4px}.map-content-area{grid-template-columns:1fr;margin:8px}.mock-map{min-height:240px}.mock-routes{min-height:160px}}
+  </style>
+</head>
+<body>
+  <main id="page-manual-assign">
+    <div id="messageBar">Routes generated. Review route groups, adjust stay time, then click Confirm Route.</div>
+    <section id="manualRestrictionStatus" class="lorry-safety-panel manual-lorry-status" data-state="PENDING" aria-live="polite">
+      <div class="manual-lorry-status-heading"><strong>Restriction check</strong><span>Needs review</span></div>
+      <p>A restriction remains or the route could not be checked completely. You may save it, but navigation and sharing stay blocked.</p>
+      <div>
+        <details open>
+          <summary>Route Group 1: BLOCKED · 1 conflict points · 31.4 km · 47 min</summary>
+          <p>4002 · LTA 120054: The route approaches this selected restriction in the recorded travel direction.</p>
+          <p>No alternative passed the selected-code checks within the request limit. Manual route review required.</p>
+        </details>
+      </div>
+    </section>
+    <div class="map-content-area"><div class="mock-map">Map and route line</div><div class="mock-routes">Route groups</div></div>
+  </main>
+</body>
+</html>

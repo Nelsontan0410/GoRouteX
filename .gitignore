@@ -1,0 +1,22 @@
+node_modules/
+.netlify/
+dist/
+
+# Local secrets and machine-specific data
+.env
+.env.*
+!.env.example
+.firebase/
+*.pem
+*.key
+*.p12
+firebase-adminsdk*.json
+*service-account*.json
+*service_account*.json
+
+# OS metadata
+.DS_Store
+
+# Local assistant logs and per-machine editor settings
+.claude/settings.local.json
+.finesse/log.json

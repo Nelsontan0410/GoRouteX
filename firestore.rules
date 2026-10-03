@@ -1,0 +1,214 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function assignedRoutePath(routeId) {
+      return /databases/$(database)/documents/dispatchRoutes/$(routeId);
+    }
+
+    function isManagedDriver(uid) {
+      return exists(profilePath(uid)) && get(profilePath(uid)).data.role == 'driver';
+    }
+
+    function isWorkspaceOwner(uid) {
+      return isOwner(uid) && !isManagedDriver(uid);
+    }
+
+    function isDriverSession(uid) {
+      return isOwner(uid) && isManagedDriver(uid)
+        && get(profilePath(uid)).data.active != false
+        && request.auth.token.role == 'driver'
+        && request.auth.token.driverId == uid
+        && request.auth.token.tenantId == get(profilePath(uid)).data.tenantId
+        && request.auth.token.sessionVersion == get(profilePath(uid)).data.sessionVersion;
+    }
+
+    function isAssignedRoute(uid, routeId) {
+      return exists(assignedRoutePath(routeId))
+        && get(assignedRoutePath(routeId)).data.assignedDriverUid == uid;
+    }
+
+    function protectedIdentityFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'tenantId', 'driverId', 'authMethod', 'active', 'sessionVersion']);
+    }
+
+    function protectedPlanFields() {
+      return [
+        'productPlanKey',
+        'productPlan',
+        'planStatus',
+        'planName',
+        'planKey',
+        'billingStatus',
+        'paymentStatus',
+        'planStartedAt',
+        'planExpiresAt',
+        'trialEndsAt',
+        'paymentProvider',
+        'paymentReference',
+        'activatedAt',
+        'permanentPlan',
+        'permanentPlanLabel',
+        'pendingPlan',
+        'pendingPlanKey',
+        'paymentRequestedAt',
+        'paymentReturnStatus',
+        'paymentRequestedFrom',
+        'stripeCustomerId',
+        'stripeSubscriptionId',
+        'stripePriceId',
+        'stripeCheckoutSessionId',
+        'stripeCheckoutPendingAt',
+        'stripeCheckoutPendingSessionId',
+        'stripeTrialUsedAt',
+        'billingCurrency',
+        'billingInterval',
+        'billingPriceVersion',
+        'graceEndsAt',
+        'graceEndedAt',
+        'subscriptionCancelAt',
+        'subscriptionCancelRequestedAt',
+        'developerBillingExempt'
+      ];
+    }
+
+    function protectedPlanFieldsChanged() {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasAny(protectedPlanFields());
+    }
+
+    function validSafeUserCreate(data) {
+      return data.email is string
+        && (!('name' in data) || data.name is string)
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('trialEndsAt' in data) || data.trialEndsAt is timestamp)
+        && (!('lastLogin' in data) || data.lastLogin is timestamp)
+        && (!('teamMembersCount' in data) || data.teamMembersCount is number)
+        && (!('role' in data) || data.role is string)
+        && (!('planStatus' in data) || data.planStatus == 'trial')
+        && (!('planName' in data) || data.planName == 'trial')
+        && (!('planKey' in data) || data.planKey == 'trial')
+        && (!('productPlan' in data) || data.productPlan == 'basic')
+        && (!('productPlanKey' in data) || data.productPlanKey == 'basic')
+        && (!('billingStatus' in data) || data.billingStatus == 'basic')
+        && !('paymentStatus' in data)
+        && !('planStartedAt' in data)
+        && !('planExpiresAt' in data)
+        && !('paymentProvider' in data)
+        && !('paymentReference' in data)
+        && !('activatedAt' in data)
+        && !('permanentPlan' in data)
+        && !('permanentPlanLabel' in data)
+        && !('developerBillingExempt' in data)
+        && !('stripeCustomerId' in data)
+        && !('stripeSubscriptionId' in data)
+        && !('stripePriceId' in data)
+        && !('stripeCheckoutSessionId' in data)
+        && !('stripeCheckoutPendingAt' in data)
+        && !('stripeCheckoutPendingSessionId' in data)
+        && !('stripeTrialUsedAt' in data)
+        && !('billingCurrency' in data)
+        && !('billingInterval' in data)
+        && !('billingPriceVersion' in data)
+        && !('graceEndsAt' in data)
+        && !('graceEndedAt' in data)
+        && !('subscriptionCancelAt' in data)
+        && !('subscriptionCancelRequestedAt' in data);
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && !uid.matches('^drv_.*') && request.resource.data.role != 'driver' && validSafeUserCreate(request.resource.data);
+      allow update: if isOwner(uid) && resource.data.role != 'driver' && !protectedPlanFieldsChanged() && !protectedIdentityFieldsChanged();
+      allow update: if isAdmin();
+      allow delete: if false;
+
+      match /paymentRequests/{requestId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isAdmin();
+      }
+
+      match /billingEvents/{eventId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isAdmin();
+      }
+
+      match /cancellationRequests/{requestId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isAdmin();
+      }
+
+      match /history/{routeId} {
+        allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && resource.data.assignedDriverUid == uid);
+        allow write: if isWorkspaceOwner(uid);
+      }
+
+      match /driverExecutions/{routeId} {
+        allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, routeId));
+        allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, routeId));
+      }
+
+      match /driverPods/{podId} {
+        allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, resource.data.routeId));
+        allow create: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
+        allow update, delete: if isWorkspaceOwner(uid);
+      }
+
+      match /driverPodPhotos/{photoId} {
+        allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, resource.data.routeId));
+        allow create: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
+        allow update, delete: if isWorkspaceOwner(uid);
+      }
+
+      match /drivers_live/{driverUid} {
+        allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && driverUid == uid && isAssignedRoute(uid, resource.data.routeId));
+        allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && driverUid == uid && isAssignedRoute(uid, request.resource.data.routeId));
+      }
+
+      match /tracking_sessions/{sessionId} {
+        allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, resource.data.routeId));
+        allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
+        match /points/{pointId} {
+          allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, get(/databases/$(database)/documents/users/$(uid)/tracking_sessions/$(sessionId)).data.routeId));
+          allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
+        }
+      }
+
+      match /drivers/{driverId} {
+        allow read: if isWorkspaceOwner(uid);
+        allow write: if false;
+      }
+
+      match /driverUsage/{usageId} {
+        allow read: if isWorkspaceOwner(uid);
+        allow write: if false;
+      }
+
+      match /{subcollection}/{document=**} {
+        allow read, write: if isWorkspaceOwner(uid)
+          && !(subcollection in ['paymentRequests', 'billingEvents', 'cancellationRequests', 'drivers', 'driverUsage']);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

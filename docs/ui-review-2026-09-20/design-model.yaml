@@ -1,0 +1,44 @@
+product: GoRouteX
+register: product
+shell:
+  desktop: left-navigation
+  mobile: bottom-navigation
+  navigation:
+    - Dashboard
+    - Plan a route
+    - Saved stops
+    - Route history
+    - Account
+direction:
+  palette:
+    page: "#F6F7F9"
+    surface: "#FCFDFE"
+    primary: "#2456C4"
+    text: "#192B40"
+    secondary_text: "#536479"
+    confirm_route: "#B64D0B"
+  typography:
+    family: system-sans
+    body_px: [14, 16]
+    title_px: [24, 28]
+    label_px: [12, 13]
+  geometry:
+    control_radius_px: 8
+    panel_radius_px: 12
+    spacing_px: [4, 8, 12, 16, 24, 32]
+  motion: feedback-only
+constraints:
+  - no decorative photos
+  - no gradients
+  - no glass effects
+  - no oversized hero typography
+  - no invented charts or metrics
+protected_behavior:
+  - route ordering and optimisation
+  - Google requests and limits
+  - safety geometry and thresholds
+  - regional detection
+  - code activation and pin filtering
+  - detour persistence and waypoint ordering
+  - navigation segmentation and advisory sharing
+  - storage, authentication, roles, developer exemptions, and billing

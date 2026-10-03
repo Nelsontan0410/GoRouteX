@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoRouteX application CSS fixture</title>
+  <link rel="stylesheet" href="../../modern-theme.css">
+  <link rel="stylesheet" href="../../app-experience.css">
+  <link rel="stylesheet" href="../../mobile-fixes.css">
+  <link rel="stylesheet" href="../../mobile-shell.css">
+  <link rel="stylesheet" href="../../mobile-pages.css">
+</head>
+<body>
+  <div class="operations-shell">
+    <aside class="operations-sidebar" aria-label="Fixture navigation">
+      <div class="operations-brand">GoRoute<span>X</span></div>
+      <nav class="operations-nav"><button class="is-active" aria-current="page">Dashboard</button><button>Plan a route</button><button>Saved stops</button><button>Route history</button></nav>
+      <div class="operations-sidebar-account"><strong>Fixture account</strong><span>Synthetic records only</span><button>Account</button><button class="operations-logout">Logout</button></div>
+    </aside>
+    <main class="operations-content">
+      <div id="appRoot">
+        <section id="page-history-dashboard" class="page active-page">
+          <div class="dashboard-landing-shell">
+            <section class="dashboard-landing-card dashboard-actions-card"><div class="panel-heading"><div class="panel-heading-stack"><h3>Your route workspace</h3><p>Fixture using production application CSS only. No app, maps, authentication, storage, or network scripts are loaded.</p></div></div><div class="dashboard-primary-actions"><button class="action-button-primary">Start Route Plan</button><button class="action-button-secondary" disabled>Load Route</button></div></section>
+            <section class="dashboard-landing-card dashboard-history-card dashboard-stats">
+              <div class="dashboard-history-header"><div class="panel-heading-stack"><h3>Recent route plans</h3><p class="dashboard-stats-status">Synthetic fixture records</p></div><button class="action-button-secondary">Browse Full History</button></div>
+              <div class="stats-grid dashboard-snapshot-grid"><div class="stat-item"><div class="stat-number">20</div><div class="stat-label">Saved Plans</div></div><div class="stat-item"><div class="stat-number">1</div><div class="stat-label">Routes Today</div></div><div class="stat-item"><div class="stat-number">4</div><div class="stat-label">Stops Today</div></div><div class="stat-item"><div class="stat-number">13.7</div><div class="stat-label">Avg Stops/Route</div></div></div>
+              <div class="dashboard-history-table-head" aria-hidden="true"><span>Plan / driver</span><span>Delivery counts</span><span>Restriction notice</span><span>Action</span></div>
+              <div class="history-list"><article class="history-item compact selected"><div class="history-item-head history-row-cell"><div class="history-item-title-row"><div class="history-item-title">Morning deliveries</div><span class="history-status-pill history-status-needs-review">Needs review</span></div><div class="history-item-subtitle">20 Sep 2026 · Demo vehicle A</div><div class="history-item-badges"><span class="history-badge">Origin: Toh Guan Road East</span></div></div><div class="history-item-metrics history-row-cell"><div class="history-item-metric"><strong>4 Stops</strong><span>1 route segment planned</span><span>0 completed | 4 pending</span></div></div><div class="history-item-restriction history-row-cell"><span class="history-badge history-restriction-pending">Check restriction notes</span></div><div class="history-item-actions history-row-cell"><button class="action-button-secondary">Select</button><button class="delete-route-btn">Delete</button></div><details class="history-item-extra"><summary>Plan details</summary><div class="history-item-extra-grid"><span><strong>Start time</strong>08:30</span><span><strong>Final ETA</strong>Not saved</span></div></details></article></div>
+            </section>
+          </div>
+        </section>
+        <section id="page-manual-assign" class="page active-page" aria-label="Manual planner fixture">
+          <div id="topBarPage2"><div id="topBarButtonsPage2"><button>Retrieve stops</button><button>Back</button><button>Undo</button><button id="proceedToOptimizeBtn" class="action-button-primary">Confirm Route</button></div></div>
+          <div id="messageBar">Synthetic fixture only. Existing application actions are not mounted.</div>
+          <div class="manual-route-tools-row"><section id="manualLtaOptions" class="lorry-safety-panel is-collapsed"><button class="lorry-options-summary">Singapore restrictions · 1 code selected · Edit</button></section><section id="manualDetourToolbar" class="map-detour-toolbar is-collapsed"><button class="map-detour-toolbar-toggle">Manual detours · 1 point · Edit</button></section></div>
+          <div class="map-content-area"><div id="map" role="img" aria-label="Empty fixture map container"></div><div id="stop-assignment-lists-container"><div id="routesSection"><section id="routeASection"><h3>Route group 1</h3><div class="individual-route-list"><div class="optimized-stop-item">Pandan delivery</div><div class="optimized-stop-item">Navigation point, not a delivery stop</div></div></section><section id="routeBSection"><h3>Route group 2</h3><div class="individual-route-list">No assigned stops</div></section></div></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <p>This fixture deliberately excludes all application and third-party scripts. Its records, map container, and controls are synthetic and validate only production CSS geometry.</p>
+</body>
+</html>

@@ -1,0 +1,1174 @@
+/* Mobile-friendly improvements for BJS Delivery App */
+/* MOBILE ONLY - Does not affect desktop layout */
+/* Legacy compatibility/touch layer. Final mobile page geometry lives in mobile-pages.css. */
+
+/* ===== GLOBAL MOBILE SMOOTH SCROLLING ===== */
+
+@media (max-width: 767px) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overscroll-behavior-y: contain;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape */
+    -webkit-overflow-scrolling: touch;
+    background-color: #d9dee7 !important;
+  }
+
+  /* Allow natural full-page scroll on mobile; nested lists stay scrollable */
+  .page {
+    min-height: var(--app-mobile-vh, 100dvh) !important;
+    height: auto !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .page.active-page {
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh) !important;
+    overflow-y: visible !important;
+    padding-bottom: env(safe-area-inset-bottom, 0) !important;
+    scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0)) !important;
+  }
+
+  .page:not(.active-page) {
+    overflow: hidden !important;
+    max-height: 0 !important;
+  }
+
+  .history-list,
+  .stops-list,
+  #customerList,
+  #selectedListDisplay,
+  .individual-route-list,
+  #unassignedStopsList,
+  .page3-top-container,
+  .gps-left-panel,
+  .add-stop-form-panel,
+  #stopsList,
+  #routesSection {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Thin touch-friendly scrollbars */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 150, 0.4);
+    border-radius: 4px;
+  }
+
+  /* Prevent text selection on interactive elements */
+  button, .customer-item-label, .draggable-item, .route-slot,
+  .history-item, .stop-item, .modern-action-btn {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Disable hover effects on touch devices */
+  @media (hover: none) {
+    .customer-item-label:hover {
+      background: #222b38 !important;
+      border-color: transparent !important;
+    }
+    .customer-item-label.selected-item:hover {
+      background-color: #1d4ed8 !important;
+      border-color: #60a5fa !important;
+    }
+    .history-item:hover {
+      transform: none !important;
+    }
+  }
+}
+
+
+/* ===== PAGE 0: HISTORY DASHBOARD - MOBILE ===== */
+
+@media (max-width: 767px) {
+  #page-history-dashboard {
+    width: calc(100% - 24px) !important;
+    max-width: 560px !important;
+    margin: 12px auto !important;
+    border-radius: 14px !important;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18) !important;
+    padding: 12px !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0)) !important;
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh);
+    overflow-y: visible !important;
+  }
+
+  #page-history-dashboard h2 {
+    font-size: 1.3rem !important;
+    margin-bottom: 15px !important;
+  }
+
+  /* User info bar */
+  .user-info-bar {
+    padding: 6px 10px !important;
+    font-size: 0.8rem !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Stats grid - 2x2 compact */
+  .dashboard-stats {
+    padding: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  .dashboard-stats h4 {
+    font-size: 0.95rem !important;
+    margin-bottom: 8px !important;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .stat-item {
+    padding: 8px !important;
+  }
+  .stat-number {
+    font-size: 1.2rem !important;
+  }
+  .stat-label {
+    font-size: 0.7rem !important;
+  }
+
+  /* History container */
+  .history-container {
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+    min-height: 0 !important;
+  }
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+  .dashboard-header h4 {
+    font-size: 1rem !important;
+    text-align: center;
+  }
+  /* Header buttons row */
+  .dashboard-header button {
+    font-size: 0.78rem !important;
+    padding: 8px 10px !important;
+  }
+
+  /* History items */
+  .history-item {
+    padding: 12px !important;
+  }
+  .history-item-title {
+    font-size: 0.95rem !important;
+  }
+  .history-item-details {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  /* Delete route button - always visible on mobile */
+  .delete-route-btn {
+    opacity: 1 !important;
+    padding: 6px 10px !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* ACTION BUTTONS - THE KEY FIX FOR OVERLAPPING */
+  #page-history-dashboard .action-buttons {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 0 !important;
+    position: static !important;
+    bottom: auto !important;
+    z-index: auto !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    background: transparent !important;
+  }
+  #page-history-dashboard .action-buttons button {
+    padding: 14px 12px !important;
+    font-size: 0.9rem !important;
+    min-height: 48px !important;
+    width: 100% !important;
+    white-space: normal !important;
+  }
+}
+
+
+/* ===== PAGE 1: STOP SELECTION - MOBILE ===== */
+
+@media (max-width: 767px) {
+  #page-select-stops {
+    padding: 12px !important;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0)) !important; /* Space for fixed bottom button */
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh);
+  }
+
+  #page-select-stops h2 {
+    font-size: 1.2rem !important;
+    margin-bottom: 8px !important;
+    margin-top: 0 !important;
+  }
+
+  /* Side-by-side stacks to column */
+  .stop-selector-container {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  .stop-selector-left,
+  .stop-selector-right {
+    flex: none !important;
+  }
+
+  /* Back button */
+  #backToDashboardBtn {
+    padding: 10px 16px !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Search input - prevent iOS zoom */
+  #page-select-stops input[type="text"] {
+    padding: 12px 14px !important;
+    font-size: 16px !important;
+    border-radius: 10px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Customer list */
+  #customerList {
+    max-height: 40vh !important;
+    min-height: 150px !important;
+    padding: 8px !important;
+    border-radius: 10px !important;
+    margin-bottom: 0 !important;
+    flex: none !important;
+  }
+
+  /* Customer items - large touch targets */
+  .customer-item-label {
+    padding: 14px 12px !important;
+    margin-bottom: 8px !important;
+    border-radius: 10px !important;
+    min-height: 56px !important;
+    align-items: flex-start !important;
+    flex-wrap: nowrap !important;
+    gap: 12px !important;
+    touch-action: manipulation;
+  }
+  .customer-item-label:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+
+  /* Checkbox - bigger */
+  .customer-item-box {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    border-width: 2px !important;
+    border-radius: 6px !important;
+    font-size: 1.1rem !important;
+    line-height: 24px !important;
+    margin-right: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Customer description */
+  .customer-item-desc {
+    font-size: 0.9rem !important;
+    white-space: normal !important;
+    line-height: 1.4 !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  .customer-item-desc strong {
+    display: block !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 2px !important;
+    color: #e2e8f0 !important;
+  }
+  .customer-item-desc small {
+    display: block !important;
+    font-size: 0.8rem !important;
+    color: #94a3b8 !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* Selected stops header */
+  #page-select-stops p {
+    font-size: 0.9rem !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Clear button */
+  #clearSelectedStopsBtn {
+    padding: 8px 14px !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+    min-height: 36px !important;
+  }
+
+  /* Selected list display */
+  #selectedListDisplay {
+    max-height: 25vh !important;
+    min-height: 60px !important;
+    padding: 10px !important;
+    border-radius: 10px !important;
+    margin-bottom: 16px !important;
+    font-size: 0.85rem !important;
+    flex: none !important;
+  }
+  #selectedListDisplay div {
+    padding: 6px 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  #selectedListDisplay div:last-child {
+    border-bottom: none !important;
+  }
+
+  /* Proceed button - fixed bottom */
+  #goToManualAssignBtn {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    padding: 16px !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    z-index: 60 !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important;
+  }
+
+  /* Search label */
+  #page-select-stops label[for="searchCustomerInput"] {
+    font-size: 0.85rem !important;
+    margin-bottom: 6px !important;
+    color: #cbd5e1 !important;
+  }
+}
+
+
+/* ===== PAGE 2: MANUAL ROUTE ASSIGNMENT - MOBILE ===== */
+
+@media (max-width: 767px) {
+  #page-manual-assign {
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh);
+    overflow-y: auto !important;
+  }
+
+  /* Top bar - stack vertically */
+  #topBarPage2 {
+    padding: 8px 10px !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+    background: #dbeafe !important;
+  }
+
+  #currentOriginDisplay {
+    max-width: 100% !important;
+    text-align: center !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* TOP BAR BUTTONS - FIX OVERLAPPING */
+  #topBarButtonsPage2 {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    justify-content: stretch !important;
+  }
+  #topBarButtonsPage2 button {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 10px 8px !important;
+    font-size: 0.78rem !important;
+    line-height: 1.25 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    min-height: 44px !important;
+  }
+
+  /* Message bar */
+  #messageBar {
+    font-size: 0.8rem !important;
+    padding: 6px 10px !important;
+    min-height: auto !important;
+  }
+
+  /* Map + stops layout - column on mobile */
+  .map-content-area {
+    flex-direction: column !important;
+  }
+  #map {
+    width: 100% !important;
+    height: 24vh !important;
+    min-height: 130px !important;
+  }
+
+  /* STOP ASSIGNMENT AREA - KEY REDESIGN */
+  #stop-assignment-lists-container {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 66vh !important;
+    border-left: none !important;
+    border-top: 2px solid #3b82f6;
+    padding: 8px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    gap: 8px !important;
+  }
+
+  /* Unassigned section */
+  #unassignedSection {
+    min-height: auto !important;
+  }
+
+  /* Route sections stack vertically */
+  #routesSection {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 2px;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch;
+    min-height: auto !important;
+  }
+
+  #routeASection,
+  #routeBSection {
+    flex: 0 0 calc(100vw - 28px) !important;
+    max-width: calc(100vw - 28px) !important;
+    scroll-snap-align: start;
+  }
+
+  #routeASection .route-list-wrapper,
+  #routeBSection .route-list-wrapper {
+    margin-bottom: 0 !important;
+    min-height: 100% !important;
+  }
+
+  /* Route list wrappers */
+  .route-list-wrapper {
+    margin-bottom: 6px !important;
+    padding: 6px !important;
+    border-radius: 8px !important;
+  }
+  .route-list-wrapper h5 {
+    font-size: 0.85rem !important;
+    padding: 6px 8px !important;
+    margin-bottom: 6px !important;
+  }
+
+  /* Individual route lists */
+  .individual-route-list,
+  #unassignedStopsList {
+    min-height: 50px !important;
+    max-height: 180px !important;
+    padding: 4px !important;
+  }
+
+  /* Draggable items - bigger touch targets */
+  .draggable-item {
+    font-size: 0.85rem !important;
+    padding: 10px 12px !important;
+    min-height: 44px !important;
+    border-radius: 8px !important;
+    margin-bottom: 5px !important;
+  }
+
+  /* Collapsible headers - bigger touch target */
+  .collapsible-section {
+    margin: 4px 0 !important;
+    border-radius: 8px !important;
+  }
+  .collapsible-header {
+    padding: 12px !important;
+    font-size: 0.9rem !important;
+    min-height: 44px !important;
+  }
+  .collapsible-content {
+    padding: 8px !important;
+  }
+
+  /* ROUTE SLOTS - BIGGER & MORE TOUCHABLE */
+  .route-slots-container {
+    gap: 6px !important;
+    padding: 8px !important;
+  }
+  .route-slot {
+    height: auto !important;
+    min-height: 52px !important;
+    max-height: none !important;
+    padding: 8px 10px !important;
+    border-radius: 6px !important;
+    gap: 8px !important;
+    align-items: flex-start !important;
+  }
+  .slot-number {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 0.75rem !important;
+    margin-right: 8px !important;
+    flex-shrink: 0 !important;
+  }
+  .slot-content {
+    font-size: 0.82rem !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  .slot-remove-btn {
+    padding: 6px 10px !important;
+    font-size: 0.72rem !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    margin-left: auto !important;
+    align-self: center !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+
+/* ===== PAGE 3: OPTIMIZED ROUTES - MOBILE ===== */
+
+@media (max-width: 767px) {
+  #page-optimized-routes {
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh);
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* TOP AREA - Route info cards */
+  .page3-top-container {
+    height: auto !important;
+    flex: 1 !important;
+    padding: 10px !important;
+    gap: 10px !important;
+    overflow-y: auto !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important;
+  }
+
+  /* Route info sections */
+  .route-info-section {
+    padding: 12px !important;
+    border-radius: 10px !important;
+  }
+  .route-info-header {
+    font-size: 0.95rem !important;
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+  }
+  .route-info-header .route-icon {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 0.7rem !important;
+  }
+
+  /* Optimized stop items - prevent overlap of action buttons */
+  .optimized-stop-item {
+    padding: 10px !important;
+    margin-bottom: 6px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .optimized-stop-item-content {
+    max-width: 100% !important;
+    font-size: 0.85rem !important;
+    line-height: 1.4 !important;
+    white-space: normal !important;
+  }
+
+  /* STOP ACTION BUTTONS - FIX OVERLAP */
+  .stop-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin-top: 4px !important;
+    flex-direction: unset !important;
+  }
+  .stop-actions button {
+    width: 100% !important;
+    min-height: 44px !important;
+    padding: 8px 6px !important;
+    font-size: 0.72rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    border-radius: 6px !important;
+    margin-left: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* WhatsApp and action buttons uniform sizing */
+  .whatsapp-notice-btn,
+  .feedback-request-btn,
+  .stop-call-btn,
+  .stop-voice-btn,
+  .delivery-not-attempted-btn {
+    min-width: auto !important;
+    min-height: 40px !important;
+    padding: 8px 6px !important;
+    font-size: 0.72rem !important;
+    margin-left: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Route communication buttons */
+  .route-communication-buttons {
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+  .route-share-btn {
+    padding: 10px 14px !important;
+    font-size: 0.8rem !important;
+    min-width: auto !important;
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  /* Schedule preview */
+  #schedulePreviewPage3 {
+    max-height: 40vh !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* BOTTOM BUTTONS - THE KEY FIX FOR OVERLAPPING */
+  .page3-bottom-buttons {
+    height: auto !important;
+    min-height: auto !important;
+    padding: 10px !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0)) !important;
+    gap: 8px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    flex-wrap: unset !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 50 !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .page3-bottom-buttons .modern-action-btn {
+    min-width: auto !important;
+    width: 100% !important;
+    padding: 10px 8px !important;
+    font-size: 0.7rem !important;
+    min-height: 44px !important;
+    border-radius: 8px !important;
+    letter-spacing: 0 !important;
+    gap: 4px !important;
+    text-transform: none !important;
+    justify-content: center !important;
+  }
+
+  /* Make navigation container behave in grid */
+  #navigationButtonContainerPage3 {
+    display: contents !important;
+  }
+
+  /* Actions collapsible - sticky bottom */
+  #actionsCollapsibleSectionPage3 {
+    position: static !important;
+    bottom: auto !important;
+    z-index: auto !important;
+    margin-bottom: 0 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+  }
+
+  /* Actions header buttons */
+  #actionsHeaderPage3 button {
+    padding: 10px 12px !important;
+    font-size: 0.85rem !important;
+    flex: 1 !important;
+    min-height: 44px !important;
+  }
+
+  /* Page actions grid */
+  .page-actions-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+}
+
+
+/* ===== PAGE 4 & 5: MAPS PREVIEW & FULLSCREEN MAP - MOBILE ===== */
+
+@media (max-width: 767px) {
+  /* Maps preview header */
+  .maps-preview-header {
+    height: auto !important;
+    padding: 8px 12px !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .maps-preview-title {
+    font-size: 0.9rem !important;
+    text-align: center !important;
+  }
+  .maps-preview-header > div {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .maps-preview-header .back-to-routes-btn {
+    flex: 1 !important;
+    padding: 10px 8px !important;
+    font-size: 0.8rem !important;
+    min-height: 42px !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+  #page-maps-preview #mapPreviewDedicated {
+    height: calc(var(--app-mobile-vh, 100dvh) - 90px) !important;
+  }
+
+  /* Fullscreen map header */
+  .fullscreen-header {
+    height: auto !important;
+    padding: 8px 12px !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .fullscreen-title {
+    font-size: 0.9rem !important;
+    text-align: center !important;
+  }
+  .fullscreen-header > div {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .exit-fullscreen-btn {
+    flex: 1 !important;
+    padding: 10px 8px !important;
+    font-size: 0.8rem !important;
+    min-height: 42px !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+  #page-fullscreen-map #mapFullscreen {
+    height: calc(var(--app-mobile-vh, 100dvh) - 90px) !important;
+  }
+
+  /* Fullscreen toggle button */
+  .fullscreen-btn {
+    font-size: 0.7rem !important;
+    padding: 6px 10px !important;
+    top: 5px !important;
+    left: 5px !important;
+    min-height: 36px !important;
+  }
+
+  .view-toggle-indicator,
+  .view-toggle-hint {
+    font-size: 0.7rem !important;
+    padding: 3px 8px !important;
+  }
+}
+
+
+/* ===== GPS TRACKING PAGE - MOBILE ===== */
+
+@media (max-width: 767px) {
+  #page-gps-tracking {
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh);
+    overflow-y: auto !important;
+  }
+
+  /* GPS header */
+  .gps-tracking-header {
+    flex-direction: column !important;
+    gap: 8px !important;
+    text-align: center !important;
+    padding: 10px 12px !important;
+  }
+  .gps-tracking-title {
+    font-size: 1.1rem !important;
+  }
+  .gps-header-controls {
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+  .gps-nav-btn {
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+    min-height: 40px !important;
+  }
+
+  /* Main layout - stack vertically */
+  .gps-main-layout {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  /* Left panel - full width, no fixed height */
+  .gps-left-panel {
+    width: 100% !important;
+    min-width: auto !important;
+    max-height: none !important;
+    border-right: none !important;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 10px !important;
+    gap: 10px !important;
+    overflow-y: visible !important;
+  }
+
+  /* GPS sections */
+  .gps-section {
+    padding: 12px !important;
+    border-radius: 10px !important;
+  }
+  .gps-section h3 {
+    font-size: 0.95rem !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* GPS action buttons - grid layout to prevent overlap */
+  .tracking-controls {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+  .gps-action-btn {
+    min-width: auto !important;
+    width: 100% !important;
+    padding: 10px 8px !important;
+    font-size: 0.78rem !important;
+    margin: 0 !important;
+    min-height: 42px !important;
+  }
+
+  /* Two-button row for Locate Me and Finish */
+  .tracking-controls + .tracking-controls {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Status and location display */
+  .status-message {
+    font-size: 0.8rem !important;
+    padding: 6px 10px !important;
+  }
+  .location-display {
+    font-size: 0.78rem !important;
+    padding: 8px !important;
+  }
+
+  /* Performance grid */
+  .performance-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .performance-card {
+    padding: 10px !important;
+  }
+  .performance-label {
+    font-size: 0.7rem !important;
+  }
+  .performance-value {
+    font-size: 1rem !important;
+  }
+
+  /* Progress header */
+  .progress-header {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .progress-bar {
+    width: 100% !important;
+  }
+
+  /* Stops list */
+  .stops-list {
+    max-height: none !important;
+  }
+  .stop-item {
+    padding: 10px !important;
+    margin-bottom: 6px !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .stop-name {
+    font-size: 0.9rem !important;
+  }
+  .stop-address {
+    font-size: 0.75rem !important;
+  }
+
+  /* Right panel - map */
+  .gps-right-panel {
+    min-height: 40vh !important;
+    flex: none !important;
+    height: 40vh !important;
+  }
+
+  /* Route info bar */
+  .route-info-bar {
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .tracking-controls {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .performance-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  #topBarButtonsPage2 {
+    grid-template-columns: 1fr !important;
+  }
+  .stop-actions {
+    grid-template-columns: 1fr !important;
+  }
+  .page3-bottom-buttons {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* ===== ADD STOP PAGE - MOBILE ===== */
+
+@media (max-width: 767px) {
+  #page-add-stop {
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh);
+    overflow-y: auto !important;
+  }
+
+  /* Header */
+  .add-stop-header {
+    flex-direction: column !important;
+    gap: 8px !important;
+    text-align: center !important;
+    padding: 10px 12px !important;
+  }
+  .add-stop-title {
+    font-size: 1.1rem !important;
+  }
+  .add-stop-header-controls {
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+  .add-stop-nav-btn {
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+    min-height: 40px !important;
+  }
+
+  /* Main container - stack vertically */
+  .add-stop-container {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  /* Form panel - full width */
+  .add-stop-form-panel {
+    width: 100% !important;
+    min-width: auto !important;
+    border-right: none !important;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 12px !important;
+    gap: 12px !important;
+    overflow-y: visible !important;
+  }
+
+  /* Form section */
+  .form-section {
+    padding: 14px !important;
+    border-radius: 10px !important;
+  }
+  .form-section h3 {
+    font-size: 0.95rem !important;
+  }
+  .form-description {
+    font-size: 0.82rem !important;
+  }
+
+  /* Form inputs - prevent iOS zoom */
+  .form-group input,
+  .form-group textarea {
+    font-size: 16px !important;
+    padding: 12px !important;
+  }
+  .form-group label {
+    font-size: 0.85rem !important;
+  }
+
+  /* Form action buttons */
+  .form-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .form-actions button {
+    width: 100% !important;
+    min-height: 44px !important;
+    padding: 12px !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Search address button */
+  .search-address-btn {
+    min-height: 42px !important;
+    padding: 10px !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Map panel */
+  .add-stop-map-panel {
+    min-height: 40vh !important;
+    height: 40vh !important;
+  }
+
+  /* Map instructions */
+  .map-instructions {
+    padding: 8px 12px !important;
+    font-size: 0.82rem !important;
+  }
+}
+
+
+/* ===== WHATSAPP BUTTON FIXES ===== */
+
+.whatsapp-btn-wrapper {
+  display: inline-block;
+  position: relative;
+}
+
+.whatsapp-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+
+/* ===== AUTH OVERLAY ===== */
+
+#authOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(30, 58, 138, 0.95);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  color: white;
+}
+
+#logoutBtn {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#logoutBtn:hover {
+  background-color: #5a6268;
+}
+
+
+/* ===== EXTRA SMALL SCREENS (< 360px) ===== */
+
+@media (max-width: 360px) {
+  /* Even smaller text for tiny screens */
+  .page3-bottom-buttons .modern-action-btn {
+    font-size: 0.65rem !important;
+    padding: 8px 4px !important;
+  }
+
+  #topBarButtonsPage2 button {
+    font-size: 0.68rem !important;
+    padding: 8px 4px !important;
+  }
+
+  .stop-actions {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoRouteX Driver</title>
+  <meta name="description" content="GoRouteX route execution and live location for drivers.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="driver-tracking.css?v=20260928-2">
+  <link rel="stylesheet" href="styles/typography.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="go-routex-access.js"></script>
+  <script>
+    window.__driverTrackingMapReady = false;
+    window.initDriverTrackingMap = function () {
+      window.__driverTrackingMapReady = true;
+      if (window.DriverTrackingPage && typeof window.DriverTrackingPage.onMapApiReady === 'function') {
+        window.DriverTrackingPage.onMapApiReady();
+      }
+    };
+  </script>
+</head>
+<body>
+  <div class="tracking-shell">
+    <section id="trackingLoadingScreen" class="tracking-screen">
+      <div class="tracking-screen-card">
+        <span class="tracking-screen-eyebrow">Secure Driver Workspace</span>
+        <h1>Loading live tracking</h1>
+        <p>Preparing the dedicated driver tracking module and checking your account access.</p>
+      </div>
+    </section>
+
+    <section id="trackingBlockedScreen" class="tracking-screen" hidden>
+      <div class="tracking-screen-card">
+        <span class="tracking-screen-eyebrow">Access Required</span>
+        <h1 id="blockedTitle">Tracking is not available yet</h1>
+        <p id="blockedMessage">Sign in to continue to the dedicated driver tracking workspace.</p>
+        <div class="tracking-screen-actions">
+          <a id="blockedPrimaryAction" class="tracking-link-button tracking-link-button-primary" href="login.html">Continue to Login</a>
+          <a id="blockedSecondaryAction" class="tracking-link-button tracking-link-button-secondary" href="app.html#page-history-dashboard">Open Main App</a>
+        </div>
+      </div>
+    </section>
+
+    <main id="trackingWorkspace" class="tracking-workspace" hidden>
+      <header class="tracking-hero">
+        <div class="tracking-hero-copy">
+          <span class="tracking-eyebrow">Driver Companion</span>
+          <h1>Your delivery route</h1>
+          <p>Follow your saved stop sequence, record delivery outcomes, and share location while your route is active.</p>
+        </div>
+        <div class="tracking-hero-meta">
+          <span id="driverStatusChip" class="tracking-status-chip is-ready">Ready</span>
+          <button id="driverSignOutBtn" class="tracking-return-link" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <section id="operationsReadOnly" class="driver-execution" aria-label="Read-only route monitoring" hidden>
+        <div class="driver-route-toolbar"><div><span class="driver-overline">OPERATIONS · READ ONLY</span><h2 id="operationsRouteName">Route status</h2></div><button id="operationsRefresh" type="button" class="driver-secondary">Refresh</button></div>
+        <p id="operationsStatus" role="status">Loading route status…</p>
+        <div class="driver-route-head"><p id="operationsDriver"></p><strong id="operationsRouteState" class="driver-route-status"></strong></div>
+        <p id="operationsProgress" class="driver-progress"></p><p id="operationsCurrent"></p><p id="operationsGps"></p><a id="operationsMap" target="_blank" rel="noopener noreferrer" hidden>Open latest position on map</a>
+        <h3>Stops</h3><ol id="operationsStops" class="driver-stop-list"></ol>
+      </section>
+      <section id="driverExecution" class="driver-execution" aria-label="Driver route execution">
+        <div id="driverNotice" class="driver-notice" role="status" aria-live="polite">Loading assigned routes…</div>
+        <section id="driverInvites" class="driver-notice" hidden><strong>Workspace invitations</strong><div id="driverInviteList"></div></section>
+        <div class="driver-route-toolbar"><h2>Assigned routes</h2><button id="driverRefreshBtn" type="button" class="driver-secondary">Refresh</button></div>
+        <div id="driverRouteList" class="driver-route-list"></div>
+        <div id="driverRouteView" hidden>
+          <div class="driver-route-head"><div><span id="driverRouteDate" class="driver-overline"></span><h2 id="driverRouteName"></h2><p id="driverRouteMeta"></p></div><span id="driverRouteStatus" class="driver-route-status"></span></div>
+          <div id="driverProgress" class="driver-progress"></div>
+          <div id="driverStartArea" class="driver-start-area" hidden><button id="driverStartBtn" class="driver-primary" type="button">Start route</button></div>
+          <div id="driverNextStop" class="driver-next-stop" hidden><span id="driverStopSequence" class="driver-overline"></span><h3 id="driverStopName"></h3><p id="driverStopCustomer"></p><address id="driverStopAddress"></address><p id="driverStopContact"></p><div id="driverStopOrders" class="driver-orders"></div><p id="driverStopNotes"></p><div class="driver-actions"><a id="driverNavigate" class="driver-primary driver-link" target="_blank" rel="noopener noreferrer">Navigate</a><a id="driverCall" class="driver-secondary driver-link">Call contact</a></div><div class="driver-actions"><button id="driverArriveBtn" class="driver-primary" type="button">Arrived</button><button id="driverDeliverBtn" class="driver-primary" type="button">Complete delivery</button><button id="driverFailBtn" class="driver-secondary" type="button">Report issue</button></div></div>
+          <form id="driverPodForm" class="driver-form" hidden><h3>Complete delivery</h3><label>Received by<input id="driverRecipient" autocomplete="name" placeholder="Optional recipient name"></label><label>Driver note<textarea id="driverPodNotes" rows="2" placeholder="Optional delivery note"></textarea></label><label>Delivery photo<input id="driverPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></label><img id="driverPhotoPreview" alt="Selected delivery photo preview" hidden><button id="driverPhotoClear" class="driver-secondary" type="button" hidden>Remove photo</button><p>Photo and recipient are optional. The actual receiver can differ from the saved contact.</p><div class="driver-actions"><button id="driverPodSubmit" class="driver-primary" type="submit">Save delivery</button><button id="driverPodCancel" class="driver-secondary" type="button">Cancel</button></div></form>
+          <form id="driverFailureForm" class="driver-form" hidden><h3>Report delivery issue</h3><label>Reason<select id="driverFailureReason" required><option value="">Select reason</option><option>Customer closed</option><option>No one available</option><option>Wrong address</option><option>Unable to access</option><option>Customer rejected</option><option>Goods issue</option><option>Other</option></select></label><label>Notes<textarea id="driverFailureNotes" rows="2" placeholder="Required for Other"></textarea></label><div class="driver-actions"><button id="driverFailureSubmit" class="driver-danger" type="submit">Save failed stop</button><button id="driverFailureCancel" class="driver-secondary" type="button">Cancel</button></div></form>
+          <section class="driver-stop-section"><h3>Stops</h3><div id="driverStopList" class="driver-stop-list"></div><div id="driverStopDetail" class="driver-stop-detail" hidden></div></section>
+          <section id="driverFinishArea" class="driver-finish-area" hidden><h3>All stops processed</h3><p id="driverFinishSummary"></p><button id="driverFinishBtn" class="driver-primary" type="button">Complete route</button></section>
+        </div>
+      </section>
+
+      <section id="trackingContextNotice" class="tracking-context-notice" hidden>
+        <strong>Route context not linked yet.</strong>
+        <span id="trackingContextNoticeText">Select an assigned route and start it before sharing location.</span>
+      </section>
+
+      <details class="driver-tracking-details"><summary>Location and tracking details</summary>
+      <section class="tracking-info-grid" aria-label="Driver and session overview">
+        <article class="tracking-info-card">
+          <span class="tracking-info-label">Driver</span>
+          <strong id="infoDriverName">--</strong>
+          <small id="infoDriverMeta">Authenticated account</small>
+        </article>
+        <article class="tracking-info-card">
+          <span class="tracking-info-label">Route</span>
+          <strong id="infoRouteName">No active route</strong>
+          <small id="infoRouteMeta">No route linked yet</small>
+        </article>
+        <article class="tracking-info-card">
+          <span class="tracking-info-label">Session</span>
+          <strong id="infoSessionId">Not started</strong>
+          <small id="infoSessionMeta">A session will be created when tracking begins</small>
+        </article>
+        <article class="tracking-info-card">
+          <span class="tracking-info-label">Tracking Status</span>
+          <strong id="infoTrackingStatus">Ready</strong>
+          <small id="infoTrackingMeta">Waiting for your action</small>
+        </article>
+        <article class="tracking-info-card">
+          <span class="tracking-info-label">Last Upload</span>
+          <strong id="infoLastUpload">Never uploaded</strong>
+          <small id="infoLastUploadMeta">No live position has been sent yet</small>
+        </article>
+        <article class="tracking-info-card">
+          <span class="tracking-info-label">GPS Permission</span>
+          <strong id="infoGpsPermission">Checking</strong>
+          <small id="infoGpsPermissionMeta">Browser permission state</small>
+        </article>
+        <article class="tracking-info-card">
+          <span class="tracking-info-label">Network</span>
+          <strong id="infoNetworkStatus">Online</strong>
+          <small id="infoNetworkMeta">Live uploads available</small>
+        </article>
+      </section>
+
+      <section class="tracking-module-grid">
+        <div class="tracking-module-column">
+          <section class="tracking-panel tracking-panel-controls">
+            <div class="tracking-panel-header">
+              <div>
+                <h2>Tracking Controls</h2>
+                <p>Location sharing starts with a route and stops when the route is complete.</p>
+              </div>
+            </div>
+            <div class="tracking-control-grid" hidden>
+              <button id="trackingStartBtn" class="tracking-control-button is-primary" type="button">Start Tracking</button>
+              <button id="trackingPauseBtn" class="tracking-control-button is-secondary" type="button" disabled>Pause Tracking</button>
+              <button id="trackingStopBtn" class="tracking-control-button is-danger" type="button" disabled>Stop Tracking</button>
+            </div>
+            <div id="trackingRuntimeBanner" class="tracking-runtime-banner">
+              Location sharing begins after you start an assigned route.
+            </div>
+          </section>
+
+          <section class="tracking-panel">
+            <div class="tracking-panel-header">
+              <div>
+                <h2>Tracking Health</h2>
+                <p>Operational status for GPS, uploads, and the current driver session.</p>
+              </div>
+            </div>
+            <div class="tracking-status-summary">
+              <div>
+                <span class="tracking-status-label">Current State</span>
+                <strong id="statusPrimaryValue">Ready</strong>
+              </div>
+              <span id="statusPrimaryChip" class="tracking-status-chip is-ready">Ready</span>
+            </div>
+            <dl class="tracking-status-list">
+              <div class="tracking-status-row">
+                <dt>Last known coordinates</dt>
+                <dd id="statusCoordinatesValue">Not available</dd>
+              </div>
+              <div class="tracking-status-row">
+                <dt>GPS accuracy</dt>
+                <dd id="statusAccuracyValue">Waiting for GPS</dd>
+              </div>
+              <div class="tracking-status-row">
+                <dt>Last successful upload</dt>
+                <dd id="statusLastUploadValue">Never uploaded</dd>
+              </div>
+              <div class="tracking-status-row">
+                <dt>Current session</dt>
+                <dd id="statusSessionValue">Not started</dd>
+              </div>
+              <div class="tracking-status-row">
+                <dt>Network readiness</dt>
+                <dd id="statusNetworkValue">Online</dd>
+              </div>
+            </dl>
+            <div id="trackingWarningBanner" class="tracking-warning-banner" hidden></div>
+          </section>
+        </div>
+
+        <div class="tracking-module-column">
+          <section class="tracking-panel tracking-panel-map">
+            <div class="tracking-panel-header">
+              <div>
+                <h2>Map Preview</h2>
+                <p>Optional live location preview centered on the most recent driver position.</p>
+              </div>
+            </div>
+            <div class="tracking-map-shell">
+              <div id="trackingMap" class="tracking-map" aria-label="Driver map preview"></div>
+              <div id="trackingMapFallback" class="tracking-map-fallback">
+                Map preview will appear when Google Maps is available. Tracking still works without it.
+              </div>
+            </div>
+          </section>
+
+          <section class="tracking-panel">
+            <div class="tracking-panel-header">
+              <div>
+                <h2>Driver Guidance</h2>
+                <p>Keep the tracking session reliable during a delivery run.</p>
+              </div>
+            </div>
+            <ul class="tracking-guidance-list">
+              <li>Keep this page open while the route is in progress.</li>
+              <li>Allow location permission when your browser asks for it.</li>
+              <li>Battery saver modes can reduce GPS frequency or stop updates in the background.</li>
+              <li>Some mobile browsers limit background location sharing when the screen is locked.</li>
+              <li>Stay online when possible so dispatch can see current driver status without delay.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+      </details>
+    </main>
+  </div>
+
+  <script src="route-planner-product.js"></script>
+  <script src="route-storage.js"></script>
+  <script>
+    if (new URLSearchParams(location.search).get('mode') === 'operations') {
+      import('./driver/operations-page.js');
+    } else {
+      const trackingScript = document.createElement('script');
+      trackingScript.src = 'driver-tracking.js?v=20260929-1';
+      trackingScript.onload = () => {
+        import('./driver/driver-page.js');
+        import('./driver/dispatch-invites.js');
+      };
+      document.body.appendChild(trackingScript);
+    }
+  </script>
+  <script
+    async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA0rhYLn9QRwRw8VRqXSKMMij1snRsYsQ8&callback=initDriverTrackingMap&libraries=marker&loading=async">
+  </script>
+</body>
+</html>

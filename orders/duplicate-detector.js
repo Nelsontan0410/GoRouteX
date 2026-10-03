@@ -1,0 +1,4 @@
+const key=value=>String(value??'').trim().toLowerCase().replace(/\s+/g,' ');
+export function exactKey(order){return order.orderId&&!/^GRX-/.test(order.orderId)?`${key(order.source)}|${key(order.orderId)}`:null;}
+export function fingerprint(order){const customer=key(order.customerName),address=key(order.address);return customer&&address&&order.deliveryDate?`${customer}|${address}|${key(order.deliveryDate)}`:null;}
+export function classifyDuplicate(order,existing){const exact=exactKey(order),possible=fingerprint(order);if(exact&&existing.some(item=>exactKey(item)===exact))return {kind:'EXACT',message:'Order ID already exists for this source.'};if(possible&&existing.some(item=>fingerprint(item)===possible))return {kind:'POSSIBLE',message:'Customer, address and delivery date match another order.'};return null;}

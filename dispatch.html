@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dispatch | GoRouteX</title><link rel="icon" href="marketing-favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/typography.css"><link rel="stylesheet" href="app-experience.css"><link rel="stylesheet" href="dispatch/dispatch.css">
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script defer src="firebase-config.js"></script>
+  <script defer src="route-planner-product.js"></script>
+  <script defer src="account-context.js"></script>
+  <script defer src="route-storage.js"></script>
+  <script defer src="dispatch/dispatch-board.js"></script>
+  <script defer src="dispatch/dispatch-page.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#dispatchMain">Skip to Dispatch</a>
+<div class="dispatch-shell">
+  <aside class="operations-sidebar" aria-label="Workspace navigation">
+    <a class="operations-brand" style="text-decoration:none" href="app.html" aria-label="GoRouteX">GoRoute<span>X</span></a>
+    <nav class="operations-nav" aria-label="Primary navigation">
+      <a href="app.html#page-history-dashboard">Dashboard</a>
+      <a href="app.html#page-select-stops">Plan a route</a>
+      <a href="app.html#page-add-stop">Saved stops</a>
+      <a href="order-hub.html">Order Hub</a>
+      <a href="dispatch.html" aria-current="page">Dispatch</a>
+    </nav>
+    <div class="operations-sidebar-account">
+      <strong id="dispatchDisplayName">Loading account…</strong><span id="dispatchCurrentPlan">Loading plan…</span>
+      <a href="app.html#page-account-access">Account</a>
+      <a href="settings.html">Settings</a>
+      <button id="dispatchLogout" type="button" class="operations-logout">Logout</button>
+    </div>
+  </aside>
+  <main id="dispatchMain" class="dispatch-main">
+    <nav class="dispatch-mobile-nav" aria-label="Workspace navigation"><a href="app.html">GoRouteX</a><a href="app.html#page-history-dashboard">Dashboard</a><a href="app.html#page-select-stops">Plan a route</a></nav>
+    <p id="dispatchPageState" class="dispatch-page-state" role="status" aria-live="polite">Loading finalized plan...</p>
+    <section id="dispatchBoard" class="dispatch-board" aria-labelledby="dispatchTitle" hidden>
+      <div class="dispatch-heading"><div><span class="dispatch-eyebrow">OPERATIONS / ROUTES</span><h1 id="dispatchTitle">Dispatch</h1><p>Assign a driver to each finalized route, then send it to Driver Page.</p></div><button id="dispatchRefreshBtn" type="button" class="action-button-secondary">Refresh status</button></div>
+      <p id="dispatchPlanSummary" class="dispatch-plan-summary"></p>
+      <div id="dispatchNotice" class="dispatch-notice" role="status" hidden></div>
+      <div class="dispatch-toolbar"><a class="action-button-secondary" href="settings.html#drivers">Manage Drivers</a><button id="dispatchAllBtn" type="button" class="action-button-primary" disabled>Dispatch all ready routes</button></div>
+      <div id="dispatchRouteTabs" class="dispatch-route-tabs" role="tablist" aria-label="Routes"></div>
+      <div id="dispatchRoutes" class="dispatch-routes"></div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

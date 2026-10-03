@@ -1,0 +1,44 @@
+/*
+  X-Content-Type-Options: nosniff
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/app.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/login.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/driver-tracking.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/app-shell.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/driver-tracking.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/driver-tracking.css
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/whatsapp-test-demo.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/mobile-fixes.css
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/mobile-shell.css
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/mobile-pages.css
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/modern-theme.css
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/order-hub.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/orders/*
+  Cache-Control: no-cache, no-store, must-revalidate

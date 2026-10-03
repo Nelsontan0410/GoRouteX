@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Desktop Integration - Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .demo-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .share-btn {
+            background: linear-gradient(145deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .share-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .demo-message {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-line;
+            font-size: 14px;
+        }
+        .toast-demo {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #3b82f6;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .toast-demo.show {
+            transform: translateX(0);
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f3f4f6;
+            border-left: 4px solid #10b981;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚚 WhatsApp Desktop Integration - Demo</h1>
+    
+    <div class="demo-section">
+        <h2>📱 Share Route Button (Upgraded)</h2>
+        <p>This button now tries WhatsApp Desktop first, then falls back to Web:</p>
+        <button class="share-btn" onclick="demoWhatsAppShare()">📱 Share via WhatsApp</button>
+        
+        <h3>What happens when you click:</h3>
+        <div class="step">1. Toast notification appears</div>
+        <div class="step">2. Attempts to open WhatsApp Desktop app</div>
+        <div class="step">3. If Desktop unavailable, opens WhatsApp Web</div>
+        <div class="step">4. Success notification shows which method was used</div>
+    </div>
+
+    <div class="demo-section">
+        <h2>📧 Enhanced Message Format</h2>
+        <p>Your shared route messages now include much more detail:</p>
+        
+        <div class="demo-message">🚚 Delivery Route 1 - 27/08/2025
+━━━━━━━━━━━━━━━━━━━━
+📍 Start: GoRouteX Main Store
+
+1. Customer A Office Tower (ETA: 09:30)
+2. Customer B Residential (ETA: 10:15)  
+3. Customer C Shopping Mall (ETA: 11:00)
+
+🏁 End: Distribution Center
+━━━━━━━━━━━━━━━━━━━━
+📊 Total Stops: 3
+⏱️ Estimated Duration: 1h 25m
+
+📝 Notes: Priority deliveries today
+
+🗺️ Open in Maps: https://www.google.com/maps/dir/...
+
+📱 Shared via GoRouteX Route Planner</div>
+    </div>
+
+    <div class="demo-section">
+        <h2>🔧 Technical Details</h2>
+        <h3>Desktop App Protocol:</h3>
+        <code>whatsapp://send?phone=6586189984&text=...</code>
+        
+        <h3>Web Fallback URL:</h3>
+        <code>https://web.whatsapp.com/send?phone=6586189984&text=...</code>
+        
+        <h3>Toast Timing:</h3>
+        <ul>
+            <li>1.5 second delay for desktop app response</li>
+            <li>Automatic fallback if no response</li>
+            <li>Immediate fallback on protocol errors</li>
+        </ul>
+    </div>
+
+    <div class="demo-section">
+        <h2>✅ Compatibility</h2>
+        <p><strong>Works with:</strong></p>
+        <ul>
+            <li>✅ WhatsApp Desktop (Windows/Mac/Linux)</li>
+            <li>✅ WhatsApp Web (all browsers)</li>
+            <li>✅ Mobile browsers (iOS/Android)</li>
+            <li>✅ Desktop browsers (Chrome/Firefox/Safari/Edge)</li>
+        </ul>
+        
+        <p><strong>Fallback behavior ensures 100% compatibility!</strong></p>
+    </div>
+
+    <div id="toast" class="toast-demo"></div>
+
+    <script>
+        function showToast(message, type = 'info', duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast-demo show';
+            
+            setTimeout(() => {
+                toast.className = 'toast-demo';
+            }, duration);
+        }
+
+        function demoWhatsAppShare() {
+            // Simulate the new behavior
+            showToast("Opening WhatsApp Desktop… falling back to Web if not available", 'info');
+            
+            // Simulate fallback after delay
+            setTimeout(() => {
+                showToast("Opened WhatsApp Web (Desktop app not available)", 'success');
+                // In real app, WhatsApp would open here
+                console.log("Would open WhatsApp with enhanced message format");
+            }, 1600);
+        }
+    </script>
+</body>
+</html>

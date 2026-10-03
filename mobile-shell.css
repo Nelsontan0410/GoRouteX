@@ -1,0 +1,132 @@
+/* Mobile shell primitives and navigation contract.
+   Purpose: one predictable mobile layout model without touching business logic. */
+
+:root {
+  --ms-tab-height: 66px;
+  --ms-gap: 12px;
+  --ms-radius: 12px;
+  --ms-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  --ms-border: rgba(255, 255, 255, 0.12);
+  --ms-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body.mobile-tab-hidden {
+  --ms-tab-offset: 0px;
+}
+
+body:not(.mobile-tab-hidden) {
+  --ms-tab-offset: calc(var(--ms-tab-height) + var(--ms-safe-bottom) + 10px);
+}
+
+.mobile-tab-bar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  html,
+  body {
+    height: 100%;
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page {
+    width: 100%;
+    max-width: 100%;
+    min-height: var(--app-mobile-vh, 100dvh) !important;
+  }
+
+  .page.active-page {
+    display: flex !important;
+    height: auto !important;
+    min-height: var(--app-mobile-vh, 100dvh) !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
+    padding-bottom: calc(var(--ms-gap) + var(--ms-tab-offset)) !important;
+  }
+
+  .mobile-tab-bar {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, var(--ms-safe-bottom));
+    height: var(--ms-tab-height);
+    border: 1px solid var(--ms-border);
+    border-radius: 16px;
+    box-shadow: var(--ms-shadow);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px;
+    z-index: 9200;
+    backdrop-filter: blur(10px);
+  }
+
+  .mobile-tab-bar.is-hidden {
+    display: none;
+  }
+
+  .mobile-tab-btn {
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 5px 3px;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+
+  .mobile-tab-icon {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+
+  .mobile-tab-text {
+    font-size: 0.66rem;
+    line-height: 1.05;
+    font-weight: 600;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+    letter-spacing: 0.01em;
+  }
+
+  .mobile-tab-btn.is-active {
+    border-color: rgba(255, 255, 255, 0.22);
+    transform: translateY(-1px);
+  }
+
+  .mobile-deep-page-active .mobile-tab-bar {
+    display: none;
+  }
+}
+
+@media (min-width: 901px) {
+  body {
+    --ms-tab-offset: 0px;
+  }
+
+  .mobile-tab-bar {
+    display: none !important;
+  }
+}
