@@ -69,12 +69,29 @@ function initializeFirebase() {
         auth = auth || firebase.auth();
         db = db || firebase.firestore();
 
+        // Safari (desktop + iOS) can hang Firestore reads when IndexedDB persistence
+        // is enabled (esp. with multi-tab sync), so skip persistence there and use
+        // auto-detected long polling to survive Safari's WebChannel/streaming quirks.
+        const _ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+        const _isSafariEngine = /^((?!chrome|chromium|crios|fxios|edg|android).)*safari/i.test(_ua)
+            || /iPad|iPhone|iPod/.test(_ua);
+        try {
+            if (_isSafariEngine) {
+                db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+            }
+        } catch (e) {
+            console.warn("Firestore settings skipped:", e?.message || e);
+        }
         try {
             if (!_persistenceEnabled) {
                 _persistenceEnabled = true;
-                db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-                    console.warn("Firestore persistence disabled:", err?.message || err);
-                });
+                if (_isSafariEngine) {
+                    console.info("Firestore persistence skipped on Safari");
+                } else {
+                    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+                        console.warn("Firestore persistence disabled:", err?.message || err);
+                    });
+                }
             }
         } catch (e) {
             console.warn("Persistence setup skipped");
@@ -480,9 +497,12 @@ async function loadUserProfile(user, options = {}) {
     if (!db || !user?.uid) return { success: false, error: 'Auth not initialized' };
     try {
         const ref = db.collection('users').doc(user.uid);
-        const snapshot = options.source === 'server'
-            ? await ref.get({ source: 'server' })
-            : await ref.get();
+        const read = options.source === 'server' ? ref.get({ source: 'server' }) : ref.get();
+        let _t;
+        const snapshot = await Promise.race([
+            read,
+            new Promise((_, reject) => { _t = setTimeout(() => reject(Object.assign(new Error('Account profile request timed out. Please retry.'), { code: 'profile-timeout' })), 15000); })
+        ]).finally(() => clearTimeout(_t));
         if (!snapshot.exists) return { success: false, error: 'Account profile not found.', fromCache: !!snapshot.metadata?.fromCache };
         return {
             success: true,
