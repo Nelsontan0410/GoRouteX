@@ -628,9 +628,11 @@
           await warmPromise;
         }
       }
+      global.GoRouteXTiming?.mark('storage-resolved');
       return { planKey, storageMode, adapter };
     }
 
+    global.GoRouteXTiming?.mark('storage-resolved');
     return { planKey, storageMode, adapter: createCloudAdapter() };
   }
 

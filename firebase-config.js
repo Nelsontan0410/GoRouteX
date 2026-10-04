@@ -11,6 +11,27 @@ const firebaseConfig = {
   measurementId: "G-ZM4B4HQLHS"
 };
 
+// Startup timing for diagnosing slow dashboard loads: first occurrence of each step, in ms since
+// navigation start. Printed once when route history first renders (see app.html loadRouteHistory).
+window.GoRouteXTiming = window.GoRouteXTiming || (() => {
+    const marks = {};
+    let reported = false;
+    return {
+        marks,
+        // Diagnostics only: must never break the step being measured.
+        mark(name) {
+            try {
+                if (marks[name] === undefined) marks[name] = Math.round(typeof performance !== 'undefined' ? performance.now() : Date.now());
+            } catch (_) {}
+        },
+        report() {
+            if (reported) return;
+            reported = true;
+            console.info('[GoRouteX timing] ms since page start:', { ...marks });
+        }
+    };
+})();
+
 // Initialize Firebase
 let app, auth, db;
 let _firebaseInitDone = false;
@@ -483,7 +504,10 @@ function sanitizeNextTarget(nextTarget) {
 // Listen for auth state changes
 function onAuthStateChange(callback) {
     if (auth) {
-        return auth.onAuthStateChanged(callback);
+        return auth.onAuthStateChanged((user) => {
+            if (user) window.GoRouteXTiming.mark('auth-ready');
+            return callback(user);
+        });
     }
     return null;
 }
@@ -505,6 +529,7 @@ async function loadUserProfile(user, options = {}) {
             new Promise((_, reject) => { _t = setTimeout(() => reject(Object.assign(new Error('Account profile request timed out. Please retry.'), { code: 'profile-timeout' })), 15000); })
         ]).finally(() => clearTimeout(_t));
         if (!snapshot.exists) return { success: false, error: 'Account profile not found.', fromCache: !!snapshot.metadata?.fromCache };
+        window.GoRouteXTiming.mark('profile-ready');
         return {
             success: true,
             profile: snapshot.data() || {},

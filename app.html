@@ -5269,12 +5269,14 @@
         }
 
         try {
+            window.GoRouteXTiming?.mark('history-request');
             const result = await window.RoutePlannerStorage.loadHistory({
                 limit: HISTORY_PAGE_SIZE,
                 pageSize: HISTORY_PAGE_SIZE,
                 offset: options.offset || 0,
                 loadMore: options.loadMore === true
             });
+            window.GoRouteXTiming?.mark('history-response');
             if (!result.success) {
                 return {
                     routes: [],
@@ -5364,6 +5366,8 @@
                 setRouteHistoryLoadState(routeHistory.length > 0 ? 'ready' : 'empty');
                 appLog(`Route history applied from ${result.source}:`, routeHistory.length, "routes");
                 renderHistoryDashboard();
+                window.GoRouteXTiming?.mark('history-rendered');
+                window.GoRouteXTiming?.report();
             } while (routeHistoryReloadQueued);
 
             return routeHistory;
