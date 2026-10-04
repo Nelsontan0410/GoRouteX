@@ -204,3 +204,28 @@ test('legacy self-owned Pro Owner manages Drivers in the UID workspace under the
   assert.equal(db.data.get('users/owner-a').tenantId, 'historical-metadata', 'authorization does not rewrite the Owner profile');
   assert.equal((await listed(db, ownerUid)).length, 1);
 });
+
+test('a failed deactivation re-enables Auth so it matches Firestore', async () => {
+  const { db, admin, owner } = context();
+  const created = await createDriver(admin, db, owner, input());
+  const uid = created.driver.uid;
+  const runTransaction = db.runTransaction.bind(db);
+  db.runTransaction = async () => { throw new Error('transient'); };
+  await assert.rejects(() => setStatus(admin, db, owner, { driverUid: uid, active: false }), /transient/);
+  db.runTransaction = runTransaction;
+  assert.equal(admin.users.get(uid).disabled, false);
+  assert.equal(db.data.get(`users/owner-a/drivers/${uid}`).status, 'ACTIVE');
+});
+
+test('resetPin writes the PIN hash and session version in one transaction', async () => {
+  const { db, admin, owner } = context();
+  const created = await createDriver(admin, db, owner, input());
+  const uid = created.driver.uid;
+  const before = db.data.get(`users/${uid}`).sessionVersion;
+  const runTransaction = db.runTransaction.bind(db);
+  db.runTransaction = async () => { throw new Error('transient'); };
+  await assert.rejects(() => resetPin(admin, db, owner, { driverUid: uid, pin: '11223344', confirmPin: '11223344' }), /transient/);
+  db.runTransaction = runTransaction;
+  assert.equal(db.data.get(`users/${uid}`).sessionVersion, before);
+  assert.equal(admin.users.get(uid).customClaims.sessionVersion, before);
+});
