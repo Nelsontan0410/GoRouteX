@@ -43,105 +43,51 @@ service cloud.firestore {
         && get(assignedRoutePath(routeId)).data.assignedDriverUid == uid;
     }
 
-    function protectedIdentityFieldsChanged() {
-      return request.resource.data.diff(resource.data).affectedKeys()
-        .hasAny(['role', 'tenantId', 'driverId', 'authMethod', 'active', 'sessionVersion']);
+    // Allow-list: the only fields a client may write on its own profile. Plan, billing, identity and
+    // driver fields are written exclusively by Netlify functions (Admin SDK, which bypasses these rules).
+    function signupFields() {
+      return ['name', 'email', 'createdAt', 'trialEndsAt', 'planStatus', 'planName', 'planKey',
+        'productPlan', 'productPlanKey', 'role', 'tenantId', 'teamMembersCount', 'billingStatus', 'lastLogin'];
     }
 
-    function protectedPlanFields() {
-      return [
-        'productPlanKey',
-        'productPlan',
-        'planStatus',
-        'planName',
-        'planKey',
-        'billingStatus',
-        'paymentStatus',
-        'planStartedAt',
-        'planExpiresAt',
-        'subscriptionExpiresAt',
-        'accessExpiresAt',
-        'trialEndsAt',
-        'paymentProvider',
-        'paymentReference',
-        'activatedAt',
-        'permanentPlan',
-        'permanentPlanLabel',
-        'pendingPlan',
-        'pendingPlanKey',
-        'paymentRequestedAt',
-        'paymentReturnStatus',
-        'paymentRequestedFrom',
-        'stripeCustomerId',
-        'stripeSubscriptionId',
-        'stripePriceId',
-        'stripeCheckoutSessionId',
-        'stripeCheckoutPendingAt',
-        'stripeCheckoutPendingSessionId',
-        'stripeTrialUsedAt',
-        'billingCurrency',
-        'billingInterval',
-        'billingPriceVersion',
-        'graceEndsAt',
-        'graceEndedAt',
-        'subscriptionCancelAt',
-        'subscriptionCancelRequestedAt',
-        'developerBillingExempt'
-      ];
-    }
-
-    function protectedPlanFieldsChanged() {
-      return request.resource.data.diff(resource.data)
-        .affectedKeys()
-        .hasAny(protectedPlanFields());
-    }
-
-    function validSafeUserCreate(data) {
-      return data.email is string
-        && (!('name' in data) || data.name is string)
-        && (!('createdAt' in data) || data.createdAt is timestamp)
+    // Mirrors firebase-config.js ensureInitialProfileForNewAccount.
+    function validSignup(uid, data) {
+      return data.keys().hasOnly(signupFields())
+        && data.keys().hasAll(['name', 'email', 'createdAt', 'role', 'tenantId'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.email is string && data.email.size() <= 320
+        && data.createdAt == request.time
         && (!('trialEndsAt' in data) || (data.trialEndsAt is timestamp
             && data.trialEndsAt <= request.time + duration.value(8, 'd')))
-        && (!('lastLogin' in data) || data.lastLogin is timestamp)
-        && (!('teamMembersCount' in data) || data.teamMembersCount is number)
-        && (!('role' in data) || data.role is string)
+        && (!('lastLogin' in data) || data.lastLogin == request.time)
+        && data.role == 'admin'
+        && data.tenantId == uid
+        && (!('teamMembersCount' in data) || data.teamMembersCount == 1)
         && (!('planStatus' in data) || data.planStatus == 'trial')
         && (!('planName' in data) || data.planName == 'trial')
         && (!('planKey' in data) || data.planKey == 'trial')
         && (!('productPlan' in data) || data.productPlan == 'basic')
         && (!('productPlanKey' in data) || data.productPlanKey == 'basic')
-        && (!('billingStatus' in data) || data.billingStatus == 'basic')
-        && !('paymentStatus' in data)
-        && !('planStartedAt' in data)
-        && !('planExpiresAt' in data)
-        && !('subscriptionExpiresAt' in data)
-        && !('accessExpiresAt' in data)
-        && !('paymentProvider' in data)
-        && !('paymentReference' in data)
-        && !('activatedAt' in data)
-        && !('permanentPlan' in data)
-        && !('permanentPlanLabel' in data)
-        && !('developerBillingExempt' in data)
-        && !('stripeCustomerId' in data)
-        && !('stripeSubscriptionId' in data)
-        && !('stripePriceId' in data)
-        && !('stripeCheckoutSessionId' in data)
-        && !('stripeCheckoutPendingAt' in data)
-        && !('stripeCheckoutPendingSessionId' in data)
-        && !('stripeTrialUsedAt' in data)
-        && !('billingCurrency' in data)
-        && !('billingInterval' in data)
-        && !('billingPriceVersion' in data)
-        && !('graceEndsAt' in data)
-        && !('graceEndedAt' in data)
-        && !('subscriptionCancelAt' in data)
-        && !('subscriptionCancelRequestedAt' in data);
+        && (!('billingStatus' in data) || data.billingStatus == 'basic');
+    }
+
+    function validOwnerProfileUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin'])
+        && request.resource.data.lastLogin == request.time;
+    }
+
+    // Workspace-owner subcollections written by the client (AUDIT_REPORT.md D3 inventory). Collections
+    // with their own match blocks below (history, driver*, tracking) are not listed here.
+    function ownerCollections() {
+      return ['stopsCache', 'stopsChunks', 'routes', 'plannedRoutes', 'operationSnapshots', 'sessions', 'settings',
+        'gpsTracking', 'activePlannedRoutes', 'customers', 'orders', 'importProfiles', 'importBatches',
+        'orderCustomers', 'orderContacts', 'vehicles'];
     }
 
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid) && !uid.matches('^drv_.*') && request.resource.data.role != 'driver' && validSafeUserCreate(request.resource.data);
-      allow update: if isOwner(uid) && resource.data.role != 'driver' && !protectedPlanFieldsChanged() && !protectedIdentityFieldsChanged();
+      allow create: if isOwner(uid) && !uid.matches('^drv_.*') && validSignup(uid, request.resource.data);
+      allow update: if isOwner(uid) && resource.data.role != 'driver' && validOwnerProfileUpdate();
       allow update: if isAdmin();
       allow delete: if false;
 
@@ -210,8 +156,7 @@ service cloud.firestore {
       }
 
       match /{subcollection}/{document=**} {
-        allow read, write: if isWorkspaceOwner(uid)
-          && !(subcollection in ['paymentRequests', 'billingEvents', 'cancellationRequests', 'drivers', 'driverUsage']);
+        allow read, write: if isWorkspaceOwner(uid) && subcollection in ownerCollections();
       }
     }
 

@@ -20,3 +20,6 @@ firebase-adminsdk*.json
 # Local assistant logs and per-machine editor settings
 .claude/settings.local.json
 .finesse/log.json
+
+# Firebase emulator logs
+*-debug.log
