@@ -1398,74 +1398,6 @@ function subscribeToRoutes(callback) {
 }
 
 // ============================================
-// SYNC MANAGER
-// ============================================
-
-class CloudSyncManager {
-    constructor() {
-        this.isOnline = navigator.onLine;
-        this.pendingSync = [];
-        this.routesUnsubscribe = null;
-
-        // Listen for online/offline events
-        window.addEventListener('online', () => this.handleOnline());
-        window.addEventListener('offline', () => this.handleOffline());
-    }
-
-    handleOnline() {
-        this.isOnline = true;
-        console.log('Back online - syncing pending changes');
-        this.syncPendingChanges();
-    }
-
-    handleOffline() {
-        this.isOnline = false;
-        console.log('Gone offline - changes will be queued');
-    }
-
-    async syncPendingChanges() {
-        if (!this.isOnline || this.pendingSync.length === 0) return;
-
-        const pending = [...this.pendingSync];
-        this.pendingSync = [];
-
-        for (const change of pending) {
-            try {
-                if (change.type === 'save') {
-                    await saveRouteToCloud(change.data);
-                } else if (change.type === 'delete') {
-                    await deleteRouteFromCloud(change.id);
-                }
-            } catch (error) {
-                console.error('Sync error:', error);
-                this.pendingSync.push(change);
-            }
-        }
-    }
-
-    queueChange(change) {
-        this.pendingSync.push(change);
-        if (this.isOnline) {
-            this.syncPendingChanges();
-        }
-    }
-
-    startRealtimeSync(callback) {
-        if (this.routesUnsubscribe) {
-            this.routesUnsubscribe();
-        }
-        this.routesUnsubscribe = subscribeToRoutes(callback);
-    }
-
-    stopRealtimeSync() {
-        if (this.routesUnsubscribe) {
-            this.routesUnsubscribe();
-            this.routesUnsubscribe = null;
-        }
-    }
-}
-
-// ============================================
 // GPS TRACKING FUNCTIONS
 // ============================================
 
@@ -2321,9 +2253,6 @@ async function clearAllUserData() {
 // Initialize once at load so persistence setup happens before any reads/writes.
 initializeFirebase();
 
-// Create global sync manager instance
-const cloudSync = new CloudSyncManager();
-
 // Export for use in other files
 window.FirebaseApp = {
     init: initializeFirebase,
@@ -2403,6 +2332,5 @@ window.FirebaseApp = {
         loadAll: loadCustomCustomers,
         delete: deleteCustomCustomer
     },
-    clearAllData: clearAllUserData,
-    sync: cloudSync
+    clearAllData: clearAllUserData
 };
