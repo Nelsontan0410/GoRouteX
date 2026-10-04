@@ -549,7 +549,7 @@
     try {
       const [cloudStops, cloudHistory, cloudSelection, cloudActiveRoutes] = await Promise.all([
         cloudAdapter.loadStops({ forceReload: false, serverFirst: true, allowCacheFallback: true }),
-        cloudAdapter.loadHistory(),
+        cloudAdapter.loadHistory({ full: true }),
         cloudAdapter.loadSelection(),
         cloudAdapter.loadActiveRoutes()
       ]);
