@@ -8126,7 +8126,7 @@
             }
 
             // Update the message bar with enhanced styling
-            messageBarPg2.innerHTML = `<div style="font-size: 0.85rem; line-height: 1.4; font-weight: 600; color: #1e3a8a;">${suggestionText}<br><span style="font-weight: 500;">This suggestion has not been restriction-checked. Apply it to run the check.</span></div>`;
+            messageBarPg2.innerHTML = `<div style="font-size: 0.85rem; line-height: 1.4; font-weight: 600; color: #1e3a8a;">${escapeHtml(suggestionText)}<br><span style="font-weight: 500;">This suggestion has not been restriction-checked. Apply it to run the check.</span></div>`;
             
             hasShownOptimizationSuggestion = true;
             
