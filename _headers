@@ -39,3 +39,10 @@
 
 /orders/*
   Cache-Control: no-cache, no-store, must-revalidate
+
+/auth-action.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  Referrer-Policy: no-referrer
+
+/auth-recovery.js
+  Cache-Control: no-cache, no-store, must-revalidate
