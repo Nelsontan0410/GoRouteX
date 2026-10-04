@@ -2358,6 +2358,17 @@
       return nextCount;
     }
 
+    function syncRouteUsageFromServer(serverUsed) {
+      const userId = window.FirebaseApp?.auth?.getCurrentUser?.()?.uid || '';
+      const nextCount = Math.max(getTodayUsage(userId), Number(serverUsed) || 0);
+      try {
+        localStorage.setItem(getTodayRouteUsageKey(new Date(), userId), String(nextCount));
+      } catch (error) {
+        console.warn('Could not update route usage counter:', error);
+      }
+      return nextCount;
+    }
+
     function getProductFeatureAccess(featureKey) {
       const toolkit = getProductToolkit();
       const planKey = getCurrentProductPlan();

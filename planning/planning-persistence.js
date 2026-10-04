@@ -36,6 +36,29 @@ function buildCompactPlannedRoutesSnapshot(routes = AppState.plannedRoutes) {
             }));
     }
 
+let reservedRoutePlanId = null;
+
+// Returns { limitReached, used } from the server, or null when it cannot be reached (the local check
+// already passed, so the save proceeds rather than blocking users during a function outage).
+async function consumeServerRoutePlan(routeId) {
+        try {
+            const idToken = await getCurrentUserIdToken();
+            if (!idToken) return null;
+            const response = await fetch('/.netlify/functions/route-plan-usage', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ routeId: String(routeId) })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (response.status === 429 && payload.limitReached) return { limitReached: true, used: Number(payload.used) || 0 };
+            if (!response.ok || !payload.success) return null;
+            return { limitReached: false, used: Number(payload.used) || 0 };
+        } catch (error) {
+            console.warn('Route plan usage check unavailable:', error);
+            return null;
+        }
+    }
+
 // Selection saves are serialized so an older full-overwrite write can never land after a newer one.
 let selectionSaveInFlight = false;
 let selectionSavePending = false;
@@ -263,6 +286,18 @@ async function saveCurrentRouteToHistory(options = {}) {
             user: username
         };
 
+        // The daily route plan count lives on the server so clearing browser storage cannot reset it.
+        const usageRouteId = reservedRoutePlanId || historyEntry.id;
+        const serverUsage = await consumeServerRoutePlan(usageRouteId);
+        if (serverUsage?.limitReached) {
+            syncRouteUsageFromServer(serverUsage.used);
+            openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
+            return { success: false, limitReached: true };
+        }
+        // Reuse the counted ID if this save fails and is retried, so a retry is not charged twice.
+        reservedRoutePlanId = usageRouteId;
+        historyEntry.id = usageRouteId;
+
         const originalHistoryId = String(historyEntry.id);
 
         try {
@@ -287,7 +322,8 @@ async function saveCurrentRouteToHistory(options = {}) {
                 routeHistory = window.RoutePlannerStorage.sortHistoryEntries(routeHistory);
             }
 
-            incrementUsage();
+            reservedRoutePlanId = null;
+            if (serverUsage) syncRouteUsageFromServer(serverUsage.used); else incrementUsage();
             appLog("Route saved:", historyEntry.id);
             markCurrentRouteAsSaved(historyEntry.id, 'confirmed');
             if (orderPlan && authUser) window.GoRouteXOrderPlan.clear(authUser.uid);
