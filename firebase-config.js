@@ -1063,6 +1063,11 @@ async function loadHistoryWithFallback(uid, limit = HISTORY_LOAD_LIMIT, options 
     const applyCursor = (query) => previousCursor ? query.startAfter(previousCursor) : query;
     let createdAtFailure = null;
     let updatedAtFailure = null;
+    // On the first page, probe for any history document in parallel with the main query. If both are
+    // empty the collection is empty, so we can stop after one round trip instead of three sequential
+    // fallback queries (the slow "Loading saved route history" case for new accounts). Costs at most
+    // one extra document read.
+    const emptyProbe = useCursor ? null : collectionRef.limit(1).get().catch(() => null);
     try {
         const snapshot = await applyCursor(collectionRef.orderBy('createdAt', 'desc')).limit(pageSize).get();
         if (!snapshot.empty) {
@@ -1073,6 +1078,10 @@ async function loadHistoryWithFallback(uid, limit = HISTORY_LOAD_LIMIT, options 
             return { success: true, snapshot, hasMore: false };
         }
         if (!useCursor) _historyPageCursors.delete(cursorKey);
+        const probe = await emptyProbe;
+        if (probe && probe.empty) {
+            return { success: true, snapshot, hasMore: false };
+        }
     } catch (createdAtError) {
         createdAtFailure = createdAtError;
         console.warn('History createdAt order failed, trying updatedAt:', createdAtError.message);
