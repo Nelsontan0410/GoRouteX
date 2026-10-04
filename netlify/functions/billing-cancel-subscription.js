@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   getFirebaseAdmin,
   jsonResponse,
@@ -37,7 +38,8 @@ export default async (req) => {
     const subscription = await stripeRequest(`/subscriptions/${encodeURIComponent(profile.stripeSubscriptionId)}`, {
       method: 'POST',
       data: { cancel_at_period_end: true },
-      idempotencyKey: `goroutex-cancel-${user.uid}-${profile.stripeSubscriptionId}`
+      // Unique per request: a fixed key would replay a cached response after a portal resume + re-cancel.
+      idempotencyKey: `goroutex-cancel-${user.uid}-${profile.stripeSubscriptionId}-${randomUUID()}`
     });
     const now = firebaseAdmin.firestore.FieldValue.serverTimestamp();
     const periodEnd = Number(subscription.current_period_end || subscription.trial_end || 0);
