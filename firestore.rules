@@ -81,7 +81,7 @@ service cloud.firestore {
     function ownerCollections() {
       return ['stopsCache', 'stopsChunks', 'routes', 'plannedRoutes', 'operationSnapshots', 'sessions', 'settings',
         'gpsTracking', 'activePlannedRoutes', 'customers', 'orders', 'importProfiles', 'importBatches',
-        'orderCustomers', 'orderContacts', 'vehicles'];
+        'orderCustomers', 'orderContacts', 'vehicles', 'historySummaries'];
     }
 
     match /users/{uid} {

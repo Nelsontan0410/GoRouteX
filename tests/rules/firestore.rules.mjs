@@ -21,7 +21,7 @@ const signupProfile = (uid) => ({
 
 // Subcollections the workspace owner's client writes (see AUDIT_REPORT.md D3 inventory).
 const OWNER_COLLECTIONS = ['stopsCache', 'stopsChunks', 'routes', 'plannedRoutes', 'operationSnapshots', 'sessions', 'settings',
-  'gpsTracking', 'activePlannedRoutes', 'customers', 'orders', 'importProfiles', 'importBatches', 'orderCustomers', 'orderContacts', 'vehicles'];
+  'gpsTracking', 'activePlannedRoutes', 'customers', 'orders', 'importProfiles', 'importBatches', 'orderCustomers', 'orderContacts', 'vehicles', 'historySummaries'];
 
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-goroutex', firestore: { rules: readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: 8080 } });
