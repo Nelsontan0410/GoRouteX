@@ -231,6 +231,12 @@ function getHistoryCollectionRef(uid) {
     return getUserDocRef(uid).collection('history');
 }
 
+// One small document per saved route plan, mirroring the history document minus the Google directions
+// data (the bulk of each ~0.8 MB history document). The history list reads these instead.
+function getHistorySummariesCollectionRef(uid) {
+    return getUserDocRef(uid).collection('historySummaries');
+}
+
 function getLegacyRoutesCollectionRef(uid) {
     return getUserDocRef(uid).collection('routes');
 }
@@ -1208,6 +1214,28 @@ function mapHistorySnapshot(snapshot) {
     return routes;
 }
 
+const HISTORY_SUMMARY_VERSION = 1;
+
+function toHistorySummary(data) {
+    const summary = { ...data, summaryVersion: HISTORY_SUMMARY_VERSION };
+    if (Array.isArray(summary.plannedRoutes)) {
+        // Older documents have no successfulRoutesCount and the list derives it from directionsResult.
+        if (summary.successfulRoutesCount === undefined) {
+            summary.successfulRoutesCount = summary.plannedRoutes.filter((route) => route?.directionsResult?.routes?.length > 0).length;
+        }
+        summary.plannedRoutes = summary.plannedRoutes.map((route) => {
+            if (!route || typeof route !== 'object') return route;
+            const { directionsResult, ...rest } = route;
+            return directionsResult ? { ...rest, hasDirectionsResult: true } : rest;
+        });
+    }
+    return summary;
+}
+
+// Set once the rules reject historySummaries (e.g. rules not deployed yet): saving and listing then
+// behave exactly as before for the rest of the session.
+let _historySummariesUnavailable = false;
+
 async function saveHistoryBundle(routeData) {
     const user = getCurrentUser();
     if (!user) return { success: false, error: 'Not logged in' };
@@ -1252,11 +1280,27 @@ async function saveHistoryBundle(routeData) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await Promise.all([
-            historyRef.set(historyPayload, { merge: true }),
-            plannedRouteRef.set(plannedPayload, { merge: true }),
-            snapshotRef.set(snapshotPayload, { merge: true })
-        ]);
+        // One atomic batch, so the summary can never be missing for a saved route and every document shares
+        // the same server timestamps (the history list pages by createdAt).
+        const commitBundle = (withSummary) => {
+            const batch = db.batch();
+            batch.set(historyRef, historyPayload, { merge: true });
+            batch.set(plannedRouteRef, plannedPayload, { merge: true });
+            batch.set(snapshotRef, snapshotPayload, { merge: true });
+            if (withSummary) {
+                batch.set(getHistorySummariesCollectionRef(user.uid).doc(routeId), toHistorySummary(historyPayload), { merge: true });
+            }
+            return batch.commit();
+        };
+        try {
+            await commitBundle(!_historySummariesUnavailable);
+        } catch (batchError) {
+            if (_historySummariesUnavailable || batchError?.code !== 'permission-denied') throw batchError;
+            // Rules without historySummaries: never block saving a route plan because of the summary.
+            _historySummariesUnavailable = true;
+            console.warn('historySummaries not permitted by the rules; saving without a summary.');
+            await commitBundle(false);
+        }
 
         return { success: true, id: routeId };
     } catch (error) {
@@ -1271,6 +1315,111 @@ async function saveRouteToCloud(routeData) {
 }
 
 // Load one page of route history from Firestore
+// ---- History list: read the small summary documents instead of the ~0.8 MB history documents ----
+// Summaries are always the newest N routes (new saves write one atomically; older routes get one the
+// first time they are loaded in full), so a page is: summaries, then full history older than the oldest
+// summary (which are summarised on the way). Any failure falls back to the plain history query.
+const _historyListState = new Map(); // uid -> { phase: 'summaries' | 'legacy', cursor }
+
+function summaryShapedSnapshot(docs) {
+    return { empty: docs.length === 0, docs, forEach: (callback) => docs.forEach(callback) };
+}
+
+function asSummaryDoc(doc) {
+    return { id: doc.id, data: () => toHistorySummary(doc.data() || {}) };
+}
+
+// Best effort and not awaited: a failure only means the next load reads the full documents again.
+function backfillHistorySummaries(uid, fullDocs) {
+    const eligible = fullDocs.filter((doc) => doc.data()?.createdAt);
+    if (!eligible.length || _historySummariesUnavailable) return;
+    const batch = db.batch();
+    eligible.forEach((doc) => batch.set(getHistorySummariesCollectionRef(uid).doc(doc.id), toHistorySummary(doc.data()), { merge: true }));
+    batch.commit().catch((error) => {
+        if (error?.code === 'permission-denied') _historySummariesUnavailable = true;
+        console.warn('History summary backfill failed:', error?.message || error);
+    });
+}
+
+async function legacyHistoryAfter(uid, boundaryDoc, count) {
+    const snapshot = await getHistoryCollectionRef(uid).orderBy('createdAt', 'desc').startAfter(boundaryDoc.get('createdAt')).limit(count).get();
+    if (snapshot.docs.length) _historyPageCursors.set(uid, snapshot.docs[snapshot.docs.length - 1]);
+    backfillHistorySummaries(uid, snapshot.docs);
+    return snapshot.docs;
+}
+
+async function loadHistoryPage(uid, pageSize, options = {}) {
+    const loadMore = options.loadMore === true;
+    const state = _historyListState.get(uid);
+    if (_historySummariesUnavailable || (loadMore && !state)) {
+        return loadHistoryWithFallback(uid, pageSize, options);
+    }
+    if (loadMore && state.phase === 'legacy') {
+        const result = await loadHistoryWithFallback(uid, pageSize, options);
+        if (result.success && result.snapshot?.docs) {
+            backfillHistorySummaries(uid, result.snapshot.docs);
+            return { ...result, snapshot: summaryShapedSnapshot(result.snapshot.docs.map(asSummaryDoc)) };
+        }
+        return result;
+    }
+
+    try {
+        const startedAt = diagnosticClock();
+        const summaries = getHistorySummariesCollectionRef(uid);
+        let base = summaries.orderBy('createdAt', 'desc');
+        if (loadMore) base = base.startAfter(state.cursor);
+
+        let page, stale = false;
+        if (loadMore) {
+            page = await base.limit(pageSize).get();
+        } else {
+            // The newest saved route must have a summary; if not (saved by an older client, or a failed
+            // write), the summaries are incomplete and the full history is read instead.
+            const [summarySnapshot, newestSaved] = await Promise.all([
+                base.limit(pageSize).get(),
+                getOperationSnapshotsCollectionRef(uid).orderBy('createdAt', 'desc').limit(1).get().catch(() => null)
+            ]);
+            page = summarySnapshot;
+            stale = !!newestSaved && !newestSaved.empty && (page.empty || page.docs[0].id !== newestSaved.docs[0].id);
+        }
+
+        if (!loadMore && (page.empty || stale)) {
+            _historyListState.set(uid, { phase: 'legacy' });
+            const result = await loadHistoryWithFallback(uid, pageSize, options);
+            if (result.success && result.snapshot?.docs?.length) {
+                backfillHistorySummaries(uid, result.snapshot.docs);
+                globalThis.GoRouteXTiming?.note?.('history-source', stale ? 'full (summaries stale)' : 'full (no summaries yet)');
+                return { ...result, snapshot: summaryShapedSnapshot(result.snapshot.docs.map(asSummaryDoc)) };
+            }
+            return result;
+        }
+
+        let docs = page.docs.slice();
+        let hasMore = docs.length === pageSize;
+        if (docs.length > 0) _historyListState.set(uid, { phase: 'summaries', cursor: docs[docs.length - 1] });
+        if (docs.length < pageSize) {
+            // Summaries are exhausted: continue with full history older than the oldest summary.
+            const boundary = docs.length ? docs[docs.length - 1] : state.cursor;
+            const remainder = pageSize - docs.length;
+            const older = await legacyHistoryAfter(uid, boundary, remainder);
+            docs = docs.concat(older.map(asSummaryDoc));
+            hasMore = older.length === remainder;
+            _historyListState.set(uid, { phase: 'legacy' });
+        }
+        const result = { success: true, snapshot: summaryShapedSnapshot(docs), hasMore };
+        if (!loadMore) {
+            noteHistoryQuery(result.snapshot, Math.round(diagnosticClock() - startedAt));
+            globalThis.GoRouteXTiming?.note?.('history-source', 'summaries');
+        }
+        return result;
+    } catch (error) {
+        if (error?.code === 'permission-denied') _historySummariesUnavailable = true;
+        console.warn('History summaries unavailable, reading full history:', error?.message || error);
+        _historyListState.delete(uid);
+        return loadHistoryWithFallback(uid, pageSize, options);
+    }
+}
+
 async function loadRoutesFromCloud(options = {}) {
     const user = getCurrentUser();
     if (!user) {
@@ -1280,7 +1429,10 @@ async function loadRoutesFromCloud(options = {}) {
 
     try {
         const pageSize = Math.max(1, Math.min(Number(options.limit || options.pageSize) || HISTORY_LOAD_LIMIT, 50));
-        const queryResult = await loadHistoryWithFallback(user.uid, pageSize, {
+        // options.full: callers that copy history elsewhere (e.g. cloud -> device migration) need the
+        // complete documents, not the list summaries.
+        const loadPage = options.full === true ? loadHistoryWithFallback : loadHistoryPage;
+        const queryResult = await loadPage(user.uid, pageSize, {
             loadMore: options.loadMore === true
         });
         if (!queryResult.success) {
@@ -1334,6 +1486,8 @@ async function deleteRouteFromCloud(routeId) {
     }
 
     try {
+        // Summary first: if a later delete fails the route is hidden rather than left as a dead list entry.
+        await getHistorySummariesCollectionRef(user.uid).doc(String(routeId)).delete().catch(() => {});
         await getHistoryCollectionRef(user.uid).doc(routeId).delete();
         await getPlannedRoutesCollectionRef(user.uid).doc(routeId).delete().catch(() => {});
         await getOperationSnapshotsCollectionRef(user.uid).doc(routeId).delete().catch(() => {});
@@ -2189,6 +2343,7 @@ async function clearAllUserData() {
         const historyRef = getHistoryCollectionRef(uid);
         results.history = await deleteCollection(historyRef);
         console.log(`  ✅ Deleted ${results.history} history entries`);
+        results.historySummaries = await deleteCollection(getHistorySummariesCollectionRef(uid)).catch(() => 0);
 
         console.log('  Deleting legacy routes...');
         const routesRef = getLegacyRoutesCollectionRef(uid);
