@@ -71,10 +71,10 @@ test('payment implementation uses Stripe endpoints and removes the legacy manual
   assert.match(cancellation, /otherReason.length < 3/);
   assert.match(portal, /subscription_update\?\.enabled/);
   assert.match(checkout, /stripeCheckoutPendingAt/);
-  assert.match(rules, /!\('developerBillingExempt' in data\)/);
-  assert.match(rules, /'subscriptionExpiresAt',\s*'accessExpiresAt',/);
-  assert.match(rules, /!\('subscriptionExpiresAt' in data\)/);
-  assert.match(rules, /!\('accessExpiresAt' in data\)/);
+  // Billing fields are protected by an allow-list (behaviour covered by tests/rules/firestore.rules.mjs).
+  assert.match(rules, /data\.keys\(\)\.hasOnly\(signupFields\(\)\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasOnly\(\['lastLogin'\]\)/);
+  assert.doesNotMatch(rules.slice(rules.indexOf('function signupFields'), rules.indexOf('function validSignup')), /Expires|stripe|developerBillingExempt|permanentPlan/);
   assert.match(rules, /data\.trialEndsAt <= request\.time \+ duration\.value\(8, 'd'\)/);
   assert.match(app, /create-stripe-checkout/);
   assert.doesNotMatch(app, /create-pro-checkout/);
