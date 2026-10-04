@@ -1308,7 +1308,7 @@ async function saveSessionToCloud(sessionData) {
 }
 
 // Load current session from Firestore
-async function loadSessionFromCloud() {
+async function loadSelectionSessionFromCloud() {
     const user = getCurrentUser();
     if (!user) {
         return { success: false, session: null };
@@ -2281,7 +2281,7 @@ window.FirebaseApp = {
         loadLatestFinalizedPlan: loadLatestFinalizedPlanFromCloud,
         deleteRoute: deleteRouteFromCloud,
         saveSession: saveSessionToCloud,
-        loadSession: loadSessionFromCloud,
+        loadSession: loadSelectionSessionFromCloud,
         subscribeToRoutes: subscribeToRoutes
     },
     history: {
