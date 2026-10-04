@@ -626,7 +626,13 @@
     refreshMaps('final');
     if (optionContext !== 'manual') updateRegionOptions(global.AppState?.plannedRoutes || []);
   });
-  document.addEventListener?.('input', () => refreshMaps());
-  document.addEventListener?.('change', () => refreshMaps());
+  // Repainting removes and recreates every restriction marker, so coalesce bursts of keystrokes.
+  let refreshTimer = null;
+  const scheduleRefresh = () => {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => refreshMaps(), 200);
+  };
+  document.addEventListener?.('input', scheduleRefresh);
+  document.addEventListener?.('change', scheduleRefresh);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
 })(window);
