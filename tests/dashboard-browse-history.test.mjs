@@ -31,3 +31,9 @@ test('history still starts loading in the background as soon as the dashboard op
   assert.match(app, /pageId === 'page-history-dashboard'\) \{\s*renderHistoryDashboard\(\);\s*loadDashboardData\(\)/);
   assert.match(dashboard, /loadHistoryOnce\(options\),/);
 });
+
+test('history pages are small: first page 5, Load More 10', () => {
+  assert.match(app, /const HISTORY_PAGE_SIZE = 5;/);
+  assert.match(app, /const HISTORY_LOAD_MORE_SIZE = 10;/);
+  assert.match(app, /const pageSize = options\.loadMore === true \? HISTORY_LOAD_MORE_SIZE : HISTORY_PAGE_SIZE;\s*const result = await window\.RoutePlannerStorage\.loadHistory\(\{\s*limit: pageSize,\s*pageSize,/);
+});

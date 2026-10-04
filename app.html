@@ -1419,7 +1419,10 @@
     let routeHistoryLoadGeneration = 0;
     let routeHistoryLoadState = 'idle';
     let routeHistoryLoadErrorMessage = '';
-    const HISTORY_PAGE_SIZE = 20;
+    // Saved route documents are large (full route data, ~0.8 MB each), so the first page is small and
+    // Load More fetches a few at a time. Lists only need a handful of rows to be useful.
+    const HISTORY_PAGE_SIZE = 5;
+    const HISTORY_LOAD_MORE_SIZE = 10;
     let routeHistoryHasMore = false;
     let routeHistoryOffset = 0;
     let routeHistoryLoadingMore = false;
@@ -5278,9 +5281,10 @@
 
         try {
             window.GoRouteXTiming?.mark('history-request');
+            const pageSize = options.loadMore === true ? HISTORY_LOAD_MORE_SIZE : HISTORY_PAGE_SIZE;
             const result = await window.RoutePlannerStorage.loadHistory({
-                limit: HISTORY_PAGE_SIZE,
-                pageSize: HISTORY_PAGE_SIZE,
+                limit: pageSize,
+                pageSize,
                 offset: options.offset || 0,
                 loadMore: options.loadMore === true
             });
