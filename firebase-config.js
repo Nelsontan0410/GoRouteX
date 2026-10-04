@@ -51,6 +51,7 @@ let _stopsCacheUid = null;
 let _stopsWriteTimer = null;
 let _stopsFlushPromise = null;
 let _stopsPendingWrite = false;
+let _stopsDirtyGen = 0;
 let _historyBackfillUid = null;
 const _historyPageCursors = new Map();
 
@@ -679,15 +680,27 @@ async function writeStopsToFirestore(uid) {
     return { success: true, storageMode: 'chunked', totalStops: stops.length, chunkCount: chunks.length, updatedAt };
 }
 
-function startStopsWrite(uid) {
+function markStopsDirty() {
     _stopsPendingWrite = true;
+    _stopsDirtyGen += 1;
+}
+
+function startStopsWrite(uid) {
+    if (_stopsFlushPromise) {
+        // Serialize writes: once the in-flight write settles, write again only if newer changes arrived.
+        return _stopsFlushPromise.then((result) => (_stopsPendingWrite ? startStopsWrite(uid) : result));
+    }
+    _stopsPendingWrite = true;
+    const writeGen = _stopsDirtyGen;
     const writePromise = writeStopsToFirestore(uid)
         .catch((error) => {
             const normalized = normalizeFirestoreError(error, 'Failed to save stops');
             return { success: false, error: normalized.displayMessage, code: normalized.code || null };
         })
         .finally(() => {
-            _stopsPendingWrite = false;
+            if (_stopsDirtyGen === writeGen) {
+                _stopsPendingWrite = false;
+            }
             if (_stopsFlushPromise === writePromise) {
                 _stopsFlushPromise = null;
             }
@@ -697,7 +710,7 @@ function startStopsWrite(uid) {
 }
 
 function scheduleStopsWrite(uid) {
-    _stopsPendingWrite = true;
+    markStopsDirty();
     clearStopsWriteTimer();
     _stopsWriteTimer = setTimeout(async () => {
         clearStopsWriteTimer();
@@ -714,11 +727,7 @@ async function flushStopsCacheWrites() {
         return startStopsWrite(user.uid);
     }
 
-    if (_stopsFlushPromise) {
-        return _stopsFlushPromise;
-    }
-
-    if (_stopsPendingWrite) {
+    if (_stopsFlushPromise || _stopsPendingWrite) {
         return startStopsWrite(user.uid);
     }
 
@@ -930,7 +939,7 @@ async function saveStopsCache(stopsArray, options = {}) {
     _stopsCacheUid = user.uid;
 
     if (immediate) {
-        _stopsPendingWrite = true;
+        markStopsDirty();
         return flushStopsCacheWrites();
     }
 
@@ -981,7 +990,7 @@ async function clearStopsCache() {
     _stopsMem = [];
     _stopsLoaded = true;
     _stopsStorageMode = 'single';
-    _stopsPendingWrite = true;
+    markStopsDirty();
     return flushStopsCacheWrites();
 }
 
