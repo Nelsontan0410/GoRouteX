@@ -88,6 +88,7 @@
 - D2（M5）：每日规划次数是否要在服务端执行（Netlify 函数加计数，或规则配合计数文档）？还是接受只在前端限制？
 - D3（M11）：profile 和子集合是否改成白名单 schema？这是大改动，需要先梳理所有客户端写入的字段。
 - D4（L8）：退款或争议时是否自动收回权限？
+- D6（N1）：`package-lock.json` 和 `pnpm-lock.yaml` 同时存在，确认 Netlify 用的是哪个，删掉另一个。
 - D5（L6）：是否还有流程依赖“未保存的计划也能直接派车”？
 
 **不建议现在修**
@@ -102,5 +103,7 @@
 | ID | 严重度 | 类别 | 位置 | 问题 | 建议修复 | 工作量 | 置信度 |
 |---|---|---|---|---|---|---|---|
 | N1 | High | 依赖安全 | package-lock.json | `npm audit --omit=dev`：1 critical（websocket-driver）、4 high（@fastify/busboy、@grpc/grpc-js、form-data、protobufjs），都是间接依赖，`fixAvailable: true`（非大版本升级）。 | `npm audit fix`，然后跑测试和 build | S | 确认 |
+
+N1 补充：`pnpm-lock.yaml` 本来就是已修复的版本（`pnpm audit --prod` 只有 1 个 moderate），只有 `package-lock.json` 过期。仓库同时有两个 lockfile，建议只保留一个（见 D6）。
 
 基线（安装 Node v24.21.0 到 `~/.local/node` 后测得）：测试 207/207 通过，build 成功（dist 共 100 个文件）。
