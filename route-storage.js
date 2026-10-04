@@ -554,7 +554,13 @@
         cloudAdapter.loadActiveRoutes()
       ]);
 
-      if (cloudStops?.success && Array.isArray(cloudStops.stops) && cloudStops.stops.length > 0) {
+      // The user may have saved locally while the cloud reads were in flight; never overwrite that.
+      const [latestStops, latestSelection] = await Promise.all([
+        indexedDbAdapter.loadStops(),
+        indexedDbAdapter.loadSelection()
+      ]);
+      if (cloudStops?.success && Array.isArray(cloudStops.stops) && cloudStops.stops.length > 0
+        && !(latestStops?.stops || []).length) {
         await indexedDbAdapter.saveStops(cloudStops.stops);
       }
       if (cloudHistory?.success && Array.isArray(cloudHistory.routes) && cloudHistory.routes.length > 0) {
@@ -562,31 +568,37 @@
           await indexedDbAdapter.saveHistory(route);
         }
       }
-      if (cloudSelection?.success && cloudSelection.session) {
+      if (cloudSelection?.success && cloudSelection.session && !latestSelection?.session) {
         await indexedDbAdapter.saveSelection(cloudSelection.session);
       }
       if (cloudActiveRoutes?.success && cloudActiveRoutes.data) {
         await indexedDbAdapter.saveActiveRoutes(cloudActiveRoutes.data);
       }
 
+      // A load that reported failure copied nothing; mark it so the next visit retries.
+      const allLoaded = [cloudStops, cloudHistory, cloudSelection, cloudActiveRoutes].every(result => result?.success !== false);
       await indexedDbAdapter.setMeta(RECORD_MIGRATION, {
         seededAt: new Date().toISOString(),
-        source: 'cloud'
+        source: allLoaded ? 'cloud' : 'cloud-failed'
       });
-      return { success: true, migrated: true };
+      return allLoaded ? { success: true, migrated: true } : { success: false, migrated: false, error: 'Cloud data could not be loaded.' };
     } catch (error) {
       return { success: false, migrated: false, error: error.message };
     }
   }
+
+  const HYDRATION_RETRY_COOLDOWN_MS = 60 * 1000;
 
   function warmIndexedDbFromCloud(indexedDbAdapter, ownerKey) {
     const key = sanitizeDbSuffix(ownerKey || getOwnerKey());
     if (!warmMigrationPromises.has(key)) {
       const warmPromise = maybeHydrateIndexedDbFromCloud(indexedDbAdapter)
         .catch((error) => ({ success: false, migrated: false, error: error.message }))
-        .finally(() => {
-          // Keep the completed promise for this page session so repeated page visits
-          // do not fan out cloud hydration reads.
+        .then((result) => {
+          // Keep a successful result for this page session so repeated page visits
+          // do not fan out cloud hydration reads; drop failures after a cooldown so a later visit retries.
+          if (!result?.success) setTimeout(() => warmMigrationPromises.delete(key), HYDRATION_RETRY_COOLDOWN_MS);
+          return result;
         });
       warmMigrationPromises.set(key, warmPromise);
     }
