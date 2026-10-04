@@ -6,9 +6,17 @@ const locked = () => jsonResponse({ success: false, error: 'Too many attempts. P
 const now = () => Date.now();
 const active = record => record && record.status === 'ACTIVE';
 
+// Limits per 15-minute window. The username+IP pair locks fast; the username-wide limit is looser so a
+// stranger cannot lock a driver out with a few guesses (8-digit PINs keep brute force impractical), and
+// the IP-wide limit stops one client from spraying a PIN across many usernames.
+const ATTEMPT_SCOPES = [
+  { scope: 'username-ip', limit: LOGIN_FAILURE_LIMIT, key: (username, ip) => `username-ip:${username}:${ip}` },
+  { scope: 'username', limit: 20, key: username => `username:${username}` },
+  { scope: 'ip', limit: 30, key: (username, ip) => `ip:${ip}` }
+];
+
 async function reserveAttempt(db, username, ip) {
-  const keys = [digest(`username:${username}`), digest(`username-ip:${username}:${ip}`)];
-  const refs = keys.map(key => db.collection('driverLoginAttempts').doc(key));
+  const refs = ATTEMPT_SCOPES.map(item => db.collection('driverLoginAttempts').doc(digest(item.key(username, ip))));
   let blocked = false;
   await db.runTransaction(async tx => {
     const docs = await Promise.all(refs.map(ref => tx.get(ref)));
@@ -16,13 +24,30 @@ async function reserveAttempt(db, username, ip) {
     blocked = docs.some(doc => doc.exists && Number(doc.data().lockoutUntil || 0) > instant);
     if (blocked) return;
     docs.forEach((doc, index) => {
+      const { limit } = ATTEMPT_SCOPES[index];
       const prior = doc.exists && Number(doc.data().windowStartedAt || 0) > instant - LOGIN_LOCK_MS ? Number(doc.data().failedAttemptCount || 0) : 0;
-      if (prior >= LOGIN_FAILURE_LIMIT) blocked = true;
+      if (prior >= limit) blocked = true;
       const count = prior + 1;
-      tx.set(refs[index], { failedAttemptCount: count, windowStartedAt: prior ? doc.data().windowStartedAt : instant, lastFailedAt: instant, lockoutUntil: count >= LOGIN_FAILURE_LIMIT ? instant + LOGIN_LOCK_MS : 0 });
+      tx.set(refs[index], { failedAttemptCount: count, windowStartedAt: prior ? doc.data().windowStartedAt : instant, lastFailedAt: instant, lockoutUntil: count >= limit ? instant + LOGIN_LOCK_MS : 0 });
     });
   });
   return { refs, blocked };
+}
+
+// A successful login clears its own username+IP counter but only refunds its reserved attempt on the shared
+// counters, so a driver's login can't wipe failures an attacker accumulated from elsewhere.
+async function releaseAttempt(db, refs) {
+  const [pairRef, ...sharedRefs] = refs;
+  await db.runTransaction(async tx => {
+    const docs = await Promise.all(sharedRefs.map(ref => tx.get(ref)));
+    docs.forEach((doc, index) => {
+      if (!doc.exists) return;
+      const count = Math.max(0, Number(doc.data().failedAttemptCount || 0) - 1);
+      if (count === 0) tx.delete(sharedRefs[index]);
+      else tx.set(sharedRefs[index], { failedAttemptCount: count, lockoutUntil: 0 }, { merge: true });
+    });
+    tx.delete(pairRef);
+  });
 }
 
 export async function authenticateDriver({ admin, db, username, pin, ip = 'unknown' }) {
@@ -50,7 +75,7 @@ export async function authenticateDriver({ admin, db, username, pin, ip = 'unkno
   const timestamp = new Date().toISOString();
   await Promise.all([
     db.collection('users').doc(identity.tenantId).collection('drivers').doc(uid).set({ lastLoginAt: timestamp }, { merge: true }),
-    Promise.all(attempt.refs.map(ref => ref.delete()))
+    releaseAttempt(db, attempt.refs)
   ]);
   return new Response(JSON.stringify({ success: true, token }), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 }
