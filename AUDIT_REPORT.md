@@ -107,3 +107,7 @@
 N1 补充：`pnpm-lock.yaml` 本来就是已修复的版本（`pnpm audit --prod` 只有 1 个 moderate），只有 `package-lock.json` 过期。仓库同时有两个 lockfile，建议只保留一个（见 D6）。
 
 基线（安装 Node v24.21.0 到 `~/.local/node` 后测得）：测试 207/207 通过，build 成功（dist 共 100 个文件）。
+
+### 实施备注
+- L7：dispatch 的 `Server-Timing`、`X-Dispatch-Counts`、`X-Dispatch-Response-Bytes` 是有意加的性能埋点，`dispatch/dispatch-board.js:23` 会读它们，且只返回给已登录用户，所以保留不删，只给 `jsonResponse` 加了 `Cache-Control: no-store`。
+- M6：stops 完整的版本控制（CAS）按“不建议现在修”暂缓，H2 已先止血。
