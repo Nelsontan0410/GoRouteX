@@ -256,7 +256,7 @@ function renderHistoryDashboard() {
     }
 
 function updateHistoryStats() {
-        if (isRouteHistoryLoading && routeHistory.length === 0) {
+        if (isRouteHistoryPending()) {
             setHistoryStatsPlaceholderValues();
             updateHistoryFilterOptions();
             renderDashboardRecentActivity();

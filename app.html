@@ -15,7 +15,7 @@
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="app-core.css?v=20261002-1">
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
-  <link rel="stylesheet" href="app-experience.css?v=20260922-7">
+  <link rel="stylesheet" href="app-experience.css?v=20261004-1">
   <!-- Mobile CSS is the final layer: shell owns navigation, pages own responsive layout. -->
   <link rel="stylesheet" href="mobile-fixes.css?v=20260505-1">
   <link rel="stylesheet" href="mobile-shell.css?v=20260505-1">
@@ -5194,7 +5194,7 @@
     
 
     function getRouteHistoryStatusText() {
-        if (routeHistoryLoadState === 'loading') {
+        if (routeHistoryLoadState === 'loading' || routeHistoryLoadState === 'idle') {
             return 'Loading saved route history...';
         }
         if (routeHistoryLoadState === 'error' && routeHistoryLoadErrorMessage) {
@@ -5211,19 +5211,20 @@
 
     function syncRouteHistoryUiState() {
         if (historyStatsPanel) {
-            historyStatsPanel.classList.toggle('is-loading', isRouteHistoryLoading);
-            historyStatsPanel.setAttribute('aria-busy', isRouteHistoryLoading ? 'true' : 'false');
+            const pending = isRouteHistoryLoading || isRouteHistoryPending();
+            historyStatsPanel.classList.toggle('is-loading', pending);
+            historyStatsPanel.setAttribute('aria-busy', pending ? 'true' : 'false');
         }
 
         if (historyStatsStatusEl) {
             historyStatsStatusEl.textContent = getRouteHistoryStatusText();
         }
 
-        if (isRouteHistoryLoading && routeHistory.length === 0) {
+        if (isRouteHistoryPending()) {
             setHistoryStatsPlaceholderValues();
         }
 
-        const disableBrowseActions = isRouteHistoryLoading && routeHistory.length === 0;
+        const disableBrowseActions = isRouteHistoryPending();
         const disableDangerActions = disableBrowseActions || !hasRolePermission('history.manage');
         if (browseFullHistoryBtn) browseFullHistoryBtn.disabled = disableBrowseActions;
         if (clearHistoryBtn) clearHistoryBtn.disabled = disableDangerActions;
@@ -5240,6 +5241,12 @@
         routeHistoryLoadState = state;
         routeHistoryLoadErrorMessage = errorMessage;
         syncRouteHistoryUiState();
+    }
+
+    // True until the first history load has an answer. 'idle' counts as pending: before the load starts
+    // (while auth and the profile resolve) the page must not claim there is no history.
+    function isRouteHistoryPending() {
+        return (isRouteHistoryLoading || routeHistoryLoadState === 'idle') && routeHistory.length === 0;
     }
 
     function setRouteHistoryLoading(isLoading) {
@@ -5269,12 +5276,14 @@
         }
 
         try {
+            window.GoRouteXTiming?.mark('history-request');
             const result = await window.RoutePlannerStorage.loadHistory({
                 limit: HISTORY_PAGE_SIZE,
                 pageSize: HISTORY_PAGE_SIZE,
                 offset: options.offset || 0,
                 loadMore: options.loadMore === true
             });
+            window.GoRouteXTiming?.mark('history-response');
             if (!result.success) {
                 return {
                     routes: [],
@@ -5364,6 +5373,8 @@
                 setRouteHistoryLoadState(routeHistory.length > 0 ? 'ready' : 'empty');
                 appLog(`Route history applied from ${result.source}:`, routeHistory.length, "routes");
                 renderHistoryDashboard();
+                window.GoRouteXTiming?.mark('history-rendered');
+                window.GoRouteXTiming?.report();
             } while (routeHistoryReloadQueued);
 
             return routeHistory;

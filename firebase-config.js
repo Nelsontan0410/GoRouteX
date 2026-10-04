@@ -11,6 +11,27 @@ const firebaseConfig = {
   measurementId: "G-ZM4B4HQLHS"
 };
 
+// Startup timing for diagnosing slow dashboard loads: first occurrence of each step, in ms since
+// navigation start. Printed once when route history first renders (see app.html loadRouteHistory).
+window.GoRouteXTiming = window.GoRouteXTiming || (() => {
+    const marks = {};
+    let reported = false;
+    return {
+        marks,
+        // Diagnostics only: must never break the step being measured.
+        mark(name) {
+            try {
+                if (marks[name] === undefined) marks[name] = Math.round(typeof performance !== 'undefined' ? performance.now() : Date.now());
+            } catch (_) {}
+        },
+        report() {
+            if (reported) return;
+            reported = true;
+            console.info('[GoRouteX timing] ms since page start:', { ...marks });
+        }
+    };
+})();
+
 // Initialize Firebase
 let app, auth, db;
 let _firebaseInitDone = false;
@@ -483,7 +504,10 @@ function sanitizeNextTarget(nextTarget) {
 // Listen for auth state changes
 function onAuthStateChange(callback) {
     if (auth) {
-        return auth.onAuthStateChanged(callback);
+        return auth.onAuthStateChanged((user) => {
+            if (user) window.GoRouteXTiming.mark('auth-ready');
+            return callback(user);
+        });
     }
     return null;
 }
@@ -505,6 +529,7 @@ async function loadUserProfile(user, options = {}) {
             new Promise((_, reject) => { _t = setTimeout(() => reject(Object.assign(new Error('Account profile request timed out. Please retry.'), { code: 'profile-timeout' })), 15000); })
         ]).finally(() => clearTimeout(_t));
         if (!snapshot.exists) return { success: false, error: 'Account profile not found.', fromCache: !!snapshot.metadata?.fromCache };
+        window.GoRouteXTiming.mark('profile-ready');
         return {
             success: true,
             profile: snapshot.data() || {},
@@ -1038,6 +1063,11 @@ async function loadHistoryWithFallback(uid, limit = HISTORY_LOAD_LIMIT, options 
     const applyCursor = (query) => previousCursor ? query.startAfter(previousCursor) : query;
     let createdAtFailure = null;
     let updatedAtFailure = null;
+    // On the first page, probe for any history document in parallel with the main query. If both are
+    // empty the collection is empty, so we can stop after one round trip instead of three sequential
+    // fallback queries (the slow "Loading saved route history" case for new accounts). Costs at most
+    // one extra document read.
+    const emptyProbe = useCursor ? null : collectionRef.limit(1).get().catch(() => null);
     try {
         const snapshot = await applyCursor(collectionRef.orderBy('createdAt', 'desc')).limit(pageSize).get();
         if (!snapshot.empty) {
@@ -1048,6 +1078,10 @@ async function loadHistoryWithFallback(uid, limit = HISTORY_LOAD_LIMIT, options 
             return { success: true, snapshot, hasMore: false };
         }
         if (!useCursor) _historyPageCursors.delete(cursorKey);
+        const probe = await emptyProbe;
+        if (probe && probe.empty) {
+            return { success: true, snapshot, hasMore: false };
+        }
     } catch (createdAtError) {
         createdAtFailure = createdAtError;
         console.warn('History createdAt order failed, trying updatedAt:', createdAtError.message);

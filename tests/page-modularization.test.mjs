@@ -54,3 +54,11 @@ test('classic scripts do not both declare the global loadSessionFromCloud', asyn
   assert.doesNotMatch(firebaseConfig, /function loadSessionFromCloud\(/);
   assert.match(firebaseConfig, /loadSession: loadSelectionSessionFromCloud,/);
 });
+
+test('dashboard startup steps are timed and reported once history renders', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+  const marks = [...[read('firebase-config.js'), read('route-storage.js'), read('app.html')].join('\n').matchAll(/GoRouteXTiming\??\.mark\('([a-z-]+)'\)/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(marks)].sort(), ['auth-ready', 'history-rendered', 'history-request', 'history-response', 'profile-ready', 'storage-resolved']);
+  assert.match(read('app.html'), /GoRouteXTiming\?\.report\(\)/);
+});
