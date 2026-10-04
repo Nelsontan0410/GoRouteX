@@ -15,7 +15,7 @@
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="app-core.css?v=20261002-1">
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
-  <link rel="stylesheet" href="app-experience.css?v=20261005-2">
+  <link rel="stylesheet" href="app-experience.css?v=20261005-3">
   <link rel="stylesheet" href="styles/app-sidebar.css?v=20261005-1">
   <!-- Mobile CSS is the final layer: shell owns navigation, pages own responsive layout. -->
   <link rel="stylesheet" href="mobile-fixes.css?v=20260505-1">
@@ -276,13 +276,25 @@
 
   <div id="page-select-stops" class="page mobile-core-page">
     <div class="stop-selector-header workspace-intro-header">
-      <h2>Stops Selection</h2>
+      <div class="workspace-intro-title">
+        <h2>Stops Selection</h2>
+        <p class="workspace-intro-description">Select the stops for this route, review your selection, and continue to assignment.</p>
+      </div>
       <div class="workspace-intro-actions">
         <button type="button" class="action-button-secondary" onclick="goBackToPreviousPage()" style="width:auto; margin-bottom:0;">Back</button>
-        <button id="backToDashboardBtn" style="width:auto; margin-bottom:0;">Dashboard</button>
+        <button type="button" id="openRouteSettingsBtn" class="action-button-secondary" aria-haspopup="dialog" aria-controls="routeSettingsPanel" style="width:auto; margin-bottom:0;">Route settings</button>
       </div>
     </div>
     <div id="orderPlanNotice" class="order-plan-notice" role="status" hidden></div>
+    <div id="routeSettingsPanel" class="route-settings-overlay" role="dialog" aria-modal="true" aria-labelledby="routeSettingsPanelTitle" hidden>
+      <div class="route-settings-overlay-card">
+        <div class="route-settings-overlay-head">
+          <div>
+            <h3 id="routeSettingsPanelTitle">Route settings</h3>
+            <p>Start, end, and planning date &amp; time for this route.</p>
+          </div>
+          <button type="button" id="closeRouteSettingsBtn" class="action-button-primary">Done</button>
+        </div>
     <div class="select-page-route-settings">
             <div class="route-settings-container">
                 <button type="button" class="route-settings-header" id="toggleRouteSettings" aria-expanded="true" aria-controls="routeSettingsBody">
@@ -327,6 +339,8 @@
             </div>
                 </div>
             </div>
+    </div>
+      </div>
     </div>
     <div class="stop-selector-container">
       <div class="stop-selector-left">
@@ -4406,7 +4420,8 @@
         }
 
         if (routeOriginMode === 'custom') {
-            messageBarPg2.textContent = 'Select a custom start address before planning routes.';
+            messageBarPg2.textContent = 'Select a custom start address in Route settings before planning routes.';
+            window.openRouteSettingsPanel?.();
             if (customOriginInput) customOriginInput.focus();
         } else {
             messageBarPg2.textContent = 'Waiting for current location. You can switch to a custom address if GPS is unavailable.';
@@ -4434,7 +4449,8 @@
             return true;
         }
 
-        messageBarPg2.textContent = 'Select a custom end address or turn off the required end location option.';
+        messageBarPg2.textContent = 'Select a custom end address in Route settings or turn off the required end location option.';
+        window.openRouteSettingsPanel?.();
         if (customEndInput) customEndInput.focus();
         return false;
     }

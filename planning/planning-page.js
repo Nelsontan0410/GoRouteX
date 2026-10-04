@@ -180,9 +180,40 @@ function bindPlanningConfirmationControls() {
 
     }
 
+// Route settings (start, end, date & time) open on demand from Stops Selection instead of a permanent card.
+function bindRouteSettingsPanel() {
+        const panel = document.getElementById('routeSettingsPanel');
+        const openBtn = document.getElementById('openRouteSettingsBtn');
+        const closeBtn = document.getElementById('closeRouteSettingsBtn');
+        if (!panel || !openBtn || panel.dataset.bound === 'true') return;
+        panel.dataset.bound = 'true';
+        const close = () => {
+            if (panel.hidden) return;
+            panel.hidden = true;
+            openBtn.setAttribute('aria-expanded', 'false');
+            openBtn.focus();
+        };
+        const open = () => {
+            panel.hidden = false;
+            openBtn.setAttribute('aria-expanded', 'true');
+            const firstControl = panel.querySelector('input:not([disabled]), button');
+            if (firstControl) firstControl.focus();
+        };
+        openBtn.addEventListener('click', open);
+        // Validation that points at a start/end/date field opens the panel so the field is visible.
+        window.openRouteSettingsPanel = open;
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        panel.addEventListener('click', (event) => { if (event.target === panel) close(); });
+        document.addEventListener('keydown', (event) => {
+            // Escape closes, unless it is dismissing an open address suggestion list.
+            if (event.key === 'Escape' && !panel.hidden && !document.querySelector('.pac-container:not([style*="display: none"])')) close();
+        });
+    }
+
 function bindPlanningPageControls() {
         // Event Listeners for Page 1
         if (backToDashboardBtn) backToDashboardBtn.addEventListener('click', () => showPage('page-history-dashboard'));
+        bindRouteSettingsPanel();
         if (searchCustomerInput) {
             searchCustomerInput.addEventListener('input', scheduleCustomerSearchRender);
         }
