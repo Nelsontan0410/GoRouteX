@@ -122,7 +122,7 @@
     popup.focus();
   }
 
-  document.getElementById('dispatchLogout').addEventListener('click', async () => {
+  global.GoRouteXSidebar?.setLogoutHandler(async () => {
     await auth?.signOut?.();
     global.location.assign('login.html');
   });
@@ -134,7 +134,7 @@
   let authSettled = false;
   let accountBusy = false;
   let loadingUid = null;
-  const accountNodes = () => [document.getElementById('dispatchDisplayName'), document.getElementById('dispatchCurrentPlan')];
+  const accountNodes = () => [document.getElementById('sidebarDisplayName'), document.getElementById('sidebarCurrentPlan')];
   function logFailure(stage, error) {
     console.warn('ACCOUNT_CONTEXT_STAGE_FAILED', {
       stage,

@@ -29,7 +29,10 @@ test('standalone Dispatch receives the persisted plan ID and avoids Planning dep
   assert.match(flow, /dynamicSaveResult\?\.success && !dynamicSaveResult\.skipped/);
   assert.match(flow, /if \(!dynamicSaveResult\.id\)/);
   assert.match(readFileSync(new URL('../history/route-history-page.js', import.meta.url), 'utf8'), /function loadSelectedRoute\(\) \{[\s\S]*?openDispatchPage\(entry\.id\)/);
-  assert.match(app, /onclick="openDispatchPage\(\)">Dispatch/);
+  // The shared sidebar's Dispatch link opens the persisted plan through openDispatchPage inside app.html.
+  const sidebar = readFileSync(new URL('../app-sidebar.js', import.meta.url), 'utf8');
+  assert.match(sidebar, /target\.dataset\.nav === 'dispatch' && typeof global\.openDispatchPage === 'function'\) \{\s*event\.preventDefault\(\);\s*global\.openDispatchPage\(\);/);
+  assert.match(app, /onclick="openDispatchPage\(\)">\s*<span class="mobile-tab-icon">Routes/);
   assert.doesNotMatch(app, /id="dispatchBoard"/);
   assert.match(dispatchPage, /id="dispatchBoard"/);
   assert.match(dispatchPage, /src="dispatch\/dispatch-board\.js"/);
@@ -90,8 +93,8 @@ test('direct plan entry waits for account access, loads only the selected plan, 
   assert.equal(calls.refresh, 1);
   assert.equal(window.GoRouteXDispatch.options.getContext().planId, 'selected_123');
   assert.equal(nodes.get('dispatchBoard').hidden, false);
-  assert.equal(nodes.get('dispatchDisplayName').textContent, 'Owner');
-  assert.equal(nodes.get('dispatchCurrentPlan').textContent, 'Pro Plan');
+  assert.equal(nodes.get('sidebarDisplayName').textContent, 'Owner');
+  assert.equal(nodes.get('sidebarCurrentPlan').textContent, 'Pro Plan');
   assert.equal(session.get('grxLastFinalizedPlan:tenantA'), 'selected_123');
   assert.deepEqual([calls.optimization, calls.eta, calls.directions], [0, 0, 0]);
 });

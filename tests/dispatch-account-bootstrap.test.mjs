@@ -66,8 +66,8 @@ test('direct Dispatch auth restore reads users/{uid} once, then renders Pro iden
   await page.auth();
   assert.equal(page.calls.profiles, 1);
   assert.equal(page.window.GoRouteXAccountContext.getIdentity().uid, 'owner-uid');
-  assert.equal(page.nodes.get('dispatchDisplayName').textContent, 'logistic-sin');
-  assert.equal(page.nodes.get('dispatchCurrentPlan').textContent, 'Pro Plan');
+  assert.equal(page.nodes.get('sidebarDisplayName').textContent, 'logistic-sin');
+  assert.equal(page.nodes.get('sidebarCurrentPlan').textContent, 'Pro Plan');
   assert.equal(page.calls.planLoads, 1);
   assert.equal(page.nodes.get('dispatchBoard').hidden, false);
   assert.equal(page.timers.size, 0, 'auth timeout was cleared when the callback fired');
@@ -76,8 +76,8 @@ test('direct Dispatch auth restore reads users/{uid} once, then renders Pro iden
 test('refresh and independent new tab resolve the same owner without app.html memory', async () => {
   for (const page of [harness(pro), harness(pro), harness(pro)]) {
     await page.auth();
-    assert.equal(page.nodes.get('dispatchDisplayName').textContent, 'logistic-sin');
-    assert.equal(page.nodes.get('dispatchCurrentPlan').textContent, 'Pro Plan');
+    assert.equal(page.nodes.get('sidebarDisplayName').textContent, 'logistic-sin');
+    assert.equal(page.nodes.get('sidebarCurrentPlan').textContent, 'Pro Plan');
     assert.equal(page.calls.planLoads, 1);
   }
   const login = source('login.html');
@@ -90,8 +90,8 @@ test('refresh and independent new tab resolve the same owner without app.html me
 test('plan failure preserves resolved identity and terminates loading', async () => {
   const page = harness({ name: 'Known Owner', role: 'admin', productPlanKey: 'unknown-plan' });
   await page.auth();
-  assert.equal(page.nodes.get('dispatchDisplayName').textContent, 'Known Owner');
-  assert.equal(page.nodes.get('dispatchCurrentPlan').textContent, 'Plan unavailable');
+  assert.equal(page.nodes.get('sidebarDisplayName').textContent, 'Known Owner');
+  assert.equal(page.nodes.get('sidebarCurrentPlan').textContent, 'Plan unavailable');
   assert.match(page.nodes.get('dispatchPageState').textContent, /Plan unavailable/);
   assert.equal(page.calls.planLoads, 0);
   assert.equal(page.timers.size, 0);
@@ -101,8 +101,8 @@ test('profile permission failure shows explicit error and retry uses one listene
   const error = Object.assign(Error('permission-denied'), { code: 'permission-denied' });
   const page = harness(error);
   await page.auth();
-  assert.equal(page.nodes.get('dispatchDisplayName').textContent, 'Account unavailable');
-  assert.equal(page.nodes.get('dispatchCurrentPlan').textContent, 'Plan unavailable');
+  assert.equal(page.nodes.get('sidebarDisplayName').textContent, 'Account unavailable');
+  assert.equal(page.nodes.get('sidebarCurrentPlan').textContent, 'Plan unavailable');
   assert.match(page.nodes.get('dispatchPageState').textContent, /profile/);
   assert.ok(page.warnings.some(([label, detail]) => label === 'ACCOUNT_CONTEXT_STAGE_FAILED' && detail.stage === 'profileRead' && detail.code === 'permission-denied'));
   assert.equal(page.calls.listeners, 1);
@@ -117,8 +117,8 @@ test('workspace denial is not overwritten by the old auth timeout', async () => 
   const page = harness({ name: 'Viewer', role: 'viewer', productPlanKey: 'proplan' });
   await page.auth();
   assert.match(page.nodes.get('dispatchPageState').textContent, /Workspace role is missing or invalid/);
-  assert.equal(page.nodes.get('dispatchDisplayName').textContent, 'Account unavailable');
-  assert.equal(page.nodes.get('dispatchCurrentPlan').textContent, 'Plan unavailable');
+  assert.equal(page.nodes.get('sidebarDisplayName').textContent, 'Account unavailable');
+  assert.equal(page.nodes.get('sidebarCurrentPlan').textContent, 'Plan unavailable');
   assert.equal(page.timers.size, 0);
   assert.equal(page.calls.planLoads, 0);
 });
@@ -127,8 +127,8 @@ test('auth callback never firing ends in a stable auth error with retry', () => 
   const page = harness(pro);
   const [authTimer] = page.timers.keys();
   page.fireTimer(authTimer);
-  assert.equal(page.nodes.get('dispatchDisplayName').textContent, 'Account unavailable');
-  assert.equal(page.nodes.get('dispatchCurrentPlan').textContent, 'Plan unavailable');
+  assert.equal(page.nodes.get('sidebarDisplayName').textContent, 'Account unavailable');
+  assert.equal(page.nodes.get('sidebarCurrentPlan').textContent, 'Plan unavailable');
   assert.match(page.nodes.get('dispatchPageState').textContent, /restore your sign-in/);
   assert.equal(page.calls.listeners, 1);
 });
@@ -147,6 +147,6 @@ test('slow Dispatch profile request remains live and late success opens the boar
   finishProfile(pro);
   await pending;
   assert.equal(page.calls.profiles, 1);
-  assert.equal(page.nodes.get('dispatchDisplayName').textContent, 'logistic-sin');
+  assert.equal(page.nodes.get('sidebarDisplayName').textContent, 'logistic-sin');
   assert.equal(page.nodes.get('dispatchBoard').hidden, false);
 });

@@ -15,7 +15,8 @@
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="app-core.css?v=20261002-1">
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
-  <link rel="stylesheet" href="app-experience.css?v=20261005-1">
+  <link rel="stylesheet" href="app-experience.css?v=20261005-2">
+  <link rel="stylesheet" href="styles/app-sidebar.css?v=20261005-1">
   <!-- Mobile CSS is the final layer: shell owns navigation, pages own responsive layout. -->
   <link rel="stylesheet" href="mobile-fixes.css?v=20260505-1">
   <link rel="stylesheet" href="mobile-shell.css?v=20260505-1">
@@ -74,24 +75,9 @@
 
     <div id="activeSubscriberRoot" hidden>
   <div class="operations-shell">
-    <aside class="operations-sidebar" aria-label="Workspace navigation">
-      <div class="operations-brand" aria-label="GoRouteX">GoRoute<span>X</span></div>
-      <nav id="desktopAppNav" class="operations-nav" aria-label="Primary navigation">
-        <button type="button" data-page="page-history-dashboard" aria-current="page" onclick="showPage('page-history-dashboard')">Dashboard</button>
-        <button type="button" data-page="page-select-stops" onclick="showPage('page-select-stops')">Plan a route</button>
-        <button type="button" data-page="page-add-stop" onclick="showPage('page-add-stop')">Saved stops</button>
-        <button type="button" onclick="window.location.href='order-hub.html'">Order Hub</button>
-        <button type="button" onclick="openDispatchPage()">Dispatch</button>
-        <button id="driverNavButton" type="button" onclick="window.location.href='driver-tracking.html'" hidden>Driver Page</button>
-      </nav>
-      <div class="operations-sidebar-account">
-        <strong id="sidebarDisplayName">Loading account…</strong>
-        <span id="sidebarCurrentPlan">Loading plan…</span>
-        <button type="button" data-page="page-account-access" onclick="showPage('page-account-access')">Account</button>
-        <button type="button" onclick="window.location.href='settings.html'">Settings</button>
-        <button type="button" class="operations-logout" onclick="logout()">Logout</button>
-      </div>
-    </aside>
+    <!-- Shared primary navigation (app-sidebar.js); planning steps keep Dashboard active. -->
+    <aside class="operations-sidebar" data-app-sidebar data-active="dashboard"></aside>
+    <script src="app-sidebar.js"></script>
     <main class="operations-content" aria-label="GoRouteX workspace">
       <div id="appRoot"></div>
     </main>
@@ -137,12 +123,12 @@
         </div>
         <div class="dashboard-primary-actions" aria-label="Primary route actions">
           <button id="createNewRouteBtn" class="action-button-primary" type="button">Start Route Plan</button>
-          <button id="dashboardBrowseHistoryBtn" class="action-button-secondary" type="button">Browse History</button>
-          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled hidden>Load Route</button>
+          <button id="manageStopsBtn" class="action-button-secondary" type="button">Manage Customers</button>
+          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled title="Select a recent route plan below first">Load Route</button>
         </div>
       </section>
 
-      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true" hidden>
+      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true">
         <div class="dashboard-history-header">
           <div class="panel-heading-stack">
             <h3 id="dashboardHistorySnapshotTitle">Recent route plans</h3>
@@ -1027,9 +1013,9 @@
       <span class="mobile-tab-icon">Home</span>
       <span class="mobile-tab-text">Dashboard</span>
     </button>
-    <button type="button" class="mobile-tab-btn" data-page="page-select-stops">
-      <span class="mobile-tab-icon">Plan</span>
-      <span class="mobile-tab-text">Stops</span>
+    <button type="button" class="mobile-tab-btn" onclick="window.location.href='order-hub.html'">
+      <span class="mobile-tab-icon">Orders</span>
+      <span class="mobile-tab-text">Order Hub</span>
     </button>
     <button type="button" class="mobile-tab-btn" onclick="openDispatchPage()">
       <span class="mobile-tab-icon">Routes</span>
@@ -1038,10 +1024,6 @@
     <button type="button" class="mobile-tab-btn" data-page="page-gps-tracking">
       <span class="mobile-tab-icon">GPS</span>
       <span class="mobile-tab-text">Tracking</span>
-    </button>
-    <button type="button" class="mobile-tab-btn" data-page="page-add-stop">
-      <span class="mobile-tab-icon">Stops</span>
-      <span class="mobile-tab-text">Manage</span>
     </button>
   </nav>
     </div>
@@ -3197,17 +3179,8 @@
     window.goToDashboardPage = goToDashboardPage;
 
     function updateMobileNavigationState(activePageId) {
-      if (desktopAppNav) {
-        desktopAppNav.querySelectorAll('button[data-page]').forEach((btn) => {
-          const isActive = btn.dataset.page === activePageId;
-          btn.classList.toggle('is-active', isActive);
-          if (isActive) {
-            btn.setAttribute('aria-current', 'page');
-          } else {
-            btn.removeAttribute('aria-current');
-          }
-        });
-      }
+      // Every app.html page is part of the Dashboard workflow except Account (lower sidebar area).
+      window.GoRouteXSidebar?.setActive(activePageId === 'page-account-access' ? 'account' : 'dashboard');
 
       if (!mobileTabBar) return;
 

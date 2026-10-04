@@ -1,0 +1,190 @@
+/* Shared primary navigation (app-sidebar.js) for Dashboard, Order Hub and Dispatch.
+   One definition so the three pages match in width, spacing, typography, hover and active state. */
+
+.sidebar-layout {
+  display: grid;
+  grid-template-columns: 204px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar-layout > main {
+  min-width: 0;
+  width: 100%;
+}
+
+[data-app-sidebar].operations-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100vh;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  background: #ffffff;
+  border-right: 1px solid #dce3ec;
+  font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+}
+
+[data-app-sidebar] .operations-brand,
+.app-mobile-nav-brand {
+  padding: 0 12px;
+  color: #192b40;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  text-decoration: none;
+}
+
+[data-app-sidebar] .operations-brand span,
+.app-mobile-nav-brand span {
+  color: #2456c4;
+}
+
+[data-app-sidebar] .operations-nav {
+  display: grid;
+  gap: 6px;
+}
+
+[data-app-sidebar] .operations-nav a,
+[data-app-sidebar] .operations-sidebar-account a,
+[data-app-sidebar] .operations-sidebar-account button {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  color: #192b40;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+[data-app-sidebar] .operations-nav a:hover,
+[data-app-sidebar] .operations-sidebar-account a:hover,
+[data-app-sidebar] .operations-sidebar-account button:hover {
+  background: #edf2fa;
+}
+
+[data-app-sidebar] .operations-nav a:focus-visible,
+[data-app-sidebar] .operations-sidebar-account a:focus-visible,
+[data-app-sidebar] .operations-sidebar-account button:focus-visible {
+  outline: 3px solid #2456c4;
+  outline-offset: 2px;
+}
+
+[data-app-sidebar] a.is-active,
+[data-app-sidebar] a[aria-current="page"] {
+  color: #2456c4;
+  border-color: #a8bdea;
+  background: #e8efff;
+}
+
+[data-app-sidebar] a[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+[data-app-sidebar] a[hidden] {
+  display: none;
+}
+
+[data-app-sidebar] .operations-sidebar-account {
+  display: grid;
+  gap: 7px;
+  margin-top: auto;
+  padding: 16px 12px 0;
+  border-top: 1px solid #dce3ec;
+}
+
+[data-app-sidebar] .operations-sidebar-account strong {
+  color: #192b40;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+[data-app-sidebar] .operations-sidebar-account span {
+  color: #536479;
+  font-size: 0.76rem;
+}
+
+[data-app-sidebar] .operations-sidebar-account .operations-logout {
+  margin-top: 4px;
+  color: #536479;
+  font-weight: 600;
+}
+
+/* Narrow screens: the sidebar collapses; pages without their own mobile navigation get a top bar. */
+.app-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .sidebar-layout {
+    display: block;
+  }
+
+  [data-app-sidebar].operations-sidebar {
+    display: none;
+  }
+
+  .app-mobile-nav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #dce3ec;
+    font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+  }
+
+  .app-mobile-nav-brand {
+    padding: 0;
+    font-size: 1.35rem;
+  }
+
+  .app-mobile-nav-links {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .app-mobile-nav-links a,
+  .app-mobile-nav-links button {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 8px 12px;
+    color: #192b40;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .app-mobile-nav-links a[aria-current="page"] {
+    color: #2456c4;
+    border-color: #a8bdea;
+    background: #e8efff;
+  }
+
+  .app-mobile-nav-links .operations-logout {
+    color: #536479;
+    font-weight: 600;
+  }
+}
