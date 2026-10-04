@@ -302,6 +302,15 @@ function bindDashboardControls() {
                 showPage('page-select-stops');
             });
         }
+        const dashboardBrowseHistoryBtn = document.getElementById('dashboardBrowseHistoryBtn');
+        if (dashboardBrowseHistoryBtn) {
+            // History keeps loading in the background from the moment the dashboard opens (loadDashboardData);
+            // the browser page shows a skeleton if it is still pending and fills in when it arrives.
+            dashboardBrowseHistoryBtn.addEventListener('click', () => {
+                renderHistoryBrowserList();
+                showPage('page-history-browser');
+            });
+        }
         if (dashboardOpenHistoryBtn) {
             dashboardOpenHistoryBtn.addEventListener('click', () => {
                 renderHistoryBrowserList();

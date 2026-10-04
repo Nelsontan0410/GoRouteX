@@ -15,7 +15,7 @@
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="app-core.css?v=20261002-1">
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
-  <link rel="stylesheet" href="app-experience.css?v=20261004-1">
+  <link rel="stylesheet" href="app-experience.css?v=20261005-1">
   <!-- Mobile CSS is the final layer: shell owns navigation, pages own responsive layout. -->
   <link rel="stylesheet" href="mobile-fixes.css?v=20260505-1">
   <link rel="stylesheet" href="mobile-shell.css?v=20260505-1">
@@ -137,11 +137,12 @@
         </div>
         <div class="dashboard-primary-actions" aria-label="Primary route actions">
           <button id="createNewRouteBtn" class="action-button-primary" type="button">Start Route Plan</button>
-          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled>Load Route</button>
+          <button id="dashboardBrowseHistoryBtn" class="action-button-secondary" type="button">Browse History</button>
+          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled hidden>Load Route</button>
         </div>
       </section>
 
-      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true">
+      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true" hidden>
         <div class="dashboard-history-header">
           <div class="panel-heading-stack">
             <h3 id="dashboardHistorySnapshotTitle">Recent route plans</h3>
