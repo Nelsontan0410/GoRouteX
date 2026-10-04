@@ -5,13 +5,15 @@
   <title>Settings | GoRouteX</title><link rel="icon" href="marketing-favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles/typography.css"><link rel="stylesheet" href="settings/settings.css"><link rel="stylesheet" href="styles/workspace-layout.css">
+  <link rel="stylesheet" href="styles/typography.css"><link rel="stylesheet" href="settings/settings.css"><link rel="stylesheet" href="styles/delivery-schedule.css"><link rel="stylesheet" href="styles/workspace-layout.css">
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script defer src="firebase-config.js"></script>
   <script defer src="route-planner-product.js"></script>
   <script defer src="account-context.js"></script>
+  <script defer src="delivery-constraints.js"></script>
+  <script defer src="delivery-schedule-editor.js"></script>
   <script defer type="module" src="settings/settings-page.js"></script>
 </head>
 <body>
@@ -24,6 +26,7 @@
       <button type="button" data-section="company" aria-current="page">Company &amp; Resources</button>
       <button type="button" data-section="drivers">Drivers</button>
       <button type="button" data-section="vehicles">Vehicles</button>
+      <button type="button" data-section="routePlanning">Route Planning Defaults</button>
       <button type="button" data-section="orders">Orders &amp; Delivery</button>
       <button type="button" data-section="driverApp">Driver App</button>
     </nav>
@@ -88,9 +91,15 @@
         <label class="capacity-select">Capacity mode for Orders and Vehicles<select id="capacityMode"><option value="off">Off</option><option value="weight">Weight · kg</option><option value="pallet">Pallet</option><option value="carton">Carton / Unit</option></select></label>
         <div class="settings-info"><strong id="capacitySummary">Capacity checks are off</strong><p id="capacityDescription">Routes can be planned without load data. No Order demand or Vehicle capacity is guessed.</p></div>
         <p class="settings-footnote">When enabled, Order demand and Vehicle capacity must use the same unit. Missing values remain unknown; changing the mode does not rewrite existing Vehicle records.</p>
-        <div class="subsection-heading"><h3>Vehicle planning defaults</h3><p>These company defaults guide route workloads. Each route can still choose its own details.</p></div>
+      </section>
+      <section id="section-routePlanning" class="settings-section" aria-labelledby="routePlanningHeading" hidden>
+        <div class="section-heading"><h2 id="routePlanningHeading">Route Planning Defaults</h2><p>Defaults every customer and route plan uses unless a customer or route sets its own.</p></div>
+        <div class="subsection-heading"><h3>Customer Delivery Schedule</h3><p>When customers can receive deliveries. Customers follow this schedule automatically unless they have a custom schedule; changing it here updates them all.</p></div>
+        <div id="defaultDeliverySchedule" class="schedule-editor" aria-describedby="deliveryScheduleHelp"></div>
+        <p id="deliveryScheduleHelp" class="settings-footnote">Times use the planning location's local time. A delivery and its service time must fit within one receiving period and cannot run into a break. Overnight hours are not supported.</p>
+        <div class="subsection-heading"><h3>Route defaults</h3><p>Company defaults for new route plans. Each route can still choose its own details.</p></div>
         <div class="field-grid">
-          <label>Service Time per Stop <span class="unit">minutes</span><input id="serviceMinutes" type="number" min="1" max="240" step="1" required><small>Used by the existing route schedule calculation when no stop-specific time is set.</small></label>
+          <label>Default Service Time <span class="unit">minutes</span><input id="serviceMinutes" type="number" min="1" max="240" step="1" required><small>Time spent at each customer. Customers use this unless they have their own service time.</small></label>
           <label>Maximum Route Duration <span class="unit">minutes</span><input id="maxDurationMinutes" type="number" min="30" max="1440" step="1" required><small>A planning policy for future route checks.</small></label>
           <label>Default Number of Routes<input id="numberOfRoutes" type="number" min="1" max="50" step="1" required><small>A starting value, never a fixed route count.</small></label>
           <label>Default Planning Time<input id="planningTime" type="time" required><small>Order delivery time and your current plan take priority.</small></label>

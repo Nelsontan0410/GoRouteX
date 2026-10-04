@@ -1,3 +1,5 @@
+import '../delivery-constraints.js';
+const DeliveryConstraints = globalThis.GoRouteXDeliveryConstraints;
 export const CAPACITY_UNITS = Object.freeze({ off: null, weight: 'kg', pallet: 'pallet', carton: 'carton' });
 const isTime = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 const validInt = (value, min, max) => value !== null && value !== undefined && value !== '' && Number.isInteger(Number(value)) && Number(value) >= min && Number(value) <= max;
@@ -9,7 +11,7 @@ export function defaultSettings() {
   return {
     version: 1,
     drivers: { maxStops: 20, workingStart: '08:00', workingEnd: '17:00', breakMinutes: 60, overrides: {} },
-    routePlanning: { serviceMinutes: 15, maxDurationMinutes: 480, numberOfRoutes: 1, planningTime: '09:00', defaultStart: null, defaultEnd: null },
+    routePlanning: { serviceMinutes: 15, maxDurationMinutes: 480, numberOfRoutes: 1, planningTime: '09:00', defaultStart: null, defaultEnd: null, defaultDeliverySchedule: DeliveryConstraints.defaultSchedule() },
     capacityPlanning: { enabled: false, mode: 'off', unit: null },
     orders: { contactRequired: false },
     driverApp: { liveTracking: true, pod: { recipientRequired: false, photoRequired: false, signatureRequired: false } }
@@ -44,7 +46,11 @@ export function normalizeSettings(raw = {}, contactRequired = false) {
       numberOfRoutes: validInt(r.numberOfRoutes, 1, 50) ? Number(r.numberOfRoutes) : base.routePlanning.numberOfRoutes,
       planningTime: isTime(r.planningTime) ? r.planningTime : base.routePlanning.planningTime,
       defaultStart: cleanPoint(r.defaultStart),
-      defaultEnd: cleanPoint(r.defaultEnd)
+      defaultEnd: cleanPoint(r.defaultEnd),
+      // Customer Delivery Schedule default: customers in default mode resolve this at planning time.
+      defaultDeliverySchedule: r.defaultDeliverySchedule && DeliveryConstraints.validateSchedule(r.defaultDeliverySchedule).valid
+        ? DeliveryConstraints.cloneSchedule(r.defaultDeliverySchedule)
+        : DeliveryConstraints.defaultSchedule()
     },
     capacityPlanning: { enabled: mode !== 'off', mode, unit: CAPACITY_UNITS[mode] },
     orders: { contactRequired: contactRequired === true },
@@ -68,6 +74,8 @@ export function validateSettings(value) {
   if (!validInt(r.maxDurationMinutes, 30, 1440)) errors.maxDurationMinutes = 'Enter a whole number from 30 to 1440.';
   if (!validInt(r.numberOfRoutes, 1, 50)) errors.numberOfRoutes = 'Enter a whole number from 1 to 50.';
   if (!isTime(r.planningTime)) errors.planningTime = 'Choose a valid planning time.';
+  const schedule = DeliveryConstraints.validateSchedule(r.defaultDeliverySchedule);
+  if (!schedule.valid) errors.deliverySchedule = schedule.errors[0].message;
   if (!Object.hasOwn(CAPACITY_UNITS, c.mode)) errors.capacityMode = 'Choose a capacity mode.';
   else if (c.enabled !== (c.mode !== 'off') || c.unit !== CAPACITY_UNITS[c.mode]) errors.capacityMode = 'Capacity mode and unit do not match.';
   for (const [uid, override] of Object.entries(d.overrides || {})) {
