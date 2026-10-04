@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { performance } from 'node:perf_hooks';
+import { snapshotRouteStops } from '../driver/route-model.js';
 
 const app = readFileSync(new URL('../app.html', import.meta.url), 'utf8');
 const board = readFileSync(new URL('../dispatch/dispatch-board.js', import.meta.url), 'utf8');
@@ -155,12 +156,13 @@ test('primary endpoints read only current plan and tenant Drivers in a simulated
     }; } };
     throw Error(`Unexpected collection ${name}`);
   } };
-  const transformed = service.replace(/^import .*;\n/gm, '').replace('export default async (req) => {', 'globalThis.handler = async (req) => {');
+  const transformed = service.replace(/^import .*;\n/gm, '').replace('export default async (req) => {', 'globalThis.handler = async (req) => {').replace(/^export function /gm, 'function ');
   const sandbox = vm.createContext({
     getFirebaseAdmin: () => ({ firestore: () => db, auth: () => ({ getUser: async () => { calls.authUsers++; throw Error('Auth N+1'); } }) }),
     verifyFirebaseUser: async () => ({ uid: owner }),
     jsonResponse: (payload, status = 200) => new Response(JSON.stringify(payload), { status, headers: { 'Content-Type': 'application/json' } }),
     readJson: async () => ({}), requireOwner: () => {},
+    snapshotRouteStops,
     URL, Response, Buffer, performance, console
   });
   vm.runInContext(transformed, sandbox);
