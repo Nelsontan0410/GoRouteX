@@ -111,3 +111,5 @@ N1 补充：`pnpm-lock.yaml` 本来就是已修复的版本（`pnpm audit --prod
 ### 实施备注
 - L7：dispatch 的 `Server-Timing`、`X-Dispatch-Counts`、`X-Dispatch-Response-Bytes` 是有意加的性能埋点，`dispatch/dispatch-board.js:23` 会读它们，且只返回给已登录用户，所以保留不删，只给 `jsonResponse` 加了 `Cache-Control: no-store`。
 - M6：stops 完整的版本控制（CAS）按“不建议现在修”暂缓，H2 已先止血。
+- L6：暂不修。`key()` 的格式也被用来查找已派出的路线（`dispatch.js:237`），改格式后旧派车记录查不到，可能被重复派车，需要先做数据迁移；而碰撞只发生在同一租户内。读取客户端 planSnapshot 的回退逻辑等 D5 决定后再处理。
+- L3：`sample-route.csv`、`app-dashboard-static.png` 没有被引用，但可能有外部链接在用，所以没删；build 新增了引用完整性检查。
