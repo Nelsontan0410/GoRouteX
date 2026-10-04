@@ -97,3 +97,10 @@
 
 ## 实施规则（批准后）
 建分支 `audit/fixes-2026-10`，不动 main。每批改完立即验证，失败就停。一个修复一个 commit。不做计划外改动，新发现追加到 AUDIT_REPORT.md。每批完成后给 ≤ 10 行的摘要。
+
+## 实施中新增发现
+| ID | 严重度 | 类别 | 位置 | 问题 | 建议修复 | 工作量 | 置信度 |
+|---|---|---|---|---|---|---|---|
+| N1 | High | 依赖安全 | package-lock.json | `npm audit --omit=dev`：1 critical（websocket-driver）、4 high（@fastify/busboy、@grpc/grpc-js、form-data、protobufjs），都是间接依赖，`fixAvailable: true`（非大版本升级）。 | `npm audit fix`，然后跑测试和 build | S | 确认 |
+
+基线（安装 Node v24.21.0 到 `~/.local/node` 后测得）：测试 207/207 通过，build 成功（dist 共 100 个文件）。
