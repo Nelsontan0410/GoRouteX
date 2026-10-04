@@ -48,3 +48,34 @@ test('a stale execution status in the edit does not overwrite a missing server v
 
   assert.equal('executionStatus' in docs.get(path), false);
 });
+
+test('deleteOrders commits in batches of at most 500', async () => {
+  const commits = [];
+  installFirestore(new Map());
+  globalThis.firebase.firestore = Object.assign(() => ({
+    collection: (name) => ({ doc: (id) => ({ path: `${name}/${id}`, collection: (sub) => ({ doc: (orderId) => ({ path: `${name}/${id}/${sub}/${orderId}` }) }) }) }),
+    batch() { const deletes = []; return { delete: (ref) => deletes.push(ref.path), commit: async () => { commits.push(deletes.length); } }; }
+  }), {});
+  const ids = Array.from({ length: 1201 }, (_, index) => `o${index}`);
+  assert.equal(await new OrderStore({ uid: 'u1' }).deleteOrders(ids), 1201);
+  assert.deepEqual(commits, [500, 500, 201]);
+});
+
+test('saveImport runs rows with bounded concurrency and skips exact duplicates', async () => {
+  const docs = new Map();
+  installFirestore(docs);
+  let active = 0, peak = 0;
+  const fs = globalThis.firebase.firestore;
+  globalThis.firebase.firestore = Object.assign(() => {
+    const base = fs();
+    return { ...base, async runTransaction(fn) { active++; peak = Math.max(peak, active); await new Promise((r) => setTimeout(r, 2)); try { return await base.runTransaction(fn); } finally { active--; } } };
+  }, {});
+  const store = new OrderStore({ uid: 'u1' });
+  const batches = new Map();
+  store.batches = () => ({ doc: (id) => ({ set: async (v) => batches.set(id, v), update: async (v) => batches.set(id, { ...batches.get(id), ...v }) }) });
+  const rows = Array.from({ length: 30 }, (_, index) => ({ internalId: `r${index}`, orderId: `DO-${index}`, customerName: 'C', address: `Street ${index}`, deliveryDate: '2026-10-05', duplicateKind: index === 0 ? 'EXACT' : null }));
+  const result = await store.saveImport(rows, {});
+  assert.equal(result.saved, 29);
+  assert.ok(peak > 1 && peak <= 10, `peak concurrency ${peak}`);
+  assert.equal([...batches.values()][0].state, 'COMPLETE');
+});
