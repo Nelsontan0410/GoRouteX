@@ -4,11 +4,17 @@
   "type": "module",
   "scripts": {
     "lta:update": "node scripts/update-lta-restrictions.mjs",
-    "test:lta": "node --test tests/*.test.mjs"
+    "test:lta": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-goroutex \"node --test 'tests/rules/*.rules.mjs'\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "firebase-admin": "^13.0.0",
     "stripe": "^22.6.2"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.10.0"
   }
 }
