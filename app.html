@@ -1132,8 +1132,6 @@
   <script src="orders/master-search.js"></script>
 <script src="orders/route-plan-selection.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
-    <script src="whatsapp-fix.js"></script>
-    <script src="sheets-sync.js"></script>
     <!-- App Shell Helpers -->
     <script src="app-access-helpers.js?v=20261002-1"></script>
     
@@ -8027,9 +8025,6 @@
         }
         
         try {
-            console.log("🔍 === AUTO-SUGGESTION DEBUG START ===");
-            console.log(`Selected unassigned stops: ${unassignedStops.length}`);
-            
             const configuredEndId = getCurrentConfiguredEndLocationId();
             const destinationStopId = getRouteDestinationIdForMode(unassignedStops, configuredEndId);
             const waypointStopIds = getRouteWaypointIdsForMode(unassignedStops, configuredEndId);
@@ -8040,24 +8035,18 @@
                 return;
             }
             
-            console.log("📍 Checking each location for route optimization:");
-            
             // Check origin
             const origin = getLocationInput(allStops[0]);
-            console.log(`1. ORIGIN - "${currentLocationOrigin}":`, origin);
             
             const destination = configuredEndId
                 ? getLocationInput(destinationStopId)
                 : getLocationInputByCustomerId(destinationStopId);
-            console.log(`${allStops.length}. DESTINATION - "${destinationStopId}":`, destination);
             
             // Check each waypoint - unassignedStops contains customer IDs, not addresses
-            console.log("📍 Checking waypoints:");
             const waypoints = waypointStopIds.map((customerId, index) => {
                 const location = getLocationInputByCustomerId(customerId);
                 const customer = getCustomerById(customerId);
                 const displayName = customer ? customer.Name : customerId;
-                console.log(`${index + 2}. WAYPOINT - "${displayName}":`, location);
 
                 // Check if this location will cause issues
                 if (typeof location === 'string') {
@@ -8070,12 +8059,6 @@
                 };
             });
             
-            console.log("🚗 Calling Google Directions API with:");
-            console.log("  Origin:", origin);
-            console.log("  Destination:", destination);
-            console.log("  Waypoints:", waypoints);
-            console.log("  Total locations:", waypoints.length + 2);
-            
             const result = await MapHandler.route(previewDirectionsService, {
                 origin: origin,
                 destination: destination,
@@ -8083,9 +8066,6 @@
                 optimizeWaypoints: true, // Let Google optimize the order
                 travelMode: 'DRIVING'
             });
-            
-            console.log("✅ Google Directions API SUCCESS!");
-            console.log("  Route found with", result.routes[0].legs.length, "legs");
             
             // Display the optimized route line in red
             MapHandler.setDirections(optimizedRouteRenderer, result);
@@ -8126,7 +8106,7 @@
             }
 
             // Update the message bar with enhanced styling
-            messageBarPg2.innerHTML = `<div style="font-size: 0.85rem; line-height: 1.4; font-weight: 600; color: #1e3a8a;">${suggestionText}<br><span style="font-weight: 500;">This suggestion has not been restriction-checked. Apply it to run the check.</span></div>`;
+            messageBarPg2.innerHTML = `<div style="font-size: 0.85rem; line-height: 1.4; font-weight: 600; color: #1e3a8a;">${escapeHtml(suggestionText)}<br><span style="font-weight: 500;">This suggestion has not been restriction-checked. Apply it to run the check.</span></div>`;
             
             hasShownOptimizationSuggestion = true;
             

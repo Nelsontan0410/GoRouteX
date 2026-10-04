@@ -84,8 +84,11 @@ async function resetPin(admin, db, context, body) {
   const pinHash = await hashDriverPin(body.pin);
   const credential = db.collection('driverCredentials').doc(uid);
   const sessionVersion = randomUUID();
-  await credential.set({ pinHash, updatedAt: now() }, { merge: true });
-  await db.collection('users').doc(uid).set({ sessionVersion }, { merge: true });
+  // Write the new PIN and session version together so they can never diverge.
+  await db.runTransaction(async tx => {
+    tx.set(credential, { pinHash, updatedAt: now() }, { merge: true });
+    tx.set(db.collection('users').doc(uid), { sessionVersion }, { merge: true });
+  });
   await admin.auth().setCustomUserClaims(uid, { role: 'driver', tenantId: context.ownerUid, driverId: uid, sessionVersion });
   await admin.auth().revokeRefreshTokens(uid);
   return { success: true };
@@ -97,22 +100,28 @@ async function setStatus(admin, db, context, body) {
   await getOwned(db, context.ownerUid, uid);
   // Disable Auth before updating Firestore so a deactivated Driver cannot obtain another session.
   if (desired === 'INACTIVE') { await admin.auth().updateUser(uid, { disabled: true }); await admin.auth().revokeRefreshTokens(uid); }
-  await db.runTransaction(async tx => {
-    const [driverDoc, usageDoc, ownerDoc] = await Promise.all([tx.get(driver), tx.get(usage), tx.get(db.collection('users').doc(context.ownerUid))]);
-    if (!driverDoc.exists || driverDoc.data().tenantId !== context.ownerUid) throw new DriverError('Driver not found.', 404, 'NOT_FOUND');
-    if (driverDoc.data().status === desired) return;
-    const count = Number(usageDoc.data()?.activeCount || 0);
-    if (desired === 'ACTIVE') {
-      if (!ownerDoc.exists || ownerDoc.data().active === false) throw new DriverError('Workspace is inactive.', 403, 'TENANT_INACTIVE');
-      const { plan, maxActiveDrivers } = driverEntitlement(ownerDoc.data());
-      if (count >= maxActiveDrivers) throw new DriverError(`Driver limit reached. Your ${plan === 'basic' ? 'Free' : plan === 'goplan' ? 'Go' : 'Pro'} plan supports up to ${maxActiveDrivers} active drivers.`, 409, 'DRIVER_LIMIT');
-    }
-    const timestamp = now();
-    tx.update(driver, { status: desired, updatedAt: timestamp, updatedBy: context.ownerUid, ...(desired === 'INACTIVE' ? { deactivatedAt: timestamp } : {}) });
-    tx.update(credential, { status: desired, updatedAt: timestamp });
-    tx.update(profile, { active: desired === 'ACTIVE', ...(desired === 'INACTIVE' ? { sessionVersion: randomUUID() } : {}) });
-    tx.set(usage, { activeCount: Math.max(0, count + (desired === 'ACTIVE' ? 1 : -1)), updatedAt: timestamp }, { merge: true });
-  });
+  try {
+    await db.runTransaction(async tx => {
+      const [driverDoc, usageDoc, ownerDoc] = await Promise.all([tx.get(driver), tx.get(usage), tx.get(db.collection('users').doc(context.ownerUid))]);
+      if (!driverDoc.exists || driverDoc.data().tenantId !== context.ownerUid) throw new DriverError('Driver not found.', 404, 'NOT_FOUND');
+      if (driverDoc.data().status === desired) return;
+      const count = Number(usageDoc.data()?.activeCount || 0);
+      if (desired === 'ACTIVE') {
+        if (!ownerDoc.exists || ownerDoc.data().active === false) throw new DriverError('Workspace is inactive.', 403, 'TENANT_INACTIVE');
+        const { plan, maxActiveDrivers } = driverEntitlement(ownerDoc.data());
+        if (count >= maxActiveDrivers) throw new DriverError(`Driver limit reached. Your ${plan === 'basic' ? 'Free' : plan === 'goplan' ? 'Go' : 'Pro'} plan supports up to ${maxActiveDrivers} active drivers.`, 409, 'DRIVER_LIMIT');
+      }
+      const timestamp = now();
+      tx.update(driver, { status: desired, updatedAt: timestamp, updatedBy: context.ownerUid, ...(desired === 'INACTIVE' ? { deactivatedAt: timestamp } : {}) });
+      tx.update(credential, { status: desired, updatedAt: timestamp });
+      tx.update(profile, { active: desired === 'ACTIVE', ...(desired === 'INACTIVE' ? { sessionVersion: randomUUID() } : {}) });
+      tx.set(usage, { activeCount: Math.max(0, count + (desired === 'ACTIVE' ? 1 : -1)), updatedAt: timestamp }, { merge: true });
+    });
+  } catch (error) {
+    // Firestore still says ACTIVE, so re-enable Auth to match rather than leave a half-deactivated Driver.
+    if (desired === 'INACTIVE') await admin.auth().updateUser(uid, { disabled: false }).catch(() => {});
+    throw error;
+  }
   if (desired === 'ACTIVE') {
     try {
       const profileDoc = await profile.get();

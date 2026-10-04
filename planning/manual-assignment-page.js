@@ -79,35 +79,6 @@ function renderDraggableList(listElement, itemsArray, listType, routeIndexIfAppl
         }
     }
 
-function renderRouteSlots(container, itemsArray, listType) {
-        const slots = container.querySelectorAll('.route-slot');
-        slots.forEach((slot, index) => {
-            const customerId = itemsArray[index];
-            if (customerId) {
-                const customer = getCustomerById(customerId);
-                if (customer) {
-                    slot.classList.remove('empty');
-                    slot.classList.add('filled');
-                    slot.setAttribute('data-customer-id', customerId);
-                    slot.setAttribute('draggable', 'true');
-                    slot.setAttribute('data-list-type', listType);
-                    slot.innerHTML = `
-                        <span class="slot-number">${index + 1}</span>
-                        <span class="slot-content">${customer.Name || 'Unknown'} - ${customer.Address}</span>
-                        <button class="slot-remove-btn" onclick="removeFromSlot('${listType}', ${index})">✕</button>
-                    `;
-                }
-            } else {
-                slot.classList.add('empty');
-                slot.classList.remove('filled');
-                slot.removeAttribute('data-customer-id');
-                slot.removeAttribute('draggable');
-                slot.innerHTML = `<span class="slot-number">${index + 1}</span><span class="slot-content">Drop here</span>`;
-            }
-        });
-        attachDragListenersToSlots(container);
-    }
-
 function removeFromSlot(listType, slotIndex) {
         const removedCustomerId = getRouteSlotEntry(listType, slotIndex)?.location || null;
         if (!removedCustomerId) return;

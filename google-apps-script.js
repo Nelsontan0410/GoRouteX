@@ -1,5 +1,9 @@
 /*
  * Google Apps Script for BJS Delivery Route History Sync
+ *
+ * WARNING: legacy template, not used by the app (its client, sheets-sync.js, has been removed).
+ * Do not deploy as-is: doGet/doPost trust the client-supplied `username`, so anyone with the
+ * Web App URL could read or delete any user's routes. Excluded from dist by scripts/build-site.mjs.
  * 
  * SETUP INSTRUCTIONS:
  * 1. Go to https://<apps-script-console-removed>

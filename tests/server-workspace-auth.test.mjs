@@ -122,3 +122,8 @@ test('Driver and Dispatch endpoints return 401 without initializing Firebase Adm
   assert.equal((await driverResponse.json()).code, 'UNAUTHENTICATED');
   assert.equal(dispatchResponse.status, 401);
 });
+
+test('JSON responses from functions are never cached', async () => {
+  const { jsonResponse } = await import('../netlify/functions/_shared/firebase-admin.js');
+  assert.equal(jsonResponse({ success: true }).headers.get('Cache-Control'), 'no-store');
+});

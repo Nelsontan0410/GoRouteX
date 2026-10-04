@@ -52,7 +52,37 @@ export async function applySubscription(db, firebaseAdmin, uid, subscription, ev
     await downgradeAfterSubscriptionEnd(db, firebaseAdmin, uid, subscription, eventType, eventId);
     return;
   }
-  if (!['trialing', 'active', 'past_due', 'unpaid', 'incomplete'].includes(status)) {
+  if (status === 'incomplete_expired') {
+    if (profile.stripeSubscriptionId !== subscription.id) return;
+    if (String(profile.billingStatus || '').toLowerCase() !== 'incomplete') {
+      await downgradeAfterSubscriptionEnd(db, firebaseAdmin, uid, subscription, eventType, eventId);
+      return;
+    }
+    // The first payment was never completed, so no paid access was granted: just release the subscription link.
+    await userRef.set({
+      stripeSubscriptionId: '',
+      billingStatus: 'basic',
+      paymentStatus: 'cancelled',
+      stripeCheckoutPendingAt: null,
+      stripeCheckoutPendingSessionId: '',
+      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await appendBillingEvent(userRef, firebaseAdmin, eventType, 'incomplete_expired', { stripeSubscriptionId: subscription.id }, eventId);
+    return;
+  }
+  if (status === 'incomplete') {
+    // First payment pending (e.g. 3DS not completed): link the subscription but grant no paid access yet.
+    await userRef.set({
+      stripeCustomerId: subscription.customer || profile.stripeCustomerId || '',
+      stripeSubscriptionId: subscription.id,
+      billingStatus: 'incomplete',
+      paymentStatus: 'pending',
+      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await appendBillingEvent(userRef, firebaseAdmin, eventType, 'incomplete', { stripeSubscriptionId: subscription.id }, eventId);
+    return;
+  }
+  if (!['trialing', 'active', 'past_due', 'unpaid'].includes(status)) {
     throw new Error('Unsupported Stripe subscription state.');
   }
   const plan = subscriptionPlan(subscription, profile);
@@ -105,7 +135,7 @@ export async function applySubscription(db, firebaseAdmin, uid, subscription, ev
     return;
   }
 
-  if (status === 'past_due' || status === 'unpaid' || status === 'incomplete') {
+  if (status === 'past_due' || status === 'unpaid') {
     const graceEndsAt = getGraceEndsAt({ existingGraceEndsAt: profile.stripeSubscriptionId === subscription.id ? (profile.graceEndsAt?.toDate?.() || profile.graceEndsAt) : null, now });
     await userRef.set({
       ...common,
@@ -138,20 +168,20 @@ async function downgradeAfterSubscriptionEnd(db, firebaseAdmin, uid, subscriptio
   await appendBillingEvent(userRef, firebaseAdmin, eventType, 'downgraded_to_basic', { stripeSubscriptionId: subscription.id }, eventId);
 }
 
-async function claimEvent(db, firebaseAdmin, event) {
+export async function claimEvent(db, firebaseAdmin, event) {
   const eventRef = db.collection('stripeWebhookEvents').doc(event.id);
   return db.runTransaction(async (transaction) => {
     const existing = await transaction.get(eventRef);
-    if (existing.exists && existing.data()?.status === 'processed') return false;
+    if (existing.exists && existing.data()?.status === 'processed') return 'processed';
     const receivedAt = existing.data()?.receivedAt?.toMillis?.() || 0;
-    if (existing.data()?.status === 'processing' && Date.now() - receivedAt < 10 * 60 * 1000) return false;
+    if (existing.data()?.status === 'processing' && Date.now() - receivedAt < 10 * 60 * 1000) return 'in_flight';
     transaction.set(eventRef, {
       type: event.type,
       status: 'processing',
       receivedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
       attempts: firebaseAdmin.firestore.FieldValue.increment(1)
     }, { merge: true });
-    return true;
+    return 'claimed';
   });
 }
 
@@ -218,8 +248,10 @@ export default async (req) => {
 
   const firebaseAdmin = getFirebaseAdmin();
   const db = firebaseAdmin.firestore();
-  const shouldProcess = await claimEvent(db, firebaseAdmin, event);
-  if (!shouldProcess) return jsonResponse({ success: true, duplicate: true });
+  const claim = await claimEvent(db, firebaseAdmin, event);
+  if (claim === 'processed') return jsonResponse({ success: true, duplicate: true });
+  // Non-2xx so Stripe retries later: if the in-flight attempt crashed, a 200 here would lose the event.
+  if (claim === 'in_flight') return jsonResponse({ success: false, error: 'Event is still being processed.' }, 409);
 
   try {
     await handleEvent(db, firebaseAdmin, event);

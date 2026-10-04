@@ -59,6 +59,8 @@ service cloud.firestore {
         'paymentStatus',
         'planStartedAt',
         'planExpiresAt',
+        'subscriptionExpiresAt',
+        'accessExpiresAt',
         'trialEndsAt',
         'paymentProvider',
         'paymentReference',
@@ -98,7 +100,8 @@ service cloud.firestore {
       return data.email is string
         && (!('name' in data) || data.name is string)
         && (!('createdAt' in data) || data.createdAt is timestamp)
-        && (!('trialEndsAt' in data) || data.trialEndsAt is timestamp)
+        && (!('trialEndsAt' in data) || (data.trialEndsAt is timestamp
+            && data.trialEndsAt <= request.time + duration.value(8, 'd')))
         && (!('lastLogin' in data) || data.lastLogin is timestamp)
         && (!('teamMembersCount' in data) || data.teamMembersCount is number)
         && (!('role' in data) || data.role is string)
@@ -111,6 +114,8 @@ service cloud.firestore {
         && !('paymentStatus' in data)
         && !('planStartedAt' in data)
         && !('planExpiresAt' in data)
+        && !('subscriptionExpiresAt' in data)
+        && !('accessExpiresAt' in data)
         && !('paymentProvider' in data)
         && !('paymentReference' in data)
         && !('activatedAt' in data)
@@ -187,7 +192,10 @@ service cloud.firestore {
         allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
         match /points/{pointId} {
           allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, get(/databases/$(database)/documents/users/$(uid)/tracking_sessions/$(sessionId)).data.routeId));
-          allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
+          // The point must belong to its parent session's route; getAfter covers the session written in the same batch.
+          allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid)
+            && request.resource.data.routeId == getAfter(/databases/$(database)/documents/users/$(uid)/tracking_sessions/$(sessionId)).data.routeId
+            && isAssignedRoute(uid, request.resource.data.routeId));
         }
       }
 

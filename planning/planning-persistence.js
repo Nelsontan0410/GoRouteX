@@ -36,19 +36,33 @@ function buildCompactPlannedRoutesSnapshot(routes = AppState.plannedRoutes) {
             }));
     }
 
+// Selection saves are serialized so an older full-overwrite write can never land after a newer one.
+let selectionSaveInFlight = false;
+let selectionSavePending = false;
+
 function syncSessionToCloud() {
         const updatedAt = new Date().toISOString();
         markLocalSessionUpdated(updatedAt);
-        if (window.RoutePlannerStorage && typeof window.RoutePlannerStorage.saveSelection === 'function') {
-            const sessionData = {
-                selectedCustomers: Array.from(selectedCustomers),
-                selectedAddresses: Array.from(selectedAddresses),
-                updatedAt
-            };
-            window.RoutePlannerStorage.saveSelection(sessionData).catch(err => {
-                console.warn('Selection persistence failed:', err);
-            });
+        if (!window.RoutePlannerStorage || typeof window.RoutePlannerStorage.saveSelection !== 'function') return;
+        if (selectionSaveInFlight) {
+            selectionSavePending = true;
+            return;
         }
+        selectionSaveInFlight = true;
+        const sessionData = {
+            selectedCustomers: Array.from(selectedCustomers),
+            selectedAddresses: Array.from(selectedAddresses),
+            updatedAt
+        };
+        Promise.resolve(window.RoutePlannerStorage.saveSelection(sessionData)).catch(err => {
+            console.warn('Selection persistence failed:', err);
+        }).finally(() => {
+            selectionSaveInFlight = false;
+            if (selectionSavePending) {
+                selectionSavePending = false;
+                syncSessionToCloud();
+            }
+        });
     }
 
 async function loadSessionFromCloud(options = {}) {
@@ -106,7 +120,8 @@ async function loadSessionFromCloud(options = {}) {
 
                 if (cloudUpdatedAtMs > 0) {
                     lastAppliedCloudSessionUpdateMs = cloudUpdatedAtMs;
-                    localStorage.setItem('bjsSessionUpdatedAt', session.updatedAt);
+                    // session.updatedAt may be a Firestore Timestamp; store ISO so it parses back on reload.
+                    localStorage.setItem('bjsSessionUpdatedAt', new Date(cloudUpdatedAtMs).toISOString());
                 }
                 console.log('Selection state loaded:', selectedCustomers.size, 'stops');
                 return true;
@@ -314,76 +329,4 @@ async function savePlannedRoutes(routes, options = {}) {
         updateConfirmRouteButtonState();
         renderConfirmRouteModalState();
         return saveResult || { success: false, error: 'Route save failed' };
-    }
-
-async function saveActivePlannedRoutesToCloud() {
-        try {
-            // Prepare serializable route data (remove non-serializable DirectionsResult methods)
-            const serializableRoutes = AppState.plannedRoutes.map((route, index) => {
-                if (!route) return null;
-                return {
-                    id: route.id,
-                    color: route.color || getRouteColor(index),
-                    safetyWaypoints: route.safetyWaypoints || [],
-                    manualWaypoints: route.manualWaypoints || [],
-                    manualDetourKey: route.manualDetourKey || null,
-                    lorryValidation: route.lorryValidation || null,
-                    originalWaypoints: route.originalWaypoints || [],
-                    optimizedStops: route.optimizedStops || [],
-                    detailedStopTimes: route.detailedStopTimes || [],
-                    customerStops: route.customerStops || [],
-                    routeStopConfigs: route.routeStopConfigs || [],
-                    date: route.date || route.planningDate || getSelectedPlanningDate(),
-                    planningDate: route.planningDate || route.date || getSelectedPlanningDate(),
-                    startTime: route.startTime || route.routeStartTime || routeStartTime,
-                    driverId: route.driverId || route.vehicleDriver || getSelectedDriverId(),
-                    routeStartTime: route.routeStartTime || routeStartTime,
-                    vehicleDriver: route.vehicleDriver || getSelectedDriverId(),
-                    originMode: route.originMode || routeOriginMode,
-                    endLocationRequired: !!route.endLocationRequired,
-                    endLocationMode: route.endLocationMode || 'same',
-                    endLocationId: route.endLocationId || null,
-                    endLocationAddress: route.endLocationAddress || '',
-                    endLocationLatLng: route.endLocationLatLng || null,
-                    endLocationLabel: route.endLocationLabel || '',
-                    arrangementMode: route.arrangementMode || 'standard',
-                    directionOrder: route.directionOrder || [],
-                    directionOriginSnapshot: route.directionOriginSnapshot || null,
-                    returnToOrigin: !!route.returnToOrigin,
-                    scheduleHtml: route.scheduleHtml || '',
-                    finalEtaAtLastStop: route.finalEtaAtLastStop || null,
-                    finalEtaAtHq: route.finalEtaAtHq || null
-                };
-            }).filter(r => r !== null);
-
-            const result = window.RoutePlannerStorage
-                ? await window.RoutePlannerStorage.saveActiveRoutes({
-                plannedRoutes: serializableRoutes,
-                addressNameMap: addressNameMap || {},
-                origin: currentLocationOrigin || '',
-                originMode: routeOriginMode,
-                originLatLng: currentLatLng || null,
-                endLocationRequired: routeEndRequired,
-                endLocationMode: routeEndMode,
-                customEndAddress,
-                customEndLatLng: customEndLatLng || null,
-                endLocationLabel: getCurrentConfiguredEndLocationLabel(),
-                arrangementMode: routeArrangementMode,
-                directionOrder: [...directionOrder],
-                directionOriginSnapshot: directionOriginSnapshot ? { ...directionOriginSnapshot } : null,
-                date: getSelectedPlanningDate(),
-                planningDate: getSelectedPlanningDate(),
-                startTime: routeStartTime,
-                driverId: getSelectedDriverId(),
-                routeStartTime,
-                vehicleDriver: getSelectedDriverId()
-                })
-                : { success: false, error: 'Active route storage unavailable' };
-
-            if (result.success) {
-                console.log('✅ Active planned routes saved for route tracking');
-            }
-        } catch (e) {
-            console.warn('Failed to save active routes:', e);
-        }
     }

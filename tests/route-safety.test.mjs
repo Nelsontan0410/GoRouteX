@@ -225,3 +225,9 @@ test('fresh conflict checks on aged data retain pins while freshness remains inv
   assert.equal(active().length, 1);
   assert.ok(route.lorryValidation.issues.some(message => message.includes('14 days')));
 });
+
+test('document input/change repaint is debounced, not run per keystroke', () => {
+  assert.match(safetySource, /document\.addEventListener\?\.\('input', scheduleRefresh\)/);
+  assert.match(safetySource, /document\.addEventListener\?\.\('change', scheduleRefresh\)/);
+  assert.doesNotMatch(safetySource, /addEventListener\?\.\('input', \(\) => refreshMaps\(\)\)/);
+});

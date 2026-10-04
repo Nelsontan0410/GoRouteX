@@ -1,8 +1,15 @@
 import { getFirebaseAdmin, verifyFirebaseUser, jsonResponse, readJson } from './_shared/firebase-admin.js';
 import { requireOwner } from './_shared/driver-domain.js';
+import { snapshotRouteStops } from '../../driver/route-model.js';
 
 const clean = (value, limit = 160) => String(value ?? '').trim().slice(0, limit);
 const safeId = value => /^[a-zA-Z0-9_-]+$/.test(value);
+// Order IDs come from the owner-written dispatch snapshot, never from the driver-writable execution doc.
+export function dispatchedOrderIds(dispatchData, stopId) {
+  const stop = snapshotRouteStops(dispatchData).find(item => item.id === stopId);
+  if (!stop) return null;
+  return [...new Set(stop.orderIds.map(id => clean(id, 128)).filter(Boolean))].slice(0, 100);
+}
 const key = (ownerUid, planId, routeId) => `${ownerUid}_${planId}_${routeId}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 240);
 
 async function account(db, uid) {
@@ -119,7 +126,8 @@ export default async (req) => {
         const link = await db.collection('dispatchLinks').doc(uid).get();
         if (!link.exists || link.data().ownerUid !== ownerUid || !link.data().active) return respond({ success: false, error: 'Route is not assigned to this workspace.' }, 403);
       }
-      const orderIds = [...new Set(Array.isArray(stop.orderIds) ? stop.orderIds.map(id => clean(id, 128)).filter(Boolean) : [])].slice(0, 100);
+      const orderIds = dispatchedOrderIds(dispatchDoc.data(), stopId);
+      if (!orderIds) return respond({ success: false, error: 'Stop is not part of this route.' }, 403);
       const orderRefs = orderIds.map(id => db.collection('users').doc(ownerUid).collection('orders').doc(id));
       const orderDocs = await Promise.all(orderRefs.map(ref => ref.get()));
       const batch = db.batch();

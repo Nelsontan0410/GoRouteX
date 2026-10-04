@@ -59,7 +59,9 @@ export function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      // Responses carry checkout/portal URLs and account data; never let a proxy or browser cache them.
+      'Cache-Control': 'no-store'
     }
   });
 }

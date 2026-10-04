@@ -18,7 +18,8 @@ class MemoryFirestore {
         get: ref => ref.get(),
         create: (ref, value) => writes.push(() => { if (this.data.has(ref.path)) throw Error('already exists'); this.data.set(ref.path, structuredClone(value)); }),
         update: (ref, value) => writes.push(() => { if (!this.data.has(ref.path)) throw Error('not found'); this.data.set(ref.path, { ...this.data.get(ref.path), ...structuredClone(value) }); }),
-        set: (ref, value, options) => writes.push(() => this.data.set(ref.path, options?.merge ? { ...this.data.get(ref.path), ...structuredClone(value) } : structuredClone(value)))
+        set: (ref, value, options) => writes.push(() => this.data.set(ref.path, options?.merge ? { ...this.data.get(ref.path), ...structuredClone(value) } : structuredClone(value))),
+        delete: ref => writes.push(() => this.data.delete(ref.path))
       };
       const result = await action(tx);
       for (const write of writes) write();
@@ -136,12 +137,22 @@ test('PIN reset invalidates old PIN and rotates the session version', async () =
   assert.notEqual(db.data.get(`users/${uid}`).sessionVersion, oldVersion);
 });
 
-test('five attempts lock the username for fifteen minutes; expired lockout resets', async () => {
+test('five attempts lock the username+IP pair for fifteen minutes; expired lockout resets', async () => {
   const db = new MemoryFirestore();
   for (let index = 0; index < 5; index++) assert.equal((await reserveAttempt(db, 'ahmad01', '127.0.0.1')).blocked, false);
-  assert.equal((await reserveAttempt(db, 'ahmad01', '127.0.0.2')).blocked, true);
+  assert.equal((await reserveAttempt(db, 'ahmad01', '127.0.0.1')).blocked, true);
+  // Another client is not locked out by those failures (no lockout DoS).
+  assert.equal((await reserveAttempt(db, 'ahmad01', '127.0.0.2')).blocked, false);
   for (const [key, value] of db.data) db.data.set(key, { ...value, lockoutUntil: Date.now() - 1, windowStartedAt: Date.now() - 16 * 60 * 1000 });
   assert.equal((await reserveAttempt(db, 'ahmad01', '127.0.0.2')).blocked, false);
+});
+
+test('username-wide and IP-wide limits stop distributed and spraying attempts', async () => {
+  const db = new MemoryFirestore();
+  for (let index = 0; index < 20; index++) assert.equal((await reserveAttempt(db, 'ahmad01', `10.0.0.${index}`)).blocked, false);
+  assert.equal((await reserveAttempt(db, 'ahmad01', '10.0.1.1')).blocked, true);
+  for (let index = 0; index < 30; index++) assert.equal((await reserveAttempt(db, `driver${index}`, '10.9.9.9')).blocked, false);
+  assert.equal((await reserveAttempt(db, 'driver99', '10.9.9.9')).blocked, true);
 });
 
 test('login mints a token only after valid PIN, clears failures, and rejects inactive or tampered tenants', async () => {
@@ -157,7 +168,9 @@ test('login mints a token only after valid PIN, clears failures, and rejects ina
   assert.equal((await response.json()).token, `test-token-${uid}`);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.deepEqual(admin.tokens[0].claims, { role: 'driver', tenantId: 'owner-a', driverId: uid, sessionVersion: db.data.get(`users/${uid}`).sessionVersion });
-  assert.equal([...db.data.keys()].some(key => key.startsWith('driverLoginAttempts/')), false);
+  // The pair counter is cleared; shared counters keep only the earlier wrong-PIN failure (the success is refunded).
+  const attempts = [...db.data.entries()].filter(([key]) => key.startsWith('driverLoginAttempts/')).map(([, value]) => value.failedAttemptCount);
+  assert.deepEqual(attempts, [1, 1]);
   await setStatus(admin, db, owner, { driverUid: uid, active: false });
   response = await authenticateDriver({ admin, db, username: 'ahmad01', pin: '00123456', ip: '127.0.0.1' });
   assert.equal(response.status, 401);
@@ -190,4 +203,29 @@ test('legacy self-owned Pro Owner manages Drivers in the UID workspace under the
   assert.equal(db.data.get(`users/owner-a/drivers/${result.driver.uid}`).tenantId, 'owner-a');
   assert.equal(db.data.get('users/owner-a').tenantId, 'historical-metadata', 'authorization does not rewrite the Owner profile');
   assert.equal((await listed(db, ownerUid)).length, 1);
+});
+
+test('a failed deactivation re-enables Auth so it matches Firestore', async () => {
+  const { db, admin, owner } = context();
+  const created = await createDriver(admin, db, owner, input());
+  const uid = created.driver.uid;
+  const runTransaction = db.runTransaction.bind(db);
+  db.runTransaction = async () => { throw new Error('transient'); };
+  await assert.rejects(() => setStatus(admin, db, owner, { driverUid: uid, active: false }), /transient/);
+  db.runTransaction = runTransaction;
+  assert.equal(admin.users.get(uid).disabled, false);
+  assert.equal(db.data.get(`users/owner-a/drivers/${uid}`).status, 'ACTIVE');
+});
+
+test('resetPin writes the PIN hash and session version in one transaction', async () => {
+  const { db, admin, owner } = context();
+  const created = await createDriver(admin, db, owner, input());
+  const uid = created.driver.uid;
+  const before = db.data.get(`users/${uid}`).sessionVersion;
+  const runTransaction = db.runTransaction.bind(db);
+  db.runTransaction = async () => { throw new Error('transient'); };
+  await assert.rejects(() => resetPin(admin, db, owner, { driverUid: uid, pin: '11223344', confirmPin: '11223344' }), /transient/);
+  db.runTransaction = runTransaction;
+  assert.equal(db.data.get(`users/${uid}`).sessionVersion, before);
+  assert.equal(admin.users.get(uid).customClaims.sessionVersion, before);
 });

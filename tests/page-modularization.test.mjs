@@ -47,3 +47,10 @@ test('history selection opens the persisted ID without fetching or saving a rout
   context.loadSelectedRoute();
   assert.deepEqual(opened, ['saved_123']);
 });
+
+test('classic scripts do not both declare the global loadSessionFromCloud', async () => {
+  const { readFileSync } = await import('node:fs');
+  const firebaseConfig = readFileSync(new URL('../firebase-config.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(firebaseConfig, /function loadSessionFromCloud\(/);
+  assert.match(firebaseConfig, /loadSession: loadSelectionSessionFromCloud,/);
+});

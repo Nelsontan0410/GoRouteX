@@ -67,10 +67,15 @@ test('payment implementation uses Stripe endpoints and removes the legacy manual
   assert.match(webhook, /verifyStripeWebhookSignature/);
   assert.match(webhook, /stripeWebhookEvents/);
   assert.match(cancellation, /cancel_at_period_end: true/);
+  assert.match(cancellation, /idempotencyKey: `goroutex-cancel-[^`]*\$\{randomUUID\(\)\}`/);
   assert.match(cancellation, /otherReason.length < 3/);
   assert.match(portal, /subscription_update\?\.enabled/);
   assert.match(checkout, /stripeCheckoutPendingAt/);
   assert.match(rules, /!\('developerBillingExempt' in data\)/);
+  assert.match(rules, /'subscriptionExpiresAt',\s*'accessExpiresAt',/);
+  assert.match(rules, /!\('subscriptionExpiresAt' in data\)/);
+  assert.match(rules, /!\('accessExpiresAt' in data\)/);
+  assert.match(rules, /data\.trialEndsAt <= request\.time \+ duration\.value\(8, 'd'\)/);
   assert.match(app, /create-stripe-checkout/);
   assert.doesNotMatch(app, /create-pro-checkout/);
   assert.doesNotMatch(app, /requestProPlanUpgrade/);
