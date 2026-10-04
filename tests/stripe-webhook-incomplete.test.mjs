@@ -49,3 +49,25 @@ test('incomplete_expired after access was granted downgrades to basic', async ()
   assert.equal(state.profile.productPlanKey, 'basic');
   assert.equal(state.profile.planStatus, 'expired');
 });
+
+test('claimEvent distinguishes processed, in-flight and stale events', async () => {
+  const { claimEvent } = await import('../netlify/functions/stripe-webhook.js');
+  const admin = { firestore: { FieldValue: { serverTimestamp: () => SERVER_TIME, increment: (n) => n } } };
+  const claim = (existing) => claimEvent({
+    collection: () => ({ doc: () => ({}) }),
+    runTransaction: (fn) => fn({ get: async () => ({ exists: !!existing, data: () => existing }), set() {} })
+  }, admin, { id: 'evt_1', type: 'invoice.paid' });
+  const at = (ms) => ({ toMillis: () => ms });
+
+  assert.equal(await claim(null), 'claimed');
+  assert.equal(await claim({ status: 'processed' }), 'processed');
+  assert.equal(await claim({ status: 'processing', receivedAt: at(Date.now()) }), 'in_flight');
+  assert.equal(await claim({ status: 'processing', receivedAt: at(Date.now() - 11 * 60 * 1000) }), 'claimed');
+  assert.equal(await claim({ status: 'failed', receivedAt: at(Date.now()) }), 'claimed');
+});
+
+test('in-flight duplicates get a non-2xx so Stripe retries', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../netlify/functions/stripe-webhook.js', import.meta.url), 'utf8');
+  assert.match(source, /claim === 'in_flight'\) return jsonResponse\([^)]*\}, 409\)/);
+});

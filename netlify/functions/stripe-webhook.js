@@ -168,20 +168,20 @@ async function downgradeAfterSubscriptionEnd(db, firebaseAdmin, uid, subscriptio
   await appendBillingEvent(userRef, firebaseAdmin, eventType, 'downgraded_to_basic', { stripeSubscriptionId: subscription.id }, eventId);
 }
 
-async function claimEvent(db, firebaseAdmin, event) {
+export async function claimEvent(db, firebaseAdmin, event) {
   const eventRef = db.collection('stripeWebhookEvents').doc(event.id);
   return db.runTransaction(async (transaction) => {
     const existing = await transaction.get(eventRef);
-    if (existing.exists && existing.data()?.status === 'processed') return false;
+    if (existing.exists && existing.data()?.status === 'processed') return 'processed';
     const receivedAt = existing.data()?.receivedAt?.toMillis?.() || 0;
-    if (existing.data()?.status === 'processing' && Date.now() - receivedAt < 10 * 60 * 1000) return false;
+    if (existing.data()?.status === 'processing' && Date.now() - receivedAt < 10 * 60 * 1000) return 'in_flight';
     transaction.set(eventRef, {
       type: event.type,
       status: 'processing',
       receivedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
       attempts: firebaseAdmin.firestore.FieldValue.increment(1)
     }, { merge: true });
-    return true;
+    return 'claimed';
   });
 }
 
@@ -248,8 +248,10 @@ export default async (req) => {
 
   const firebaseAdmin = getFirebaseAdmin();
   const db = firebaseAdmin.firestore();
-  const shouldProcess = await claimEvent(db, firebaseAdmin, event);
-  if (!shouldProcess) return jsonResponse({ success: true, duplicate: true });
+  const claim = await claimEvent(db, firebaseAdmin, event);
+  if (claim === 'processed') return jsonResponse({ success: true, duplicate: true });
+  // Non-2xx so Stripe retries later: if the in-flight attempt crashed, a 200 here would lose the event.
+  if (claim === 'in_flight') return jsonResponse({ success: false, error: 'Event is still being processed.' }, 409);
 
   try {
     await handleEvent(db, firebaseAdmin, event);
