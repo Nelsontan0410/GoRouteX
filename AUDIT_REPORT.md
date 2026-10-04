@@ -113,3 +113,5 @@ N1 补充：`pnpm-lock.yaml` 本来就是已修复的版本（`pnpm audit --prod
 - M6：stops 完整的版本控制（CAS）按“不建议现在修”暂缓，H2 已先止血。
 - L6：暂不修。`key()` 的格式也被用来查找已派出的路线（`dispatch.js:237`），改格式后旧派车记录查不到，可能被重复派车，需要先做数据迁移；而碰撞只发生在同一租户内。读取客户端 planSnapshot 的回退逻辑等 D5 决定后再处理。
 - L3：`sample-route.csv`、`app-dashboard-static.png` 没有被引用，但可能有外部链接在用，所以没删；build 新增了引用完整性检查。
+- 调试遗留：只删了正常流程中自动打印客户地址/坐标的 `console.log`（`showOptimizedRouteSuggestion`）。`debugWhatsApp`、`forceShowOptimizationSuggestion`、`checkCoordinateData` 只在手动调用时运行，而且错误提示会让用户去控制台排查，所以保留。
+- 新发现 N2（Low，待验证）：`app.html` 中 `showOptimizedRouteSuggestion` 的错误分支把 `errorAnalysis` 和 `solutions` 未转义直接写入 `messageBarPg2.innerHTML`，内容可能包含地址名。没有在本次修复。
