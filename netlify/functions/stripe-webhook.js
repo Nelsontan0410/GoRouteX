@@ -52,7 +52,37 @@ export async function applySubscription(db, firebaseAdmin, uid, subscription, ev
     await downgradeAfterSubscriptionEnd(db, firebaseAdmin, uid, subscription, eventType, eventId);
     return;
   }
-  if (!['trialing', 'active', 'past_due', 'unpaid', 'incomplete'].includes(status)) {
+  if (status === 'incomplete_expired') {
+    if (profile.stripeSubscriptionId !== subscription.id) return;
+    if (String(profile.billingStatus || '').toLowerCase() !== 'incomplete') {
+      await downgradeAfterSubscriptionEnd(db, firebaseAdmin, uid, subscription, eventType, eventId);
+      return;
+    }
+    // The first payment was never completed, so no paid access was granted: just release the subscription link.
+    await userRef.set({
+      stripeSubscriptionId: '',
+      billingStatus: 'basic',
+      paymentStatus: 'cancelled',
+      stripeCheckoutPendingAt: null,
+      stripeCheckoutPendingSessionId: '',
+      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await appendBillingEvent(userRef, firebaseAdmin, eventType, 'incomplete_expired', { stripeSubscriptionId: subscription.id }, eventId);
+    return;
+  }
+  if (status === 'incomplete') {
+    // First payment pending (e.g. 3DS not completed): link the subscription but grant no paid access yet.
+    await userRef.set({
+      stripeCustomerId: subscription.customer || profile.stripeCustomerId || '',
+      stripeSubscriptionId: subscription.id,
+      billingStatus: 'incomplete',
+      paymentStatus: 'pending',
+      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await appendBillingEvent(userRef, firebaseAdmin, eventType, 'incomplete', { stripeSubscriptionId: subscription.id }, eventId);
+    return;
+  }
+  if (!['trialing', 'active', 'past_due', 'unpaid'].includes(status)) {
     throw new Error('Unsupported Stripe subscription state.');
   }
   const plan = subscriptionPlan(subscription, profile);
@@ -105,7 +135,7 @@ export async function applySubscription(db, firebaseAdmin, uid, subscription, ev
     return;
   }
 
-  if (status === 'past_due' || status === 'unpaid' || status === 'incomplete') {
+  if (status === 'past_due' || status === 'unpaid') {
     const graceEndsAt = getGraceEndsAt({ existingGraceEndsAt: profile.stripeSubscriptionId === subscription.id ? (profile.graceEndsAt?.toDate?.() || profile.graceEndsAt) : null, now });
     await userRef.set({
       ...common,
