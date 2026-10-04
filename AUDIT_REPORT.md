@@ -115,3 +115,10 @@ N1 补充：`pnpm-lock.yaml` 本来就是已修复的版本（`pnpm audit --prod
 - L3：`sample-route.csv`、`app-dashboard-static.png` 没有被引用，但可能有外部链接在用，所以没删；build 新增了引用完整性检查。
 - 调试遗留：只删了正常流程中自动打印客户地址/坐标的 `console.log`（`showOptimizedRouteSuggestion`）。`debugWhatsApp`、`forceShowOptimizationSuggestion`、`checkCoordinateData` 只在手动调用时运行，而且错误提示会让用户去控制台排查，所以保留。
 - 新发现 N2（Low，待验证）：`app.html` 中 `showOptimizedRouteSuggestion` 的错误分支把 `errorAnalysis` 和 `solutions` 未转义直接写入 `messageBarPg2.innerHTML`，内容可能包含地址名。没有在本次修复。
+
+## 决策结果（2026-10-04）
+- D2 → 选 A，已实现：新增 `route-plan-usage` 函数，在服务端按“用户 + 新加坡日期”计数，套餐按服务端判断的有效套餐计算，计数存放在客户端无法访问的顶层集合 `routePlanUsage`。限制：Basic 的路线只保存在用户设备上，所以这只能防止“清除浏览器数据”这类绕过，挡不住直接修改前端 JS；函数不可用时允许继续保存。
+- D3 → 暂缓，等其他事项完成后再提醒。
+- D4 → 选 B，维持现状，退款和争议手动处理。
+- D5 → 保留现状。L6 关闭不修：本地存储模式的用户在服务器上没有已保存的计划，派车时要靠客户端提交的快照。
+- D6 → 只保留 `pnpm-lock.yaml`，`package-lock.json` 已删除。
