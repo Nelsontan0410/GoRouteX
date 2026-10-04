@@ -18,6 +18,9 @@ window.GoRouteXTiming = window.GoRouteXTiming || (() => {
     let reported = false;
     return {
         marks,
+        notes: {},
+        // Free-form diagnostic values (counts, sizes), printed with the marks.
+        note(name, value) { try { this.notes[name] = value; } catch (_) {} },
         // Diagnostics only: must never break the step being measured.
         mark(name) {
             try {
@@ -27,7 +30,7 @@ window.GoRouteXTiming = window.GoRouteXTiming || (() => {
         report() {
             if (reported) return;
             reported = true;
-            console.info('[GoRouteX timing] ms since page start:', { ...marks });
+            console.info('[GoRouteX timing] ms since page start:', { ...marks, ...this.notes });
         }
     };
 })();
@@ -1054,6 +1057,23 @@ async function backfillLegacyRoutes(uid) {
     }
 }
 
+// Diagnostics: how long the history query took, how many documents it returned and roughly how big they
+// are. Large documents (full route/directions data) are the suspected cause of slow history loads.
+function diagnosticClock() {
+    try { return performance.now(); } catch (_) { return 0; }
+}
+
+function noteHistoryQuery(snapshot, queryMs) {
+    try {
+        if (!globalThis.GoRouteXTiming || globalThis.GoRouteXTiming.notes['history-query-ms'] !== undefined) return;
+        let bytes = 0;
+        snapshot.docs.forEach((doc) => { bytes += JSON.stringify(doc.data()).length; });
+        globalThis.GoRouteXTiming.note('history-query-ms', queryMs);
+        globalThis.GoRouteXTiming.note('history-docs', snapshot.docs.length);
+        globalThis.GoRouteXTiming.note('history-approx-KB', Math.round(bytes / 1024));
+    } catch (_) {}
+}
+
 async function loadHistoryWithFallback(uid, limit = HISTORY_LOAD_LIMIT, options = {}) {
     const collectionRef = getHistoryCollectionRef(uid);
     const pageSize = Math.max(1, Math.min(Number(limit) || HISTORY_LOAD_LIMIT, 50));
@@ -1069,7 +1089,9 @@ async function loadHistoryWithFallback(uid, limit = HISTORY_LOAD_LIMIT, options 
     // one extra document read.
     const emptyProbe = useCursor ? null : collectionRef.limit(1).get().catch(() => null);
     try {
+        const queryStartedAt = diagnosticClock();
         const snapshot = await applyCursor(collectionRef.orderBy('createdAt', 'desc')).limit(pageSize).get();
+        noteHistoryQuery(snapshot, Math.round(diagnosticClock() - queryStartedAt));
         if (!snapshot.empty) {
             _historyPageCursors.set(cursorKey, snapshot.docs[snapshot.docs.length - 1]);
             return { success: true, snapshot, hasMore: snapshot.docs.length === pageSize };

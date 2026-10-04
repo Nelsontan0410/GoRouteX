@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../firebase-config.js', import.meta.url), 'utf8');
-const block = source.slice(source.indexOf('async function loadHistoryWithFallback('), source.indexOf('function serializeAddressNameMap('));
+const block = source.slice(source.indexOf('function diagnosticClock('), source.indexOf('function serializeAddressNameMap('));
 
 // docs: [{ id, createdAt?, updatedAt? }]. Records every query and how many were in flight together.
 function setup(docs) {
@@ -55,4 +55,27 @@ test('load-more pages do not send the probe', async () => {
   const page = setup([{ id: 'a', createdAt: 2 }]);
   await page.load({ loadMore: true });
   assert.deepEqual(page.queries, ['createdAt']);
+});
+
+test('history diagnostics report query time, document count and approximate size, and never break loading', async () => {
+  const notes = {};
+  const page = setup([{ id: 'a', createdAt: 2, body: 'x'.repeat(2048) }]);
+  // setup() builds its own context; rebuild with a timing sink to observe the notes.
+  const queries = [];
+  const doc = { id: 'a', data: () => ({ createdAt: 2, body: 'x'.repeat(2048) }) };
+  const context = vm.createContext({
+    console: { warn() {} }, HISTORY_LOAD_LIMIT: 20, _historyPageCursors: new Map(),
+    globalThis: { GoRouteXTiming: { notes, note(name, value) { notes[name] = value; } } },
+    getHistoryCollectionRef: () => {
+      const q = { orderBy: () => q, limit: () => q, startAfter: () => q, get: async () => { queries.push(1); return { empty: false, docs: [doc] }; } };
+      return q;
+    }
+  });
+  vm.runInContext(`${block}\nthis.load = loadHistoryWithFallback;`, context);
+  const result = await context.load('u1', 20, {});
+  assert.equal(result.success, true);
+  assert.equal(notes['history-docs'], 1);
+  assert.ok(notes['history-approx-KB'] >= 2);
+  assert.equal(typeof notes['history-query-ms'], 'number');
+  assert.ok(page);
 });

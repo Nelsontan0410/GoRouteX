@@ -3354,3 +3354,8 @@
     display: none;
   }
 }
+
+/* The dashboard no longer shows route history inline; it loads in the background and is opened via Browse History. */
+#historyStatsPanel[hidden] {
+  display: none !important;
+}
