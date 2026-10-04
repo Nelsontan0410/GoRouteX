@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
   <link rel="stylesheet" href="app-experience.css?v=20261005-3">
   <link rel="stylesheet" href="styles/app-sidebar.css?v=20261005-1">
+  <link rel="stylesheet" href="styles/delivery-schedule.css?v=20261005-1">
   <!-- Mobile CSS is the final layer: shell owns navigation, pages own responsive layout. -->
   <link rel="stylesheet" href="mobile-fixes.css?v=20260505-1">
   <link rel="stylesheet" href="mobile-shell.css?v=20260505-1">
@@ -693,10 +694,9 @@
   <!-- Page 5: Add New Stop -->
   <div id="page-add-stop" class="page mobile-core-page">
     <div class="add-stop-header workspace-intro-header">
-      <div class="add-stop-title">Stop workspace</div>
+      <div class="add-stop-title">Customer Workspace</div>
       <div class="add-stop-header-controls workspace-intro-actions">
         <button class="add-stop-nav-btn" onclick="goBackToPreviousPage()">Back</button>
-        <button class="add-stop-nav-btn" onclick="showPage('page-history-dashboard')">Dashboard</button>
       </div>
     </div>
 
@@ -704,19 +704,19 @@
       <!-- Left Panel: Form -->
       <div class="add-stop-form-panel">
         <div id="addStopAccessNotice"></div>
-        <nav class="stop-workspace-tabs" aria-label="Stop workspace actions">
-          <button type="button" class="stop-workspace-tab is-active" data-stop-workspace-mode="add" aria-pressed="true">Add New Stop</button>
+        <nav class="stop-workspace-tabs" aria-label="Customer workspace actions">
+          <button type="button" class="stop-workspace-tab is-active" data-stop-workspace-mode="add" aria-pressed="true">Add Customer</button>
           <button type="button" class="stop-workspace-tab" data-stop-workspace-mode="edit" aria-pressed="false">Search</button>
           <button type="button" class="stop-workspace-tab" data-stop-workspace-mode="import" aria-pressed="false">Import / Export</button>
         </nav>
         <div id="addStopCreateSection" class="form-section" data-stop-workspace-panel="add">
-          <h3 id="addStopCreateHeading">➕ Add New Stop</h3>
-          <p class="form-description">Fill in the stop details below. The record will be saved using your current plan's storage mode.</p>
+          <h3 id="addStopCreateHeading">Add Customer</h3>
+          <p class="form-description">Customers are reusable delivery locations. Each route visit to a customer is a stop. The record is saved using your current plan's storage mode.</p>
 
           <form id="addStopForm" class="stop-form">
-            <div class="form-group"><label for="stopCustomerName">Customer</label><input id="stopCustomerName" list="orderCustomerOptions" placeholder="e.g., ABC Trading"><datalist id="orderCustomerOptions"></datalist><input id="stopCustomerId" type="hidden"><small>Use an existing customer name to add another delivery location.</small></div>
+            <div class="form-group"><label for="stopCustomerName">Customer account</label><input id="stopCustomerName" list="orderCustomerOptions" placeholder="e.g., ABC Trading"><datalist id="orderCustomerOptions"></datalist><input id="stopCustomerId" type="hidden"><small>Optional. Use an existing account name to add another delivery location for the same account.</small></div>
             <div class="form-group">
-              <label for="stopName">Stop / Contact Name *</label>
+              <label for="stopName">Customer name *</label>
               <input type="text" id="stopName" name="stopName" placeholder="e.g., ABC Restaurant" required>
             </div>
 
@@ -736,9 +736,33 @@
               <input type="text" id="stopCoordinate" name="stopCoordinate" placeholder="Will be filled after search" readonly style="background: #f1f5f9; color: #475569;">
             </div>
 
-            <div id="addStopContactFields" class="form-section"><h4>Contact at this stop (optional)</h4><div class="form-group"><label for="stopContactName">Contact name</label><input id="stopContactName"></div><div class="form-group"><label for="stopContactPhone">Phone</label><input id="stopContactPhone" type="tel"></div><div class="form-group"><label for="stopContactRole">Role</label><input id="stopContactRole"></div></div>
+            <div id="addStopContactFields" class="form-section"><h4>Contact at this customer (optional)</h4><div class="form-group"><label for="stopContactName">Contact name</label><input id="stopContactName"></div><div class="form-group"><label for="stopContactPhone">Phone</label><input id="stopContactPhone" type="tel"></div><div class="form-group"><label for="stopContactRole">Role</label><input id="stopContactRole"></div></div>
+            <fieldset id="customerDeliveryAvailability" class="form-section customer-constraints">
+              <legend>Delivery Availability</legend>
+              <div class="constraint-mode" role="radiogroup" aria-label="Delivery availability">
+                <label><input type="radio" name="deliveryScheduleMode" value="default" checked> Use default schedule</label>
+                <label><input type="radio" name="deliveryScheduleMode" value="custom"> Custom schedule</label>
+              </div>
+              <p id="deliveryScheduleSummary" class="constraint-summary" aria-live="polite"></p>
+              <div id="customDeliverySchedule" class="schedule-editor" hidden></div>
+              <button type="button" id="resetDeliveryScheduleBtn" class="clear-btn constraint-reset" hidden>Return to default</button>
+            </fieldset>
+            <fieldset id="customerServiceTime" class="form-section customer-constraints">
+              <legend>Service Time</legend>
+              <div class="constraint-mode" role="radiogroup" aria-label="Service time">
+                <label><input type="radio" name="serviceTimeMode" value="default" checked> Use default service time</label>
+                <label><input type="radio" name="serviceTimeMode" value="custom"> Custom service time</label>
+              </div>
+              <p id="serviceTimeSummary" class="constraint-summary" aria-live="polite"></p>
+              <div id="customServiceMinutesWrap" class="form-group" hidden>
+                <label for="customServiceMinutes">Service time (minutes)</label>
+                <input type="number" id="customServiceMinutes" min="1" max="240" step="1" inputmode="numeric">
+              </div>
+              <button type="button" id="resetServiceTimeBtn" class="clear-btn constraint-reset" hidden>Return to default</button>
+            </fieldset>
+            <p id="customerConstraintErrors" class="schedule-errors" role="alert"></p>
             <div class="form-actions">
-              <button type="submit" id="submitStopBtn" class="submit-btn">Add Stop</button>
+              <button type="submit" id="submitStopBtn" class="submit-btn">Add Customer</button>
               <button type="button" id="cancelEditStopBtn" class="submit-btn" style="display:none;">Cancel Edit</button>
               <button type="button" id="clearFormBtn" class="clear-btn">Clear Form</button>
             </div>
@@ -752,13 +776,13 @@
         <div id="recentlyAddedSection" class="form-section" data-stop-workspace-panel="add">
           <h3>Recently Added</h3>
           <div id="recentlyAddedList" class="recently-added-list">
-            <p class="no-items">No stops added yet</p>
+            <p class="no-items">No customers added yet</p>
           </div>
         </div>
 
         <div id="manageStopsSection" class="form-section" data-stop-workspace-panel="edit" hidden>
-          <h3>Search Saved Stops &amp; Contacts</h3>
-          <p class="form-description">Find an individual record, check its customer and location, then edit or delete it.</p>
+          <h3>Search Customers</h3>
+          <p class="form-description">Find a customer by name, contact, phone number or address, then edit or delete it.</p>
           <form id="masterSearchForm" class="master-search-controls">
             <label for="masterSearchType">Search type</label>
             <select id="masterSearchType" required><option value="customer">Customer Name</option><option value="contact">Contact Name</option><option value="phone">Phone Number</option><option value="address">Delivery Address</option></select>
@@ -774,7 +798,7 @@
           <div class="stop-import-heading">
             <div>
               <span class="stop-import-eyebrow">Bulk import</span>
-              <h3>Import stops from your spreadsheet</h3>
+              <h3>Import customers from your spreadsheet</h3>
               <p class="form-description">Upload a CSV or Excel file, use a public Google Sheet, or paste rows. GoRouteX detects the columns before anything is saved.</p>
             </div>
             <button type="button" id="downloadCsvTemplateBtn" class="action-button-secondary stop-import-template-btn">Download template</button>
@@ -792,7 +816,7 @@
               <div class="stop-import-card-heading">
                 <span class="stop-import-step-number">1</span>
                 <div>
-                  <h4 id="importSourceTitle">Add your stop list</h4>
+                  <h4 id="importSourceTitle">Add your customer list</h4>
                   <p>Choose one source. The first row should contain column names.</p>
                 </div>
               </div>
@@ -830,7 +854,7 @@
 
           <div class="stop-import-options-row">
             <div class="form-group">
-              <label for="importModeSelect">When a matching stop already exists</label>
+              <label for="importModeSelect">When a matching customer already exists</label>
               <select id="importModeSelect">
                 <option value="merge">Keep existing stops and add new ones (Recommended)</option>
                 <option value="overwrite">Replace all existing stops with this import</option>
@@ -840,8 +864,8 @@
           </div>
 
           <div class="stop-import-utility-actions" aria-label="Stop file utilities">
-            <button type="button" id="exportStopsCsvBtn" class="action-button-secondary">Export saved stops</button>
-            <button type="button" id="deleteAllStopsBtn" class="action-button-secondary">Delete all stops</button>
+            <button type="button" id="exportStopsCsvBtn" class="action-button-secondary">Export customers</button>
+            <button type="button" id="deleteAllStopsBtn" class="action-button-secondary">Delete all customers</button>
           </div>
 
           <div id="csvImportMappingSection" class="csv-import-stage" hidden>
@@ -1124,6 +1148,9 @@
 <script src="map-handler.js"></script>
 <script src="route-engine.js"></script>
 <script src="ui.js"></script>
+<script src="delivery-constraints.js"></script>
+<script src="delivery-schedule-editor.js"></script>
+<script src="customer-constraints-form.js"></script>
 <script src="route-storage.js"></script>
   <script src="orders/route-planning-preferences.js"></script>
   <script src="orders/master-search.js"></script>
@@ -1797,6 +1824,7 @@
       tracking: 'page-gps-tracking',
       gps: 'page-gps-tracking',
       customers: 'page-add-stop',
+      'customer-workspace': 'page-add-stop',
       'manage-stops': 'page-add-stop',
       account: 'page-account-access',
       billing: 'page-account-access',
@@ -6924,6 +6952,11 @@
             lat: lat,
             lng: lng,
             coordinate: coordinate,
+            // Delivery availability / service time overrides; absent fields mean "use the Settings default".
+            deliveryScheduleMode: stop.deliveryScheduleMode === 'custom' ? 'custom' : 'default',
+            customDeliverySchedule: stop.deliveryScheduleMode === 'custom' ? (stop.customDeliverySchedule || null) : null,
+            serviceTimeMode: stop.serviceTimeMode === 'custom' ? 'custom' : 'default',
+            customServiceMinutes: stop.serviceTimeMode === 'custom' ? (stop.customServiceMinutes ?? null) : null,
             uniqueId: stopId
         };
     }
@@ -12310,14 +12343,14 @@
             const isActive = button.dataset.stopWorkspaceMode === nextMode;
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-pressed', String(isActive));
-            const labels = { add: 'Add New Stop', edit: 'Search', import: 'Import / Export' };
+            const labels = { add: 'Add Customer', edit: 'Search', import: 'Import / Export' };
             button.textContent = isActive
-                ? ({ add: 'Add New Stop', edit: 'Search', import: 'Import / Export' }[nextMode])
+                ? ({ add: 'Add Customer', edit: 'Search', import: 'Import / Export' }[nextMode])
                 : labels[button.dataset.stopWorkspaceMode] || button.textContent;
         });
         if (nextMode === 'edit') refreshUnifiedSearch().catch(error => { if(manageStopsList) manageStopsList.textContent = error.message; });
         const createHeading = document.getElementById('addStopCreateHeading');
-        if (createHeading) createHeading.textContent = editingStopId ? '✏️ Edit Stop' : '➕ Add New Stop';
+        if (createHeading) createHeading.textContent = editingStopId ? 'Edit Customer' : 'Add Customer';
         if (nextMode === 'add' && mapAddStop) {
             setTimeout(() => MapHandler.triggerResize(mapAddStop, 'resize'), 0);
         }
@@ -12383,15 +12416,16 @@
 
     function setAddStopFormMode(isEditing) {
         const submitBtn = document.getElementById('submitStopBtn');
-        if (submitBtn) submitBtn.textContent = isEditing ? 'Save Changes' : 'Add Stop';
+        if (submitBtn) submitBtn.textContent = isEditing ? 'Save Changes' : 'Add Customer';
         const createHeading = document.getElementById('addStopCreateHeading');
-        if (createHeading) createHeading.textContent = isEditing ? '✏️ Edit Stop' : '➕ Add New Stop';
+        if (createHeading) createHeading.textContent = isEditing ? 'Edit Customer' : 'Add Customer';
         if (cancelEditStopBtn) cancelEditStopBtn.style.display = isEditing ? 'inline-flex' : 'none';
     }
 
     function clearAddStopForm(resetStatus = false) {
         const form = document.getElementById('addStopForm');
         if (form) form.reset();
+        window.GoRouteXCustomerConstraints?.set(null);
 
         editingStopId = null;
         setAddStopFormMode(false);
@@ -12558,6 +12592,7 @@
         if (document.getElementById('stopCustomerId')) document.getElementById('stopCustomerId').value = entry.customerId || '';
         if (phoneInput) phoneInput.value = entry['Hp No'] || '';
         if (addressInput) addressInput.value = entry.Address || '';
+        window.GoRouteXCustomerConstraints?.set(entry);
 
         const lat = typeof entry.lat === 'number' ? entry.lat : null;
         const lng = typeof entry.lng === 'number' ? entry.lng : null;
@@ -12813,13 +12848,16 @@
             ? (allCustomerEntries.find(entry => entry.uniqueId === editingStopId)?.siteCode || '')
             : (window.OrderMasterMaintenance?.getPendingSiteCode?.() || '');
         const latLng = parseLatLngFromCoordinateText(stopCoordinate);
+        const constraints = window.GoRouteXCustomerConstraints?.read() || { fields: {}, errors: [] };
         return {
             name: stopName,
             customerName, customerId, siteCode, label: stopName,
             phone: stopPhone,
             address: stopAddress,
             lat: latLng.lat,
-            lng: latLng.lng
+            lng: latLng.lng,
+            ...(constraints.fields || {}),
+            constraintErrors: constraints.errors
         };
     }
 
@@ -12851,9 +12889,18 @@
         if (!stopName || !stopAddress) {
             statusDiv.style.display = 'block';
             statusDiv.className = 'add-stop-status error';
-            statusDiv.textContent = 'Please fill in Stop / Contact Name and Address';
+            statusDiv.textContent = 'Please fill in Customer name and Address';
             return;
         }
+
+        if (stopData.constraintErrors?.length) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'add-stop-status error';
+            statusDiv.textContent = `Check Delivery Availability / Service Time: ${stopData.constraintErrors[0]}`;
+            document.getElementById('customerConstraintErrors')?.scrollIntoView({ block: 'center' });
+            return;
+        }
+        delete stopData.constraintErrors;
 
         if (!isEditing) {
             const customerLimitStatus = getUsageStatus('customers');
@@ -13714,7 +13761,7 @@
             return;
         }
 
-        const confirmed = confirm(`Delete all ${currentEntries.length} saved stops? This cannot be undone.`);
+        const confirmed = confirm(`Delete all ${currentEntries.length} customers? This cannot be undone.`);
         if (!confirmed) return;
 
         setImportStatus('Deleting all saved stops...', 'loading');
@@ -13774,7 +13821,7 @@
         if (!listContainer) return;
 
         if (recentlyAddedStops.length === 0) {
-            listContainer.innerHTML = '<p class="no-items">No stops added yet</p>';
+            listContainer.innerHTML = '<p class="no-items">No customers added yet</p>';
             return;
         }
 

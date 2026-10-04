@@ -1,11 +1,10 @@
-#masterSearchForm.master-search-controls { display:grid; grid-template-columns: 150px minmax(220px,1fr) auto; gap:10px 12px; align-items:end; margin: 18px 0 24px; }
-#masterSearchForm label { grid-row:1; margin:0; font-weight:600; color:#334155; font-size:13px; }
-#masterSearchForm label[for="masterSearchType"] { grid-column:1; }
-#masterSearchForm label[for="manageStopsSearchInput"] { grid-column:2; }
-#masterSearchType { grid-column:1; grid-row:2; min-height:42px; }
-#manageStopsSearchInput { grid-column:2; grid-row:2; min-height:42px; }
-#masterSearchForm button { grid-column:3; grid-row:2; min-height:42px; margin:0; }
+/* Customer search: each label sits above its full-width control, stacked vertically so the form always
+   stays inside the left panel (long text, narrow screens, 200% zoom). */
+#masterSearchForm.master-search-controls { display:flex; flex-direction:column; align-items:stretch; gap:6px; margin:18px 0 24px; width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
+#masterSearchForm label { margin:8px 0 0; font-weight:600; color:#334155; font-size:13px; overflow-wrap:anywhere; }
+#masterSearchForm label:first-of-type { margin-top:0; }
+#masterSearchType, #manageStopsSearchInput { display:block; width:100%; max-width:100%; min-width:0; min-height:42px; box-sizing:border-box; text-overflow:ellipsis; }
+#masterSearchForm button { width:100%; max-width:100%; min-height:42px; margin:12px 0 0; box-sizing:border-box; }
 .master-search-count { margin:0 0 12px; color:#536479; font-size:13px; font-weight:600; }
 .manage-stop-name small { display:inline-block; padding:3px 7px; border-radius:5px; background:#e9efff; color:#2456c4; font-size:11px; font-weight:700; vertical-align:middle; }
 .search-error { color:#b42318; font-weight:600; }
-@media (max-width:640px) { #masterSearchForm.master-search-controls { grid-template-columns:1fr; } #masterSearchForm label, #masterSearchType, #manageStopsSearchInput, #masterSearchForm button { grid-column:1 !important; grid-row:auto !important; } #masterSearchForm button { width:100%; } }

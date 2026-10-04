@@ -101,3 +101,64 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Customer Workspace form: Delivery Availability and Service Time. */
+.customer-constraints {
+  margin: 16px 0 0;
+  padding: 14px;
+  min-width: 0;
+  border: 1px solid #dce3ec;
+  border-radius: 10px;
+}
+
+.customer-constraints legend {
+  padding: 0 6px;
+  font-weight: 700;
+  color: #192b40;
+}
+
+.constraint-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.constraint-mode label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.constraint-summary {
+  margin: 8px 0;
+  color: #536479;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.customer-constraints .constraint-reset {
+  margin-top: 8px;
+  width: auto;
+}
+
+.customer-constraints .schedule-editor,
+.customer-constraints input[type="number"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* The customer form panel is narrow on desktop too: stack each day by the panel's width, not the screen's. */
+.add-stop-form-panel {
+  container-type: inline-size;
+}
+
+@container (max-width: 560px) {
+  .schedule-day {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .schedule-range {
+    grid-column: 1 / -1;
+  }
+}

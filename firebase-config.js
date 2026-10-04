@@ -279,6 +279,24 @@ function normalizePhoneValue(phone) {
     return String(phone).trim();
 }
 
+// Delivery availability and service-time overrides (see delivery-constraints.js). Default modes store no
+// copied values, so a customer keeps following the current Settings default. Records saved before this
+// existed have no fields and therefore resolve as default.
+function pickDeliveryConstraintFields(stop) {
+    const fields = {
+        deliveryScheduleMode: stop.deliveryScheduleMode === 'custom' ? 'custom' : 'default',
+        serviceTimeMode: stop.serviceTimeMode === 'custom' ? 'custom' : 'default'
+    };
+    if (fields.deliveryScheduleMode === 'custom' && stop.customDeliverySchedule && typeof stop.customDeliverySchedule === 'object') {
+        fields.customDeliverySchedule = JSON.parse(JSON.stringify(stop.customDeliverySchedule));
+    }
+    const minutes = Number(stop.customServiceMinutes);
+    if (fields.serviceTimeMode === 'custom' && Number.isInteger(minutes) && minutes > 0) {
+        fields.customServiceMinutes = minutes;
+    }
+    return fields;
+}
+
 function normalizeStop(stop) {
     const latFromCoord = (() => {
         const coord = (stop.coordinate || '').toString().trim();
@@ -308,6 +326,7 @@ function normalizeStop(stop) {
         note: (stop.note || stop.notes || stop.Notes || '').toString().trim(),
         lat: typeof lat === 'number' && !Number.isNaN(lat) ? lat : null,
         lng: typeof lng === 'number' && !Number.isNaN(lng) ? lng : null,
+        ...pickDeliveryConstraintFields(stop),
         updatedAt: existingUpdatedAt || firebase.firestore.Timestamp.now()
     };
 }
@@ -329,6 +348,7 @@ function toLegacyCustomer(stop) {
         lat: typeof stop.lat === 'number' ? stop.lat : null,
         lng: typeof stop.lng === 'number' ? stop.lng : null,
         coordinate,
+        ...pickDeliveryConstraintFields(stop),
         createdAt: stop.createdAt || null,
         updatedAt: stop.updatedAt || null
     };
