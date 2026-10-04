@@ -19,3 +19,8 @@ test('the Excel reader is bundled into the production site', () => {
   assert.match(app, /<script src="vendor\/xlsx\.full\.min\.js"><\/script>/);
   assert.match(build, /vendor.*xlsx\.full\.min\.js/s);
 });
+
+test('the build fails when a page or module references a file missing from dist', () => {
+  assert.match(build, /Build output is missing \$\{missing\.length\} referenced file/);
+  assert.match(build, /process\.exit\(1\)/);
+});
