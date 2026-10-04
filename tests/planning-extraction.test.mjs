@@ -9,7 +9,7 @@ const persistence = read('planning/planning-persistence.js');
 function stateContext() {
  const planned = [{ id: 'existing' }];
  const c = vm.createContext({window:{}, AppState:{plannedRoutes:planned}, MAX_WAYPOINTS_PER_ROUTE:8,
- getDefaultStayMinutes:()=>15, getPreferredPlanningTime:()=> '10:30', getDateKey:()=> '2026-10-03',
+ getDefaultStayMinutes:()=>15,getDefaultStayMinutesForStop:()=>15, getPreferredPlanningTime:()=> '10:30', getDateKey:()=> '2026-10-03',
  localStorage:{getItem:()=>null},VEHICLE_DRIVER_STORAGE_KEY:'vehicle',DEFAULT_VEHICLE_DRIVER:'fixture',
  getStoredVehicleDriverItems:()=>['fixture'],getRouteKeyIndex:k=>Number(k.slice(5))-1,
  isManualRouteListType:k=>/^route\d+$/.test(k),normalizeStayMinutes:v=>Number(v)||15});
@@ -17,7 +17,7 @@ function stateContext() {
 }
 function flow() {
  const events=[];const calls={profile:0,stops:0,orders:0,routing:0,eta:0,writes:0,history:0};
- const c=vm.createContext({window:{},performance:{mark(){},measure(){}},messageBarPg2:{},
+ const c=vm.createContext({window:{},AppState:{plannedRoutes:[]},performance:{mark(){},measure(){}},messageBarPg2:{},
  RouteEngine:{async buildPlannedRoutes(){events.push('build');calls.routing++;return {plannedRoutes:[{id:1,directionsResult:{}}]}}},
  RouteSafety:{async validateRoutes(){events.push('safety')}},
  ensureManualRouteCheckCurrent:async()=>events.push('manual-check'),

@@ -255,6 +255,7 @@
     scheduleService,
     dayKeyFromDate,
     describeSchedule,
+    describeDay: dayDescription,
     customerConstraintFields,
     validateCustomerConstraints
   };

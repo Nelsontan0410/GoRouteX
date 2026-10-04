@@ -15,7 +15,7 @@
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="app-core.css?v=20261002-1">
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
-  <link rel="stylesheet" href="app-experience.css?v=20261005-3">
+  <link rel="stylesheet" href="app-experience.css?v=20261005-4">
   <link rel="stylesheet" href="styles/app-sidebar.css?v=20261005-1">
   <link rel="stylesheet" href="styles/delivery-schedule.css?v=20261005-1">
   <!-- Mobile CSS is the final layer: shell owns navigation, pages own responsive layout. -->
@@ -1105,6 +1105,28 @@
     </div>
   </div>
 
+  <div id="timeWindowExceptionModal" hidden>
+    <div class="confirm-route-dialog time-window-dialog" role="dialog" aria-modal="true" aria-labelledby="timeWindowExceptionTitle" aria-describedby="timeWindowExceptionIntro">
+      <h3 id="timeWindowExceptionTitle">Delivery hours conflict</h3>
+      <p id="timeWindowExceptionIntro">These stops cannot be served inside the customer's delivery hours with the current start time and routes. Nothing has been saved yet.</p>
+      <div class="time-window-table-wrap">
+        <table class="time-window-table">
+          <thead><tr><th scope="col">Route</th><th scope="col">Customer</th><th scope="col">ETA</th><th scope="col">Receiving</th><th scope="col">Reason</th></tr></thead>
+          <tbody id="timeWindowExceptionRows"></tbody>
+        </table>
+      </div>
+      <div id="timeWindowOverrideBox" class="time-window-override" hidden>
+        <label for="timeWindowOverrideReason">Reason for saving outside delivery hours (recorded with your name)</label>
+        <textarea id="timeWindowOverrideReason" rows="2" maxlength="300" placeholder="e.g. Customer agreed by phone to receive at 18:30"></textarea>
+        <p id="timeWindowOverrideError" class="time-window-error" role="alert"></p>
+      </div>
+      <div class="confirm-route-actions">
+        <button type="button" id="timeWindowChangeStartBtn" class="action-button-secondary">Change start time</button>
+        <button type="button" id="timeWindowAdjustRoutesBtn" class="action-button-secondary">Adjust routes</button>
+        <button type="button" id="timeWindowOverrideBtn" class="action-button-primary">Save with override…</button>
+      </div>
+    </div>
+  </div>
   <div id="confirmRouteModal" hidden>
     <div class="confirm-route-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmRouteModalTitle">
       <h3 id="confirmRouteModalTitle">Confirm Route Save</h3>
@@ -1151,6 +1173,7 @@
 <script src="delivery-constraints.js"></script>
 <script src="delivery-schedule-editor.js"></script>
 <script src="customer-constraints-form.js"></script>
+<script src="route-time-windows.js"></script>
 <script src="route-storage.js"></script>
   <script src="orders/route-planning-preferences.js"></script>
   <script src="orders/master-search.js"></script>
@@ -1474,6 +1497,20 @@
     function getDefaultStayMinutes() {
         return window.GoRouteXSettings?.getCachedSettings?.().routePlanning?.serviceMinutes || DEFAULT_STAY_MINUTES;
     }
+    // Effective delivery rules for one customer: its custom values first, then the current Settings
+    // defaults (resolved now, never copied onto the customer). See delivery-constraints.js.
+    function getCustomerDeliveryConstraints(customerId) {
+        const C = window.GoRouteXDeliveryConstraints;
+        const settings = window.GoRouteXSettings?.getCachedSettings?.() || null;
+        const entry = typeof getCustomerById === 'function' ? getCustomerById(customerId) : null;
+        if (!C) return { schedule: null, scheduleMode: 'default', serviceMinutes: getDefaultStayMinutes(), serviceMode: 'default' };
+        const resolved = C.resolveCustomerConstraints(entry, settings);
+        return { ...resolved, serviceMinutes: resolved.serviceMinutes || getDefaultStayMinutes() };
+    }
+    // Default service (stay) minutes for a route visit to this customer; planners can still change one visit.
+    function getDefaultStayMinutesForStop(customerId) {
+        return customerId ? getCustomerDeliveryConstraints(customerId).serviceMinutes : getDefaultStayMinutes();
+    }
     const DEFAULT_VEHICLE_DRIVER = 'YQ3896B';
     const VEHICLE_DRIVER_STORAGE_KEY = 'goroutexVehicleDriver';
     const VEHICLE_DRIVER_LIST_STORAGE_KEY = 'goroutexVehicleDriverList';
@@ -1504,7 +1541,8 @@
         if (!policy) return;
         for (const slots of Object.values(manualRouteSlots)) {
             for (const slot of Object.values(slots)) {
-                if (!slot.location && slot.stay === DEFAULT_STAY_MINUTES) slot.stay = policy.serviceMinutes;
+                if (slot.stay !== DEFAULT_STAY_MINUTES) continue;
+                slot.stay = slot.location ? getDefaultStayMinutesForStop(slot.location) : policy.serviceMinutes;
             }
         }
         if (routeStartTime === DEFAULT_ROUTE_START_TIME && !localStorage.getItem(PREFERRED_PLANNING_TIME_STORAGE_KEY)) {
@@ -3847,11 +3885,11 @@
 
     function getRouteStopStayMinutes(routeData, stopId) {
         if (!routeData || !Array.isArray(routeData.routeStopConfigs)) {
-            return getDefaultStayMinutes();
+            return getDefaultStayMinutesForStop(stopId);
         }
 
         const match = routeData.routeStopConfigs.find((stopConfig) => stopConfig && stopConfig.customerId === stopId);
-        return match ? normalizeStayMinutes(match.stayMinutes) : getDefaultStayMinutes();
+        return match ? normalizeStayMinutes(match.stayMinutes) : getDefaultStayMinutesForStop(stopId);
     }
 
     
@@ -7926,6 +7964,48 @@
         return window._activeRoutes;
     }
 
+    // Google orders stops by travel time only. Where that order would miss a customer's receiving hours,
+    // reorder inside the route using windows, waiting, service time, travel time and distance
+    // (route-time-windows.js). The notice is shown on the assignment page.
+    function applyDeliveryWindowsToPackedRoutes(packedRoutes, directionsResult) {
+        window._timeWindowPlanningNotice = '';
+        const planner = window.GoRouteXTimeWindows;
+        const legs = directionsResult?.routes?.[0]?.legs || [];
+        if (!planner || !legs.length) return packedRoutes;
+        try {
+            const outcome = planner.applyToPackedRoutes(packedRoutes, {
+                origin: legs[0]?.start_location,
+                end: legs[legs.length - 1]?.end_location,
+                startDate: getRouteStartDateTime(),
+                legs,
+                stopId: (stop) => getPackedRouteStopId(stop),
+                resolveStop: (stop) => {
+                    const id = getPackedRouteStopId(stop);
+                    const lat = Number(stop.lat), lng = Number(stop.lng);
+                    const constraints = getCustomerDeliveryConstraints(id);
+                    return {
+                        id,
+                        location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+                        serviceMinutes: constraints.serviceMinutes,
+                        schedule: constraints.schedule
+                    };
+                }
+            });
+            const notes = [];
+            if (outcome.changedRouteIndexes.length) {
+                notes.push(`Reordered ${outcome.changedRouteIndexes.map((index) => `Route ${index + 1}`).join(', ')} to meet customer delivery hours.`);
+            }
+            if (outcome.remainingViolations.length) {
+                notes.push(`${outcome.remainingViolations.length} stop(s) may miss their delivery hours; you can adjust before confirming.`);
+            }
+            window._timeWindowPlanningNotice = notes.join(' ');
+            return outcome.routes;
+        } catch (error) {
+            console.warn('Delivery-window ordering skipped:', error);
+            return packedRoutes;
+        }
+    }
+
     async function generateOptimizedActiveRoutesFromSelection(selectedStops, maxPerRoute = 8) {
         if (routeArrangementIsDirectionReturn()) {
             return generateDirectionOrderedActiveRoutes(selectedStops, maxPerRoute);
@@ -7966,7 +8046,8 @@
             ? waypointOrder.map((stopIndex) => safeStops[stopIndex]).filter(Boolean)
             : safeStops;
 
-        const packedRoutes = splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxPerRoute);
+        let packedRoutes = splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxPerRoute);
+        packedRoutes = applyDeliveryWindowsToPackedRoutes(packedRoutes, result);
         window._activeRoutes = assignRouteColors(packedRoutes.map((route, index) => ({
             ...route,
             id: route.id || (index + 1),
@@ -9890,18 +9971,15 @@
         return;
       }
 
-      const LUNCH_START_HOUR = 12;
-      const LUNCH_END_HOUR = 13;
       let fullScheduleHtml = '';
       const scheduleRouteBlocks = [];
       let currentTime = getRouteStartDateTime();
-
-      const applyLunchBreakIfNeeded = () => {
-          if (currentTime.getHours() === LUNCH_START_HOUR && currentTime.getMinutes() > 0) {
-              fullScheduleHtml += `<div class="schedule-stop lunch-break" style="text-align:center;">Lunch Break (12 PM - 1 PM)</div>`;
-              currentTime.setHours(LUNCH_END_HOUR, 0, 0, 0);
-          }
-      };
+      // Hard delivery windows (delivery-constraints.js): each customer's own schedule, else the Settings
+      // default. Early arrivals wait for opening; service never runs into a break; anything that cannot fit
+      // is recorded as a violation so confirmation can block it. Replaces the old fixed 12:00-13:00 jump.
+      const DeliveryRules = window.GoRouteXDeliveryConstraints;
+      const timeWindowViolations = [];
+      const minutesOfDay = (date) => date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
 
       for (let routeIdx = 0; routeIdx < AppState.plannedRoutes.length; routeIdx++) {
           const routeHtmlStartIndex = fullScheduleHtml.length;
@@ -9950,10 +10028,10 @@
               departureTimeStr: departureTimeFormatted
           });
 
+          routeData.timeWindowViolations = [];
           for (let i = 0; i < routeLegs.length; i++) {
               const leg = routeLegs[i];
               currentTime.setSeconds(currentTime.getSeconds() + leg.duration.value);
-              applyLunchBreakIfNeeded();
 
               const currentStopId = stopsForThisRoute[i + 1];
               const currentStopName = getStopDisplayName(currentStopId);
@@ -9965,21 +10043,48 @@
               const stayMinutes = shouldApplyStay ? getRouteStopStayMinutes(routeData, currentStopId) : 0;
 
               fullScheduleHtml += `<div class="schedule-stop"><strong>${currentStopName} (Arrival):</strong> ${arrivalTimeFormatted}</div>`;
-              routeData.detailedStopTimes.push({
+              const stopEntry = {
                   address: currentStopAddress,
                   name: currentStopName,
                   stopId: currentStopId,
                   arrivalTime: new Date(currentTime.getTime()),
                   arrivalTimeStr: arrivalTimeFormatted
-              });
+              };
+              routeData.detailedStopTimes.push(stopEntry);
+
+              if (!isHqStop && DeliveryRules) {
+                  const constraints = getCustomerDeliveryConstraints(currentStopId);
+                  const serviceMinutes = stayMinutes || getRouteStopStayMinutes(routeData, currentStopId);
+                  const day = DeliveryRules.dayKeyFromDate(currentTime);
+                  const fit = DeliveryRules.scheduleService(minutesOfDay(currentTime), serviceMinutes, constraints.schedule, day);
+                  const receiving = DeliveryRules.describeDay(constraints.schedule?.[day]);
+                  // Planning-time snapshot: saved plans keep the rules they were checked against.
+                  stopEntry.deliveryConstraints = { day, receiving, scheduleMode: constraints.scheduleMode, serviceMode: constraints.serviceMode, serviceMinutes };
+                  if (fit.ok) {
+                      stopEntry.windowStatus = 'ok';
+                      if (fit.waitMinutes > 0.5) {
+                          currentTime = new Date(currentTime.getTime() + fit.waitMinutes * 60000);
+                          stopEntry.waitMinutes = Math.round(fit.waitMinutes);
+                          stopEntry.serviceStartTime = new Date(currentTime.getTime());
+                          stopEntry.serviceStartTimeStr = formatTime12Hour(currentTime);
+                          fullScheduleHtml += `<div class="schedule-stop schedule-wait" style="padding-left:15px; font-size:0.85em; color:#92400e;">Waits ${stopEntry.waitMinutes}m for receiving hours (${escapeHtml(receiving)}); service starts ${stopEntry.serviceStartTimeStr}</div>`;
+                      }
+                  } else {
+                      stopEntry.windowStatus = 'violation';
+                      const violation = { routeId: routeData.id, stopId: currentStopId, customer: currentStopName, eta: arrivalTimeFormatted, receiving, day, reason: fit.reason, message: fit.message };
+                      stopEntry.windowViolation = violation;
+                      routeData.timeWindowViolations.push(violation);
+                      timeWindowViolations.push(violation);
+                      fullScheduleHtml += `<div class="schedule-stop schedule-violation" style="padding-left:15px; font-size:0.85em; color:#b42318;"><strong>Outside delivery hours:</strong> ${escapeHtml(fit.message)} Receiving: ${escapeHtml(receiving)}.</div>`;
+                  }
+              }
 
               if (shouldApplyStay) {
                   currentTime.setMinutes(currentTime.getMinutes() + stayMinutes);
-                  applyLunchBreakIfNeeded();
 
                   const departureAfterStay = formatTime12Hour(currentTime);
                   const stayLabel = `<em>(Stay: ${stayMinutes}m)</em>`;
-                  const lastStopEntry = routeData.detailedStopTimes.find(s => s.address === currentStopAddress);
+                  const lastStopEntry = stopEntry;
                   if (lastStopEntry) {
                       lastStopEntry.stayMinutes = stayMinutes;
                       lastStopEntry.departureTime = new Date(currentTime.getTime());
@@ -10014,11 +10119,13 @@
       }
 
       appLog(`Full day detailed stop times:`, JSON.parse(JSON.stringify(AppState.plannedRoutes.map(r => r ? r.detailedStopTimes : null ))));
+      AppState.timeWindowViolations = timeWindowViolations;
       renderSchedulePreviewPages(scheduleRouteBlocks);
 
       if (anySuccessfulRoute && options.print !== false) {
           printSummaryPage3();
       }
+      return { timeWindowViolations };
     }
 
     function generateTimeListAndShowOnPage3(...args) {

@@ -87,7 +87,7 @@ function buildRouteSlotsFromSaved(savedSlots, fallbackWaypoints = []) {
         }
 
         fallbackWaypoints.slice(0, MAX_WAYPOINTS_PER_ROUTE).forEach((customerId, index) => {
-            slots[String(index + 1)] = { location: customerId, stay: getDefaultStayMinutes() };
+            slots[String(index + 1)] = { location: customerId, stay: getDefaultStayMinutesForStop(customerId) };
         });
 
         return slots;

@@ -3449,3 +3449,17 @@
     padding: 16px;
   }
 }
+
+/* Delivery hours conflict dialog (hard customer time windows at route confirmation). */
+#timeWindowExceptionModal[hidden] { display: none !important; }
+#timeWindowExceptionModal { position: fixed; inset: 0; z-index: 10003; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15, 23, 42, 0.5); }
+#timeWindowExceptionModal .time-window-dialog { width: min(760px, 100%); }
+.time-window-table-wrap { max-height: 40vh; overflow: auto; margin-bottom: 14px; border: 1px solid #f1c7c2; border-radius: 10px; }
+.time-window-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.time-window-table th { position: sticky; top: 0; background: #fff4f2; color: #7a271a; text-align: left; padding: 8px 10px; }
+.time-window-table td { padding: 8px 10px; border-top: 1px solid #f6dcd8; vertical-align: top; overflow-wrap: anywhere; }
+.time-window-override { display: grid; gap: 6px; margin-bottom: 12px; }
+.time-window-override label { font-weight: 600; color: #192b40; font-size: 0.88rem; }
+.time-window-override textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+.time-window-error { margin: 0; color: #b42318; font-size: 0.85rem; }
+.time-window-error:empty { display: none; }
