@@ -251,8 +251,10 @@ function createHistoryStateMarkup(icon, title, message, actionMarkup = '') {
         `;
     }
 
+// Skeleton rows shaped like the history table, so loading reads as "content arriving", not "empty".
 function createHistoryLoadingMarkup() {
-        return createHistoryStateMarkup('...', 'Loading Route History', 'Saved route history is being loaded from your current storage mode.');
+        const row = '<div class="history-skeleton-row" aria-hidden="true"><span></span><span></span><span></span><span></span></div>';
+        return `<div class="history-skeleton" role="status"><span class="visually-hidden">Loading route history…</span>${row.repeat(3)}</div>`;
     }
 
 function updateHistorySelectionButtons() {
@@ -346,7 +348,7 @@ function createHistoryItemElement(route, index, options = {}) {
 function renderHistoryList() {
         historyListDiv.innerHTML = '';
 
-        if (isRouteHistoryLoading && routeHistory.length === 0) {
+        if (isRouteHistoryPending()) {
             historyListDiv.innerHTML = createHistoryLoadingMarkup();
             if (browseFullHistoryBtn) browseFullHistoryBtn.style.display = 'inline-flex';
             return;
@@ -396,7 +398,7 @@ function renderHistoryBrowserList() {
         historyBrowserListDiv.innerHTML = '';
         updateHistoryFilterOptions();
 
-        if (isRouteHistoryLoading && routeHistory.length === 0) {
+        if (isRouteHistoryPending()) {
             if (filteredRoutesCountEl) filteredRoutesCountEl.textContent = '--';
             if (filteredStopsCountEl) filteredStopsCountEl.textContent = '--';
             if (filteredDriversCountEl) filteredDriversCountEl.textContent = '--';
