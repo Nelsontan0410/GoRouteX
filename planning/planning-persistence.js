@@ -36,19 +36,33 @@ function buildCompactPlannedRoutesSnapshot(routes = AppState.plannedRoutes) {
             }));
     }
 
+// Selection saves are serialized so an older full-overwrite write can never land after a newer one.
+let selectionSaveInFlight = false;
+let selectionSavePending = false;
+
 function syncSessionToCloud() {
         const updatedAt = new Date().toISOString();
         markLocalSessionUpdated(updatedAt);
-        if (window.RoutePlannerStorage && typeof window.RoutePlannerStorage.saveSelection === 'function') {
-            const sessionData = {
-                selectedCustomers: Array.from(selectedCustomers),
-                selectedAddresses: Array.from(selectedAddresses),
-                updatedAt
-            };
-            window.RoutePlannerStorage.saveSelection(sessionData).catch(err => {
-                console.warn('Selection persistence failed:', err);
-            });
+        if (!window.RoutePlannerStorage || typeof window.RoutePlannerStorage.saveSelection !== 'function') return;
+        if (selectionSaveInFlight) {
+            selectionSavePending = true;
+            return;
         }
+        selectionSaveInFlight = true;
+        const sessionData = {
+            selectedCustomers: Array.from(selectedCustomers),
+            selectedAddresses: Array.from(selectedAddresses),
+            updatedAt
+        };
+        Promise.resolve(window.RoutePlannerStorage.saveSelection(sessionData)).catch(err => {
+            console.warn('Selection persistence failed:', err);
+        }).finally(() => {
+            selectionSaveInFlight = false;
+            if (selectionSavePending) {
+                selectionSavePending = false;
+                syncSessionToCloud();
+            }
+        });
     }
 
 async function loadSessionFromCloud(options = {}) {
@@ -106,7 +120,8 @@ async function loadSessionFromCloud(options = {}) {
 
                 if (cloudUpdatedAtMs > 0) {
                     lastAppliedCloudSessionUpdateMs = cloudUpdatedAtMs;
-                    localStorage.setItem('bjsSessionUpdatedAt', session.updatedAt);
+                    // session.updatedAt may be a Firestore Timestamp; store ISO so it parses back on reload.
+                    localStorage.setItem('bjsSessionUpdatedAt', new Date(cloudUpdatedAtMs).toISOString());
                 }
                 console.log('Selection state loaded:', selectedCustomers.size, 'stops');
                 return true;
