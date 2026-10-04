@@ -192,7 +192,10 @@ service cloud.firestore {
         allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
         match /points/{pointId} {
           allow read: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, get(/databases/$(database)/documents/users/$(uid)/tracking_sessions/$(sessionId)).data.routeId));
-          allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid) && isAssignedRoute(uid, request.resource.data.routeId));
+          // The point must belong to its parent session's route; getAfter covers the session written in the same batch.
+          allow write: if isWorkspaceOwner(uid) || (isDriverSession(uid)
+            && request.resource.data.routeId == getAfter(/databases/$(database)/documents/users/$(uid)/tracking_sessions/$(sessionId)).data.routeId
+            && isAssignedRoute(uid, request.resource.data.routeId));
         }
       }
 
