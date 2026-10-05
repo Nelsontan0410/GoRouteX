@@ -93,3 +93,10 @@ test('the account gate also blocks the shared sidebar links while the workspace 
   assert.match(shell, /querySelectorAll\('\.operations-sidebar a\[data-nav\]'\)/);
   assert.match(sidebarSource, /function isBlocked\(anchor\) \{\s*return anchor\.getAttribute\('aria-disabled'\) === 'true';/);
 });
+
+test('sidebar colours are pinned so app.html matches Order Hub and Dispatch despite the global link rule', () => {
+  const css = readFileSync(new URL('../styles/app-sidebar.css', import.meta.url), 'utf8');
+  assert.match(css, /\[data-app-sidebar\] \.operations-nav a,[\s\S]*?color: #192b40 !important;/);
+  assert.match(css, /\[data-app-sidebar\] a\[aria-current="page"\]:visited,[\s\S]*?color: #2456c4 !important;/);
+  assert.match(css, /\.skip-link \{\s*position: absolute;\s*left: -9999px;/);
+});

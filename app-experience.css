@@ -3422,7 +3422,9 @@
 }
 
 .route-settings-overlay-head .action-button-primary {
-  width: auto;
+  flex: 0 0 auto;
+  width: auto !important;
+  min-width: 96px;
   margin: 0;
 }
 

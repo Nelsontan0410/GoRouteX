@@ -99,6 +99,18 @@
 
   .schedule-range {
     grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 6px;
+  }
+
+  .schedule-range > label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-range input[type="time"] {
+    width: 100%;
   }
 }
 
@@ -158,7 +170,20 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  /* Label on its own line, then "start – end" sharing the row. */
   .schedule-range {
     grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 6px;
+  }
+
+  .schedule-range > label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-range input[type="time"] {
+    width: 100%;
   }
 }

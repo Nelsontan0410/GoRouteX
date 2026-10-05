@@ -188,3 +188,56 @@
     font-weight: 600;
   }
 }
+
+/* app.html loads modern-theme.css, which forces every link blue with !important. Pin the sidebar's own
+   colours (scoped, more specific) so the three pages look identical. */
+[data-app-sidebar] .operations-nav a,
+[data-app-sidebar] .operations-nav a:visited,
+[data-app-sidebar] .operations-nav a:hover,
+[data-app-sidebar] .operations-sidebar-account a,
+[data-app-sidebar] .operations-sidebar-account a:visited,
+[data-app-sidebar] .operations-sidebar-account a:hover,
+.app-mobile-nav-links a,
+.app-mobile-nav-links a:visited,
+.app-mobile-nav-links a:hover {
+  color: #192b40 !important;
+}
+
+/* Same specificity as the :visited/:hover rules above and declared later, so the active item stays blue. */
+[data-app-sidebar] a.is-active,
+[data-app-sidebar] a.is-active:visited,
+[data-app-sidebar] a.is-active:hover,
+[data-app-sidebar] a[aria-current="page"],
+[data-app-sidebar] a[aria-current="page"]:visited,
+[data-app-sidebar] a[aria-current="page"]:hover,
+.app-mobile-nav-links a[aria-current="page"],
+.app-mobile-nav-links a[aria-current="page"]:visited {
+  color: #2456c4 !important;
+}
+
+[data-app-sidebar] .operations-brand,
+[data-app-sidebar] .operations-brand:visited,
+.app-mobile-nav-brand,
+.app-mobile-nav-brand:visited {
+  color: #192b40 !important;
+}
+
+[data-app-sidebar] .operations-brand span,
+.app-mobile-nav-brand span {
+  color: #2456c4 !important;
+}
+
+/* Skip links stay hidden until focused with the keyboard. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.skip-link:focus {
+  left: 8px;
+}
