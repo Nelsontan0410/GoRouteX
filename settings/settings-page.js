@@ -2,11 +2,12 @@ import { CAPACITY_UNITS, normalizeSettings, validateSettings } from './settings-
 import { getTenantSettings, saveTenantSettings, getCachedSettings, listVehicles, activeVehicleCount, saveVehicle, setVehicleActive, driverAccountsApi } from './settings-store.js';
 const $ = id => document.getElementById(id);
 const state = { user: null, settings: null, baseline: '', loaded: false, saving: false, drivers: [], driverAccounts: [], driverEntitlement: null, vehicles: [], accountGeneration: 0 };
-const sections = ['company', 'drivers', 'vehicles', 'orders', 'driverApp'];
+const sections = ['company', 'drivers', 'vehicles', 'routePlanning', 'orders', 'driverApp'];
 function notice(message, error = false) { const el = $('settingsNotice'); el.textContent = message; el.classList.toggle('is-error', error); }
 function status(message, kind = '') { const el = $('saveStatus'); el.textContent = message; el.className = kind; }
 function go(section) {
-  if (section === 'planning' || section === 'capacity') section = 'vehicles';
+  if (section === 'planning' || section === 'route-planning') section = 'routePlanning';
+  if (section === 'capacity') section = 'vehicles';
   if (!sections.includes(section)) section = 'company';
   for (const name of sections) $('section-' + name).hidden = name !== section;
   for (const button of $('settingsNav').querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.section === section ? 'page' : 'false');
@@ -19,6 +20,7 @@ function populate(settings) {
   setValue('maxStops', d.maxStops); setValue('workingStart', d.workingStart); setValue('workingEnd', d.workingEnd); setValue('breakMinutes', d.breakMinutes);
   setValue('serviceMinutes', r.serviceMinutes); setValue('maxDurationMinutes', r.maxDurationMinutes); setValue('numberOfRoutes', r.numberOfRoutes); setValue('planningTime', r.planningTime);
   setValue('defaultStart', r.defaultStart?.address); setValue('defaultEnd', r.defaultEnd?.address);
+  window.GoRouteXScheduleEditor?.render($('defaultDeliverySchedule'), r.defaultDeliverySchedule, { idPrefix: 'defaultSchedule' });
   setValue('capacityMode', settings.capacityPlanning.mode); setChecked('contactRequired', settings.orders.contactRequired);
   setChecked('liveTracking', a.liveTracking); setChecked('recipientRequired', a.pod.recipientRequired); setChecked('photoRequired', a.pod.photoRequired); setChecked('signatureRequired', a.pod.signatureRequired);
   updateCapacity(); renderOverrides();
@@ -39,7 +41,7 @@ function readForm() {
   return {
     version: 1,
     drivers: { maxStops: Number($('maxStops').value), workingStart: $('workingStart').value, workingEnd: $('workingEnd').value, breakMinutes: $('breakMinutes').value === '' ? NaN : Number($('breakMinutes').value), overrides },
-    routePlanning: { serviceMinutes: Number($('serviceMinutes').value), maxDurationMinutes: Number($('maxDurationMinutes').value), numberOfRoutes: Number($('numberOfRoutes').value), planningTime: $('planningTime').value, defaultStart: point('defaultStart'), defaultEnd: point('defaultEnd') },
+    routePlanning: { serviceMinutes: Number($('serviceMinutes').value), maxDurationMinutes: Number($('maxDurationMinutes').value), numberOfRoutes: Number($('numberOfRoutes').value), planningTime: $('planningTime').value, defaultStart: point('defaultStart'), defaultEnd: point('defaultEnd'), defaultDeliverySchedule: window.GoRouteXScheduleEditor ? window.GoRouteXScheduleEditor.read($('defaultDeliverySchedule')) : source.routePlanning.defaultDeliverySchedule },
     capacityPlanning: { enabled: mode !== 'off', mode, unit: CAPACITY_UNITS[mode] },
     orders: { contactRequired: $('contactRequired').checked },
     driverApp: { liveTracking: $('liveTracking').checked, pod: { recipientRequired: $('recipientRequired').checked, photoRequired: $('photoRequired').checked, signatureRequired: $('signatureRequired').checked } }
@@ -188,7 +190,7 @@ async function load() {
 async function save(event) {
   event.preventDefault(); if (!state.loaded || state.saving) return;
   const input = readForm(), errors = validateSettings(input);
-  if (Object.keys(errors).length) { const [field, message] = Object.entries(errors)[0]; status(message, 'is-error'); $(({maxStops:'maxStops',workingHours:'workingStart',breakMinutes:'breakMinutes',serviceMinutes:'serviceMinutes',maxDurationMinutes:'maxDurationMinutes',numberOfRoutes:'numberOfRoutes',planningTime:'planningTime',capacityMode:'capacityMode',overrides:'driverOverrides'})[field])?.focus(); return; }
+  if (Object.keys(errors).length) { const [field, message] = Object.entries(errors)[0]; status(message, 'is-error'); $(({maxStops:'maxStops',workingHours:'workingStart',breakMinutes:'breakMinutes',serviceMinutes:'serviceMinutes',maxDurationMinutes:'maxDurationMinutes',numberOfRoutes:'numberOfRoutes',planningTime:'planningTime',capacityMode:'capacityMode',overrides:'driverOverrides',deliverySchedule:'defaultDeliverySchedule'})[field])?.focus?.(); if (field === 'deliverySchedule') go('routePlanning'); return; }
   state.saving = true; $('saveSettings').disabled = true; status('Saving…');
   try { state.settings = await saveTenantSettings(input); state.baseline = JSON.stringify(readForm()); status('Saved'); notice('Company settings saved.'); }
   catch (error) { status(`Failed to save: ${error.message}. Retry Save Changes.`, 'is-error'); notice('Changes were not confirmed in the cloud.', true); }

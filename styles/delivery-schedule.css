@@ -1,0 +1,189 @@
+/* Seven-day delivery schedule editor (delivery-schedule-editor.js), used in Settings and the Customer Workspace. */
+.schedule-editor {
+  display: grid;
+  gap: 8px;
+  max-width: 850px;
+  min-width: 0;
+}
+
+.schedule-day {
+  display: grid;
+  grid-template-columns: 110px 80px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 14px;
+  margin: 0;
+  padding: 10px 12px;
+  min-width: 0;
+  border: 1px solid #d8e2e8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.schedule-day legend.schedule-day-name {
+  float: left;
+  padding: 0;
+  font-weight: 700;
+  color: #172a3e;
+}
+
+.schedule-open {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.schedule-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.schedule-range > label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #526477;
+  min-width: 52px;
+}
+
+.schedule-range input[type="time"] {
+  width: 7.2em;
+  max-width: 100%;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 1px solid #bfced6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172a3e;
+  font: inherit;
+}
+
+.schedule-range input[type="time"]:disabled {
+  background: #f1f4f6;
+  color: #8a99a8;
+}
+
+.schedule-editor .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.schedule-errors {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #a42e35;
+  font-size: 13px;
+}
+
+.schedule-errors:empty {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .schedule-day {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .schedule-range {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 6px;
+  }
+
+  .schedule-range > label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-range input[type="time"] {
+    width: 100%;
+  }
+}
+
+/* Customer Workspace form: Delivery Availability and Service Time. */
+.customer-constraints {
+  margin: 16px 0 0;
+  padding: 14px;
+  min-width: 0;
+  border: 1px solid #dce3ec;
+  border-radius: 10px;
+}
+
+.customer-constraints legend {
+  padding: 0 6px;
+  font-weight: 700;
+  color: #192b40;
+}
+
+.constraint-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.constraint-mode label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.constraint-summary {
+  margin: 8px 0;
+  color: #536479;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.customer-constraints .constraint-reset {
+  margin-top: 8px;
+  width: auto;
+}
+
+.customer-constraints .schedule-editor,
+.customer-constraints input[type="number"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* The customer form panel is narrow on desktop too: stack each day by the panel's width, not the screen's. */
+.add-stop-form-panel {
+  container-type: inline-size;
+}
+
+@container (max-width: 560px) {
+  .schedule-day {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* Label on its own line, then "start – end" sharing the row. */
+  .schedule-range {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 6px;
+  }
+
+  .schedule-range > label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-range input[type="time"] {
+    width: 100%;
+  }
+}

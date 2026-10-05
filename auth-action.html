@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Reset password | GoRouteX</title>
+  <link rel="icon" href="marketing-favicon.svg" type="image/svg+xml">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="auth-recovery.js"></script>
+  <style>
+    :root { --ink: #192b40; --muted: #536479; --line: #dce3ec; --brand: #2456c4; --brand-dark: #1d47a5; --danger: #b42318; --ok: #067647; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #f6f7f9; color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
+    .card { width: min(440px, 100%); background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08); padding: 28px; }
+    .brand { margin: 0 0 6px; color: var(--ink); font-size: 1.9rem; font-weight: 800; letter-spacing: -0.04em; }
+    .brand span { color: var(--brand); }
+    h1 { margin: 18px 0 6px; font-size: 1.25rem; }
+    p { margin: 0 0 14px; color: var(--muted); line-height: 1.5; }
+    label { display: block; margin: 14px 0 6px; font-weight: 600; font-size: 0.9rem; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+    input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+    .button { display: inline-flex; justify-content: center; width: 100%; margin-top: 18px; padding: 11px 16px; border: 1px solid var(--brand); border-radius: 9px; background: var(--brand); color: #fff; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+    .button:hover { background: var(--brand-dark); }
+    .button.secondary { background: #fff; color: var(--brand); }
+    .button:disabled { opacity: 0.6; cursor: wait; }
+    .status { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 0.9rem; }
+    .status:empty { display: none; }
+    .status.error { background: #fef3f2; color: var(--danger); }
+    .status.ok { background: #ecfdf3; color: var(--ok); }
+    .account { font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="card" aria-live="polite">
+    <p class="brand" aria-label="GoRouteX">GoRoute<span>X</span></p>
+
+    <section id="checking">
+      <h1>Checking your link…</h1>
+      <p>One moment while we verify your password reset link.</p>
+    </section>
+
+    <form id="resetPasswordForm" hidden novalidate>
+      <h1>Choose a new password</h1>
+      <p>For <span id="resetAccountEmail" class="account"></span></p>
+      <label for="newPassword">New password</label>
+      <input type="password" id="newPassword" autocomplete="new-password" minlength="6" required>
+      <label for="confirmNewPassword">Confirm new password</label>
+      <input type="password" id="confirmNewPassword" autocomplete="new-password" minlength="6" required>
+      <button type="submit" id="savePasswordBtn" class="button">Save new password</button>
+      <div id="formStatus" class="status error" role="alert"></div>
+    </form>
+
+    <section id="done" hidden>
+      <h1>Password updated</h1>
+      <p>Your GoRouteX password has been changed. Sign in with your new password.</p>
+      <a class="button" href="login.html?reset=done">Back to Sign In</a>
+    </section>
+
+    <section id="problem" hidden>
+      <h1 id="problemTitle">This link can't be used</h1>
+      <p id="problemMessage"></p>
+      <a class="button" href="login.html?mode=reset">Request a new link</a>
+      <a class="button secondary" href="login.html">Back to Sign In</a>
+    </section>
+  </main>
+
+  <script>
+    (async function () {
+      const $ = (id) => document.getElementById(id);
+      const show = (id) => ['checking', 'resetPasswordForm', 'done', 'problem'].forEach((name) => { $(name).hidden = name !== id; });
+      const titles = { expired: 'This link has expired', invalid: 'This link is no longer valid', disabled: 'Account unavailable', error: 'We could not check this link' };
+      const problem = (state, message) => {
+        $('problemTitle').textContent = titles[state] || titles.error;
+        $('problemMessage').textContent = message;
+        show('problem');
+      };
+
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      const code = params.get('oobCode');
+      if (!window.FirebaseApp?.init?.() || !window.firebase?.auth) {
+        problem('error', 'The sign-in service is unavailable. Refresh this page to try again.');
+        return;
+      }
+      const auth = firebase.auth();
+      const recovery = window.GoRouteXAuthRecovery;
+
+      if (mode !== 'resetPassword') {
+        // Other Firebase email actions (e.g. email verification) are applied directly.
+        if (mode && code && typeof auth.applyActionCode === 'function') {
+          try {
+            await auth.applyActionCode(code);
+            $('done').querySelector('h1').textContent = 'Done';
+            $('done').querySelector('p').textContent = 'Your request has been completed. You can return to GoRouteX.';
+            show('done');
+          } catch (error) {
+            const state = recovery.actionErrorState(error?.code);
+            problem(state.state, state.message);
+          }
+          return;
+        }
+        problem('invalid', 'This link is incomplete or not recognised. Open the link from your email again or request a new one.');
+        return;
+      }
+
+      const check = await recovery.verifyResetLink(auth, code);
+      if (!check.ok) {
+        problem(check.state, check.message);
+        return;
+      }
+      $('resetAccountEmail').textContent = check.email;
+      show('resetPasswordForm');
+      $('newPassword').focus();
+
+      $('resetPasswordForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = $('savePasswordBtn');
+        $('formStatus').textContent = '';
+        button.disabled = true;
+        button.textContent = 'Saving…';
+        const result = await recovery.confirmNewPassword(auth, code, $('newPassword').value, $('confirmNewPassword').value);
+        button.disabled = false;
+        button.textContent = 'Save new password';
+        if (result.ok) {
+          show('done');
+          return;
+        }
+        if (result.state === 'validation') {
+          $('formStatus').textContent = result.message;
+          return;
+        }
+        problem(result.state, result.message);
+      });
+    })();
+  </script>
+</body>
+</html>

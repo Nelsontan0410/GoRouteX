@@ -342,6 +342,83 @@ function renderPlannedRoutes(routes, routeBuildState = {}, options = {}) {
         return { success: false, error: 'Route planning failed' };
     }
 
+// Hard delivery windows at confirmation: a plan with stops outside customer delivery hours is not saved
+// unless the planner records an explicit override (actor + reason, stored with the plan).
+function openTimeWindowExceptionModal(violations) {
+        const modal = document.getElementById('timeWindowExceptionModal');
+        if (!modal) return Promise.resolve({ action: 'adjust' });
+        const rows = document.getElementById('timeWindowExceptionRows');
+        const overrideBox = document.getElementById('timeWindowOverrideBox');
+        const reasonInput = document.getElementById('timeWindowOverrideReason');
+        const errorBox = document.getElementById('timeWindowOverrideError');
+        const overrideBtn = document.getElementById('timeWindowOverrideBtn');
+        rows.innerHTML = violations.map((v) => `<tr><td>Route ${escapeHtml(v.routeId)}</td><td>${escapeHtml(v.customer)}</td><td>${escapeHtml(v.eta)}</td><td>${escapeHtml(v.receiving)}</td><td>${escapeHtml(v.message)}</td></tr>`).join('');
+        overrideBox.hidden = true;
+        reasonInput.value = '';
+        errorBox.textContent = '';
+        overrideBtn.textContent = 'Save with override…';
+        modal.hidden = false;
+        document.getElementById('timeWindowAdjustRoutesBtn')?.focus();
+        return new Promise((resolve) => {
+            const finish = (decision) => {
+                modal.hidden = true;
+                modal.removeEventListener('click', onClick);
+                document.removeEventListener('keydown', onKey);
+                resolve(decision);
+            };
+            const onKey = (event) => { if (event.key === 'Escape') finish({ action: 'adjust' }); };
+            const onClick = (event) => {
+                const id = event.target?.id;
+                if (event.target === modal || id === 'timeWindowAdjustRoutesBtn') finish({ action: 'adjust' });
+                else if (id === 'timeWindowChangeStartBtn') finish({ action: 'change-start' });
+                else if (id === 'timeWindowOverrideBtn') {
+                    if (overrideBox.hidden) {
+                        overrideBox.hidden = false;
+                        overrideBtn.textContent = 'Confirm override and save';
+                        reasonInput.focus();
+                        return;
+                    }
+                    const reason = reasonInput.value.trim();
+                    if (reason.length < 5) {
+                        errorBox.textContent = 'Enter a reason of at least 5 characters.';
+                        reasonInput.focus();
+                        return;
+                    }
+                    finish({ action: 'override', reason });
+                }
+            };
+            modal.addEventListener('click', onClick);
+            document.addEventListener('keydown', onKey);
+        });
+    }
+
+async function enforceDeliveryWindows(etaResult) {
+        AppState.timeWindowOverride = null;
+        const violations = etaResult?.timeWindowViolations || [];
+        if (!violations.length) return { proceed: true };
+        const decision = await openTimeWindowExceptionModal(violations);
+        if (decision.action === 'override') {
+            const user = window.FirebaseApp?.auth?.getCurrentUser?.() || null;
+            AppState.timeWindowOverride = {
+                actorUid: user?.uid || null,
+                actorName: user?.displayName || user?.email || null,
+                reason: decision.reason,
+                at: new Date().toISOString(),
+                violations: violations.map((v) => ({ ...v }))
+            };
+            console.info('Delivery-window override recorded', { actorUid: AppState.timeWindowOverride.actorUid, stops: violations.length });
+            return { proceed: true };
+        }
+        const message = `${violations.length} stop(s) are outside customer delivery hours. Change the start time, move stops between routes, or save with an override.`;
+        if (decision.action === 'change-start') {
+            await showPage('page-select-stops');
+            window.openRouteSettingsPanel?.();
+        }
+        if (messageBarPg2) messageBarPg2.textContent = message;
+        showToast(message, 'warning', 6000);
+        return { proceed: false };
+    }
+
 async function handleProceedToOptimizeRoutes(options = {}) {
         const saveAfterPlan = options.saveAfterPlan === true;
         const backgroundSave = options.backgroundSave === true;
@@ -356,8 +433,15 @@ async function handleProceedToOptimizeRoutes(options = {}) {
         const dynamicRenderResult = renderPlannedRoutes(dynamicBuildState.plannedRoutes, dynamicBuildState, options);
         if (!dynamicRenderResult.success) return dynamicRenderResult;
         try { performance.mark('grx:etaStart'); } catch {}
-        generateTimeListAndShowOnPage3Legacy({ print: false });
+        const etaResult = generateTimeListAndShowOnPage3Legacy({ print: false });
         try { performance.mark('grx:etaEnd'); performance.measure('grx:eta', 'grx:etaStart', 'grx:etaEnd'); } catch {}
+        const windowCheck = await enforceDeliveryWindows(etaResult);
+        if (!windowCheck.proceed) {
+            currentRouteConfirmationState = { ...currentRouteConfirmationState, saving: false };
+            updateConfirmRouteButtonState();
+            renderConfirmRouteModalState();
+            return { success: false, blocked: 'delivery-windows' };
+        }
         const dynamicSaveResult = await savePlannedRoutes(dynamicBuildState.plannedRoutes, options);
         if (dynamicSaveResult?.success && !dynamicSaveResult.skipped) {
             if (!dynamicSaveResult.id) {

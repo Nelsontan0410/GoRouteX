@@ -1,1 +1,5 @@
 /driver.html /driver-tracking.html 200
+# Firebase Auth helper served from the GoRouteX domain (transparent proxy to firebaseapp.com), so the
+# Google account chooser can show GoRouteX's domain once firebase-config.js uses it as authDomain.
+/__/auth/* https://delivery-app-cd18e.firebaseapp.com/__/auth/:splat 200
+/__/firebase/* https://delivery-app-cd18e.firebaseapp.com/__/firebase/:splat 200

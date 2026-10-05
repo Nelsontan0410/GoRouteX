@@ -74,6 +74,13 @@
       const destination = button.getAttribute('onclick') || '';
       button.disabled = !(workspaceTrusted && /order-hub\.html|settings\.html/.test(destination));
     });
+    // Shared sidebar links (app-sidebar.js) are anchors: block them the same way via aria-disabled.
+    root.querySelectorAll('.operations-sidebar a[data-nav]').forEach(anchor => {
+      if (anchor.tagName !== 'A') return;
+      if (!gateNavState.has(anchor)) gateNavState.set(anchor, anchor.getAttribute('aria-disabled') === 'true');
+      const allowed = workspaceTrusted && /order-hub\.html|settings\.html/.test(anchor.getAttribute('href') || '');
+      anchor.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+    });
     setVisibleState('active');
   }
 
@@ -83,7 +90,10 @@
     root.classList.remove('account-is-gated');
     root.dataset.accountStage = 'ready';
     if (gatePanel) gatePanel.hidden = true;
-    for (const [button, disabled] of gateNavState) button.disabled = disabled;
+    for (const [control, disabled] of gateNavState) {
+      if (control.tagName === 'A') control.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      else control.disabled = disabled;
+    }
     gateNavState.clear();
   }
 

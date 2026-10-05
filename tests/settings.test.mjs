@@ -26,10 +26,16 @@ globalThis.localStorage = { getItem: key => local.get(key) || null, setItem: (ke
 
 test('Settings page and navigation are present', () => {
   const html = readFileSync(new URL('../settings.html', import.meta.url), 'utf8');
-  for (const name of ['company','drivers','vehicles','orders','driverApp']) assert.match(html, new RegExp(`data-section="${name}"`));
+  for (const name of ['company','drivers','vehicles','routePlanning','orders','driverApp']) assert.match(html, new RegExp(`data-section="${name}"`));
   assert.doesNotMatch(html, /data-section="(?:planning|capacity)"/);
-  const vehicles = html.split('id="section-vehicles"')[1].split('id="section-orders"')[0];
-  for (const id of ['capacityMode','vehicleCapacity','serviceMinutes','maxDurationMinutes','numberOfRoutes','planningTime']) assert.match(vehicles, new RegExp(`id="${id}"`));
+  const vehicles = html.split('id="section-vehicles"')[1].split('id="section-routePlanning"')[0];
+  for (const id of ['capacityMode','vehicleCapacity']) assert.match(vehicles, new RegExp(`id="${id}"`));
+  // Route Planning Defaults owns the Customer Delivery Schedule and the (single) Default Service Time.
+  const planning = html.split('id="section-routePlanning"')[1].split('id="section-orders"')[0];
+  assert.match(planning, /Route Planning Defaults/);
+  assert.match(planning, /Customer Delivery Schedule/);
+  for (const id of ['defaultDeliverySchedule','serviceMinutes','maxDurationMinutes','numberOfRoutes','planningTime']) assert.match(planning, new RegExp(`id="${id}"`));
+  assert.equal((html.match(/id="serviceMinutes"/g) || []).length, 1, 'one service-time setting');
   assert.doesNotMatch(html, /id="section-(?:planning|capacity)"/);
   assert.match(html, /Save Changes/);
   assert.match(readFileSync(new URL('../app.html', import.meta.url), 'utf8'), /settings\.html/);
@@ -118,4 +124,20 @@ test('Settings entry reuses the Driver-account list instead of fetching Drivers 
   assert.match(page, /Promise\.allSettled\(\[listVehicles\(\), driverAccountsApi\(\)\]\)/);
   assert.match(page, /state\.drivers = state\.driverAccounts\.filter/);
   assert.doesNotMatch(page, /listLinkedDrivers/);
+});
+
+test('route planning defaults include the seven-day Customer Delivery Schedule with validation', () => {
+  const base = defaultSettings();
+  assert.equal(base.routePlanning.serviceMinutes, 15, 'existing service time stays the source (default 15)');
+  assert.equal(base.routePlanning.defaultDeliverySchedule.monday.windows[0].start, '09:00');
+  assert.equal(base.routePlanning.defaultDeliverySchedule.saturday.open, false);
+  const custom = structuredClone(base);
+  custom.routePlanning.defaultDeliverySchedule.saturday = { open: true, windows: [{ start: '09:00', end: '12:00' }], breaks: [] };
+  assert.equal(normalizeSettings(custom).routePlanning.defaultDeliverySchedule.saturday.open, true, 'a valid schedule is kept');
+  assert.deepEqual(validateSettings(normalizeSettings(custom)), {});
+  const broken = structuredClone(base);
+  broken.routePlanning.defaultDeliverySchedule.monday.windows = [{ start: '18:00', end: '09:00' }];
+  assert.match(validateSettings(broken).deliverySchedule, /end time must be after start time/);
+  assert.equal(normalizeSettings(broken).routePlanning.defaultDeliverySchedule.monday.windows[0].start, '09:00', 'stored invalid data falls back to the default');
+  assert.equal(normalizeSettings({}).routePlanning.defaultDeliverySchedule.friday.breaks[0].start, '12:00', 'old settings without a schedule get the default');
 });

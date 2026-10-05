@@ -283,6 +283,9 @@ async function saveCurrentRouteToHistory(options = {}) {
             totalStops: selectedCustomers.size,
             routePlanUsageCount: 1,
             successfulRoutesCount: successfulRoutes.length,
+            // Delivery-window outcome at planning time; per-stop rules are snapshotted in detailedStopTimes.
+            timeWindowViolationCount: (AppState.timeWindowViolations || []).length,
+            timeWindowOverride: AppState.timeWindowOverride || null,
             user: username
         };
 

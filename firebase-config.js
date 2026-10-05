@@ -1,9 +1,29 @@
 // Firebase Configuration for BJS Delivery Route Planner
 // Replace these values with your Firebase project configuration
 
+// Google sign-in branding (staged). With the GoRouteX auth domain, the Google account chooser shows
+// goroutex.netlify.app instead of delivery-app-cd18e.firebaseapp.com; Netlify proxies /__/auth/* and
+// /__/firebase/* to firebaseapp.com (see _redirects). PREREQUISITE before enabling: add
+// https://goroutex.netlify.app/__/auth/handler to the Web OAuth client's "Authorized redirect URIs"
+// (Google Cloud Console > APIs & Services > Credentials), otherwise Google sign-in fails.
+// Staging: run localStorage.setItem('goroutexAuthDomain', 'on') in one browser to test first.
+// Rollout: set GOROUTEX_AUTH_DOMAIN_ENABLED = true. Rollback: set it back to false (and clear the flag).
+const FIREBASE_DEFAULT_AUTH_DOMAIN = 'delivery-app-cd18e.firebaseapp.com';
+const GOROUTEX_AUTH_DOMAIN = 'goroutex.netlify.app';
+const GOROUTEX_AUTH_DOMAIN_ENABLED = false;
+function resolveAuthDomain() {
+    try {
+        if (typeof window === 'undefined' || window.location.hostname !== GOROUTEX_AUTH_DOMAIN) return FIREBASE_DEFAULT_AUTH_DOMAIN;
+        const staged = window.localStorage?.getItem('goroutexAuthDomain') === 'on';
+        return GOROUTEX_AUTH_DOMAIN_ENABLED || staged ? GOROUTEX_AUTH_DOMAIN : FIREBASE_DEFAULT_AUTH_DOMAIN;
+    } catch (_) {
+        return FIREBASE_DEFAULT_AUTH_DOMAIN;
+    }
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyAx5bVPAq2SItHhixAF7cUszvDBpRTVavo",
-  authDomain: "delivery-app-cd18e.firebaseapp.com",
+  authDomain: resolveAuthDomain(),
   projectId: "delivery-app-cd18e",
   storageBucket: "delivery-app-cd18e.firebasestorage.app",
   messagingSenderId: "639538125442",
@@ -279,6 +299,24 @@ function normalizePhoneValue(phone) {
     return String(phone).trim();
 }
 
+// Delivery availability and service-time overrides (see delivery-constraints.js). Default modes store no
+// copied values, so a customer keeps following the current Settings default. Records saved before this
+// existed have no fields and therefore resolve as default.
+function pickDeliveryConstraintFields(stop) {
+    const fields = {
+        deliveryScheduleMode: stop.deliveryScheduleMode === 'custom' ? 'custom' : 'default',
+        serviceTimeMode: stop.serviceTimeMode === 'custom' ? 'custom' : 'default'
+    };
+    if (fields.deliveryScheduleMode === 'custom' && stop.customDeliverySchedule && typeof stop.customDeliverySchedule === 'object') {
+        fields.customDeliverySchedule = JSON.parse(JSON.stringify(stop.customDeliverySchedule));
+    }
+    const minutes = Number(stop.customServiceMinutes);
+    if (fields.serviceTimeMode === 'custom' && Number.isInteger(minutes) && minutes > 0) {
+        fields.customServiceMinutes = minutes;
+    }
+    return fields;
+}
+
 function normalizeStop(stop) {
     const latFromCoord = (() => {
         const coord = (stop.coordinate || '').toString().trim();
@@ -308,6 +346,7 @@ function normalizeStop(stop) {
         note: (stop.note || stop.notes || stop.Notes || '').toString().trim(),
         lat: typeof lat === 'number' && !Number.isNaN(lat) ? lat : null,
         lng: typeof lng === 'number' && !Number.isNaN(lng) ? lng : null,
+        ...pickDeliveryConstraintFields(stop),
         updatedAt: existingUpdatedAt || firebase.firestore.Timestamp.now()
     };
 }
@@ -329,6 +368,7 @@ function toLegacyCustomer(stop) {
         lat: typeof stop.lat === 'number' ? stop.lat : null,
         lng: typeof stop.lng === 'number' ? stop.lng : null,
         coordinate,
+        ...pickDeliveryConstraintFields(stop),
         createdAt: stop.createdAt || null,
         updatedAt: stop.updatedAt || null
     };

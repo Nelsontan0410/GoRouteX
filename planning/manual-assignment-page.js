@@ -34,7 +34,7 @@ async function handleGoToManualAssignPage() {
         addSimpleMarkersForMasterList(unassignedStops.concat(getAssignedStopIds())); 
         
         hasShownOptimizationSuggestion = true;
-        messageBarPg2.textContent = 'Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.';
+        messageBarPg2.textContent = ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
         updateRouteLines();
         updateConfirmRouteButtonState();
     }
@@ -230,7 +230,7 @@ function addUnassignedStopToNextRouteSlot(customerId) {
         unassignedStops = unassignedStops.filter((stopId) => stopId !== customerId);
         setRouteSlotEntry(emptySlot.listType, emptySlot.slotIndex, {
             location: customerId,
-            stay: getDefaultStayMinutes()
+            stay: getDefaultStayMinutesForStop(customerId)
         });
         syncManualWaypointsFromSlots();
         refreshManualAssignmentUi();
@@ -393,7 +393,7 @@ async function handleGoToManualAssignPageLegacy() {
         }
 
         hasShownOptimizationSuggestion = true;
-        messageBarPg2.textContent = 'Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.';
+        messageBarPg2.textContent = ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
         updateRouteLines();
         updateConfirmRouteButtonState();
     }

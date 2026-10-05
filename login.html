@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
+  <script src="auth-recovery.js"></script>
   <style>
     html,
     body {
@@ -156,6 +157,20 @@
       </button>
     </form>
 
+    <!-- Password reset request -->
+    <form id="resetForm" class="space-y-4 hidden" novalidate>
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">Reset your password</h2>
+        <p class="text-sm text-gray-600 mt-1">Enter the email you use for GoRouteX. We will email you a link to choose a new password.</p>
+      </div>
+      <div>
+        <label for="resetEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+        <input type="email" id="resetEmail" autocomplete="email" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+      </div>
+      <button type="submit" id="resetBtn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">Send reset link</button>
+      <button type="button" id="resetBackBtn" class="w-full text-sm text-blue-600 hover:text-blue-800 underline">Back to Sign In</button>
+    </form>
+
     <form id="driverLoginForm" class="space-y-4 hidden" autocomplete="on">
       <p class="text-sm text-gray-600">Sign in to your assigned routes with the username and Driver PIN from your dispatcher.</p>
       <div><label for="driverUsername" class="block text-sm font-medium text-gray-700 mb-2">Driver Username</label><input id="driverUsername" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></div>
@@ -288,6 +303,7 @@
         document.getElementById(name + 'Tab').classList.toggle('active', name === tab);
       }
       document.getElementById('ownerAuthOptions').hidden = tab === 'driver';
+      document.getElementById('resetForm').classList.add('hidden');
       hideMessage();
     }
 
@@ -295,6 +311,11 @@
       const mode = new URLSearchParams(window.location.search).get('mode');
       if (mode === 'signup') showTab('signup');
       if (mode === 'driver') showTab('driver');
+      // Links from auth-action.html: request a new reset link, or confirm the password was changed.
+      if (mode === 'reset') setTimeout(() => showResetForm(), 0);
+      if (new URLSearchParams(window.location.search).get('reset') === 'done') {
+        setTimeout(() => showMessage('Your password was updated. Sign in with your new password.', false), 0);
+      }
     })();
 
     // Show message
@@ -438,11 +459,12 @@
         let errorMessage = error.message || 'Login failed. Please try again.';
 
         switch (error.code) {
+          // Same message for an unknown email and a wrong password: sign-in must not reveal which accounts exist.
           case 'auth/user-not-found':
-            errorMessage = 'No account found with this email.';
-            break;
           case 'auth/wrong-password':
-            errorMessage = 'Incorrect password.';
+          case 'auth/invalid-credential':
+          case 'auth/invalid-login-credentials':
+            errorMessage = 'Incorrect email or password.';
             break;
           case 'auth/invalid-email':
             errorMessage = 'Invalid email address.';
@@ -575,31 +597,47 @@
       }
     });
 
-    // Forgot password handler
-    document.getElementById('forgotPasswordBtn').addEventListener('click', async function() {
+    // Forgot password: a dedicated reset-request form (auth-recovery.js). The success copy never reveals
+    // whether an account exists; real failures are shown honestly and the form stays available to retry.
+    function showResetForm(prefillEmail = '') {
       hideMessage();
-      if (!ensureAuthReady()) return;
-      const email = (document.getElementById('loginEmail').value || '').trim();
-      if (!email) {
-        showMessage('Enter your email first, then click Forgot password.');
+      ['loginForm', 'signupForm', 'driverLoginForm'].forEach((id) => document.getElementById(id).classList.add('hidden'));
+      document.getElementById('ownerAuthOptions').hidden = true;
+      document.getElementById('resetForm').classList.remove('hidden');
+      const emailInput = document.getElementById('resetEmail');
+      if (prefillEmail && !emailInput.value) emailInput.value = prefillEmail;
+      emailInput.focus();
+    }
+
+    document.getElementById('forgotPasswordBtn').addEventListener('click', () => {
+      showResetForm((document.getElementById('loginEmail').value || '').trim());
+    });
+
+    document.getElementById('resetBackBtn').addEventListener('click', () => {
+      showTab('login');
+    });
+
+    document.getElementById('resetForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      hideMessage();
+      const email = document.getElementById('resetEmail').value;
+      const invalid = window.GoRouteXAuthRecovery.validateEmail(email);
+      if (invalid) {
+        showMessage(invalid);
+        document.getElementById('resetEmail').focus();
         return;
       }
-
-      this.disabled = true;
-      this.textContent = 'Sending...';
+      if (!ensureAuthReady()) return;
+      const button = document.getElementById('resetBtn');
+      setLoading(button, true);
       try {
-        await firebaseAuthInstance.sendPasswordResetEmail(email);
-        showMessage('Password reset link sent. Please check your email inbox.', false);
-      } catch (error) {
-        console.error('Forgot password error:', error);
-        let errorMessage = 'Unable to send reset email. Please try again.';
-        if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email address.';
-        if (error.code === 'auth/user-not-found') errorMessage = 'No account found with this email.';
-        if (error.code === 'auth/too-many-requests') errorMessage = 'Too many attempts. Please try again later.';
-        showMessage(errorMessage);
+        const result = await window.GoRouteXAuthRecovery.requestPasswordReset(firebaseAuthInstance, email, {
+          continueUrl: `${window.location.origin}/login.html?reset=done`
+        });
+        showMessage(result.message, !result.ok);
       } finally {
-        this.disabled = false;
-        this.textContent = 'Forgot password?';
+        setLoading(button, false);
+        button.textContent = 'Send reset link';
       }
     });
 

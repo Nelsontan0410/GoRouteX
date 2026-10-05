@@ -15,7 +15,9 @@
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="app-core.css?v=20261002-1">
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
-  <link rel="stylesheet" href="app-experience.css?v=20261005-1">
+  <link rel="stylesheet" href="app-experience.css?v=20261005-5">
+  <link rel="stylesheet" href="styles/app-sidebar.css?v=20261005-3">
+  <link rel="stylesheet" href="styles/delivery-schedule.css?v=20261005-2">
   <!-- Mobile CSS is the final layer: shell owns navigation, pages own responsive layout. -->
   <link rel="stylesheet" href="mobile-fixes.css?v=20260505-1">
   <link rel="stylesheet" href="mobile-shell.css?v=20260505-1">
@@ -74,24 +76,9 @@
 
     <div id="activeSubscriberRoot" hidden>
   <div class="operations-shell">
-    <aside class="operations-sidebar" aria-label="Workspace navigation">
-      <div class="operations-brand" aria-label="GoRouteX">GoRoute<span>X</span></div>
-      <nav id="desktopAppNav" class="operations-nav" aria-label="Primary navigation">
-        <button type="button" data-page="page-history-dashboard" aria-current="page" onclick="showPage('page-history-dashboard')">Dashboard</button>
-        <button type="button" data-page="page-select-stops" onclick="showPage('page-select-stops')">Plan a route</button>
-        <button type="button" data-page="page-add-stop" onclick="showPage('page-add-stop')">Saved stops</button>
-        <button type="button" onclick="window.location.href='order-hub.html'">Order Hub</button>
-        <button type="button" onclick="openDispatchPage()">Dispatch</button>
-        <button id="driverNavButton" type="button" onclick="window.location.href='driver-tracking.html'" hidden>Driver Page</button>
-      </nav>
-      <div class="operations-sidebar-account">
-        <strong id="sidebarDisplayName">Loading account…</strong>
-        <span id="sidebarCurrentPlan">Loading plan…</span>
-        <button type="button" data-page="page-account-access" onclick="showPage('page-account-access')">Account</button>
-        <button type="button" onclick="window.location.href='settings.html'">Settings</button>
-        <button type="button" class="operations-logout" onclick="logout()">Logout</button>
-      </div>
-    </aside>
+    <!-- Shared primary navigation (app-sidebar.js); planning steps keep Dashboard active. -->
+    <aside class="operations-sidebar" data-app-sidebar data-active="dashboard"></aside>
+    <script src="app-sidebar.js"></script>
     <main class="operations-content" aria-label="GoRouteX workspace">
       <div id="appRoot"></div>
     </main>
@@ -137,12 +124,12 @@
         </div>
         <div class="dashboard-primary-actions" aria-label="Primary route actions">
           <button id="createNewRouteBtn" class="action-button-primary" type="button">Start Route Plan</button>
-          <button id="dashboardBrowseHistoryBtn" class="action-button-secondary" type="button">Browse History</button>
-          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled hidden>Load Route</button>
+          <button id="manageStopsBtn" class="action-button-secondary" type="button">Manage Customers</button>
+          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled title="Select a recent route plan below first">Load Route</button>
         </div>
       </section>
 
-      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true" hidden>
+      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true">
         <div class="dashboard-history-header">
           <div class="panel-heading-stack">
             <h3 id="dashboardHistorySnapshotTitle">Recent route plans</h3>
@@ -290,13 +277,25 @@
 
   <div id="page-select-stops" class="page mobile-core-page">
     <div class="stop-selector-header workspace-intro-header">
-      <h2>Stops Selection</h2>
+      <div class="workspace-intro-title">
+        <h2>Stops Selection</h2>
+        <p class="workspace-intro-description">Select the stops for this route, review your selection, and continue to assignment.</p>
+      </div>
       <div class="workspace-intro-actions">
         <button type="button" class="action-button-secondary" onclick="goBackToPreviousPage()" style="width:auto; margin-bottom:0;">Back</button>
-        <button id="backToDashboardBtn" style="width:auto; margin-bottom:0;">Dashboard</button>
+        <button type="button" id="openRouteSettingsBtn" class="action-button-secondary" aria-haspopup="dialog" aria-controls="routeSettingsPanel" style="width:auto; margin-bottom:0;">Route settings</button>
       </div>
     </div>
     <div id="orderPlanNotice" class="order-plan-notice" role="status" hidden></div>
+    <div id="routeSettingsPanel" class="route-settings-overlay" role="dialog" aria-modal="true" aria-labelledby="routeSettingsPanelTitle" hidden>
+      <div class="route-settings-overlay-card">
+        <div class="route-settings-overlay-head">
+          <div>
+            <h3 id="routeSettingsPanelTitle">Route settings</h3>
+            <p>Start, end, and planning date &amp; time for this route.</p>
+          </div>
+          <button type="button" id="closeRouteSettingsBtn" class="action-button-primary">Done</button>
+        </div>
     <div class="select-page-route-settings">
             <div class="route-settings-container">
                 <button type="button" class="route-settings-header" id="toggleRouteSettings" aria-expanded="true" aria-controls="routeSettingsBody">
@@ -341,6 +340,8 @@
             </div>
                 </div>
             </div>
+    </div>
+      </div>
     </div>
     <div class="stop-selector-container">
       <div class="stop-selector-left">
@@ -693,10 +694,9 @@
   <!-- Page 5: Add New Stop -->
   <div id="page-add-stop" class="page mobile-core-page">
     <div class="add-stop-header workspace-intro-header">
-      <div class="add-stop-title">Stop workspace</div>
+      <div class="add-stop-title">Customer Workspace</div>
       <div class="add-stop-header-controls workspace-intro-actions">
         <button class="add-stop-nav-btn" onclick="goBackToPreviousPage()">Back</button>
-        <button class="add-stop-nav-btn" onclick="showPage('page-history-dashboard')">Dashboard</button>
       </div>
     </div>
 
@@ -704,19 +704,19 @@
       <!-- Left Panel: Form -->
       <div class="add-stop-form-panel">
         <div id="addStopAccessNotice"></div>
-        <nav class="stop-workspace-tabs" aria-label="Stop workspace actions">
-          <button type="button" class="stop-workspace-tab is-active" data-stop-workspace-mode="add" aria-pressed="true">Add New Stop</button>
+        <nav class="stop-workspace-tabs" aria-label="Customer workspace actions">
+          <button type="button" class="stop-workspace-tab is-active" data-stop-workspace-mode="add" aria-pressed="true">Add Customer</button>
           <button type="button" class="stop-workspace-tab" data-stop-workspace-mode="edit" aria-pressed="false">Search</button>
           <button type="button" class="stop-workspace-tab" data-stop-workspace-mode="import" aria-pressed="false">Import / Export</button>
         </nav>
         <div id="addStopCreateSection" class="form-section" data-stop-workspace-panel="add">
-          <h3 id="addStopCreateHeading">➕ Add New Stop</h3>
-          <p class="form-description">Fill in the stop details below. The record will be saved using your current plan's storage mode.</p>
+          <h3 id="addStopCreateHeading">Add Customer</h3>
+          <p class="form-description">Customers are reusable delivery locations. Each route visit to a customer is a stop. The record is saved using your current plan's storage mode.</p>
 
           <form id="addStopForm" class="stop-form">
-            <div class="form-group"><label for="stopCustomerName">Customer</label><input id="stopCustomerName" list="orderCustomerOptions" placeholder="e.g., ABC Trading"><datalist id="orderCustomerOptions"></datalist><input id="stopCustomerId" type="hidden"><small>Use an existing customer name to add another delivery location.</small></div>
+            <div class="form-group"><label for="stopCustomerName">Customer account</label><input id="stopCustomerName" list="orderCustomerOptions" placeholder="e.g., ABC Trading"><datalist id="orderCustomerOptions"></datalist><input id="stopCustomerId" type="hidden"><small>Optional. Use an existing account name to add another delivery location for the same account.</small></div>
             <div class="form-group">
-              <label for="stopName">Stop / Contact Name *</label>
+              <label for="stopName">Customer name *</label>
               <input type="text" id="stopName" name="stopName" placeholder="e.g., ABC Restaurant" required>
             </div>
 
@@ -736,9 +736,33 @@
               <input type="text" id="stopCoordinate" name="stopCoordinate" placeholder="Will be filled after search" readonly style="background: #f1f5f9; color: #475569;">
             </div>
 
-            <div id="addStopContactFields" class="form-section"><h4>Contact at this stop (optional)</h4><div class="form-group"><label for="stopContactName">Contact name</label><input id="stopContactName"></div><div class="form-group"><label for="stopContactPhone">Phone</label><input id="stopContactPhone" type="tel"></div><div class="form-group"><label for="stopContactRole">Role</label><input id="stopContactRole"></div></div>
+            <div id="addStopContactFields" class="form-section"><h4>Contact at this customer (optional)</h4><div class="form-group"><label for="stopContactName">Contact name</label><input id="stopContactName"></div><div class="form-group"><label for="stopContactPhone">Phone</label><input id="stopContactPhone" type="tel"></div><div class="form-group"><label for="stopContactRole">Role</label><input id="stopContactRole"></div></div>
+            <fieldset id="customerDeliveryAvailability" class="form-section customer-constraints">
+              <legend>Delivery Availability</legend>
+              <div class="constraint-mode" role="radiogroup" aria-label="Delivery availability">
+                <label><input type="radio" name="deliveryScheduleMode" value="default" checked> Use default schedule</label>
+                <label><input type="radio" name="deliveryScheduleMode" value="custom"> Custom schedule</label>
+              </div>
+              <p id="deliveryScheduleSummary" class="constraint-summary" aria-live="polite"></p>
+              <div id="customDeliverySchedule" class="schedule-editor" hidden></div>
+              <button type="button" id="resetDeliveryScheduleBtn" class="clear-btn constraint-reset" hidden>Return to default</button>
+            </fieldset>
+            <fieldset id="customerServiceTime" class="form-section customer-constraints">
+              <legend>Service Time</legend>
+              <div class="constraint-mode" role="radiogroup" aria-label="Service time">
+                <label><input type="radio" name="serviceTimeMode" value="default" checked> Use default service time</label>
+                <label><input type="radio" name="serviceTimeMode" value="custom"> Custom service time</label>
+              </div>
+              <p id="serviceTimeSummary" class="constraint-summary" aria-live="polite"></p>
+              <div id="customServiceMinutesWrap" class="form-group" hidden>
+                <label for="customServiceMinutes">Service time (minutes)</label>
+                <input type="number" id="customServiceMinutes" min="1" max="240" step="1" inputmode="numeric">
+              </div>
+              <button type="button" id="resetServiceTimeBtn" class="clear-btn constraint-reset" hidden>Return to default</button>
+            </fieldset>
+            <p id="customerConstraintErrors" class="schedule-errors" role="alert"></p>
             <div class="form-actions">
-              <button type="submit" id="submitStopBtn" class="submit-btn">Add Stop</button>
+              <button type="submit" id="submitStopBtn" class="submit-btn">Add Customer</button>
               <button type="button" id="cancelEditStopBtn" class="submit-btn" style="display:none;">Cancel Edit</button>
               <button type="button" id="clearFormBtn" class="clear-btn">Clear Form</button>
             </div>
@@ -752,13 +776,13 @@
         <div id="recentlyAddedSection" class="form-section" data-stop-workspace-panel="add">
           <h3>Recently Added</h3>
           <div id="recentlyAddedList" class="recently-added-list">
-            <p class="no-items">No stops added yet</p>
+            <p class="no-items">No customers added yet</p>
           </div>
         </div>
 
         <div id="manageStopsSection" class="form-section" data-stop-workspace-panel="edit" hidden>
-          <h3>Search Saved Stops &amp; Contacts</h3>
-          <p class="form-description">Find an individual record, check its customer and location, then edit or delete it.</p>
+          <h3>Search Customers</h3>
+          <p class="form-description">Find a customer by name, contact, phone number or address, then edit or delete it.</p>
           <form id="masterSearchForm" class="master-search-controls">
             <label for="masterSearchType">Search type</label>
             <select id="masterSearchType" required><option value="customer">Customer Name</option><option value="contact">Contact Name</option><option value="phone">Phone Number</option><option value="address">Delivery Address</option></select>
@@ -774,7 +798,7 @@
           <div class="stop-import-heading">
             <div>
               <span class="stop-import-eyebrow">Bulk import</span>
-              <h3>Import stops from your spreadsheet</h3>
+              <h3>Import customers from your spreadsheet</h3>
               <p class="form-description">Upload a CSV or Excel file, use a public Google Sheet, or paste rows. GoRouteX detects the columns before anything is saved.</p>
             </div>
             <button type="button" id="downloadCsvTemplateBtn" class="action-button-secondary stop-import-template-btn">Download template</button>
@@ -792,7 +816,7 @@
               <div class="stop-import-card-heading">
                 <span class="stop-import-step-number">1</span>
                 <div>
-                  <h4 id="importSourceTitle">Add your stop list</h4>
+                  <h4 id="importSourceTitle">Add your customer list</h4>
                   <p>Choose one source. The first row should contain column names.</p>
                 </div>
               </div>
@@ -830,7 +854,7 @@
 
           <div class="stop-import-options-row">
             <div class="form-group">
-              <label for="importModeSelect">When a matching stop already exists</label>
+              <label for="importModeSelect">When a matching customer already exists</label>
               <select id="importModeSelect">
                 <option value="merge">Keep existing stops and add new ones (Recommended)</option>
                 <option value="overwrite">Replace all existing stops with this import</option>
@@ -840,8 +864,8 @@
           </div>
 
           <div class="stop-import-utility-actions" aria-label="Stop file utilities">
-            <button type="button" id="exportStopsCsvBtn" class="action-button-secondary">Export saved stops</button>
-            <button type="button" id="deleteAllStopsBtn" class="action-button-secondary">Delete all stops</button>
+            <button type="button" id="exportStopsCsvBtn" class="action-button-secondary">Export customers</button>
+            <button type="button" id="deleteAllStopsBtn" class="action-button-secondary">Delete all customers</button>
           </div>
 
           <div id="csvImportMappingSection" class="csv-import-stage" hidden>
@@ -1027,9 +1051,9 @@
       <span class="mobile-tab-icon">Home</span>
       <span class="mobile-tab-text">Dashboard</span>
     </button>
-    <button type="button" class="mobile-tab-btn" data-page="page-select-stops">
-      <span class="mobile-tab-icon">Plan</span>
-      <span class="mobile-tab-text">Stops</span>
+    <button type="button" class="mobile-tab-btn" onclick="window.location.href='order-hub.html'">
+      <span class="mobile-tab-icon">Orders</span>
+      <span class="mobile-tab-text">Order Hub</span>
     </button>
     <button type="button" class="mobile-tab-btn" onclick="openDispatchPage()">
       <span class="mobile-tab-icon">Routes</span>
@@ -1038,10 +1062,6 @@
     <button type="button" class="mobile-tab-btn" data-page="page-gps-tracking">
       <span class="mobile-tab-icon">GPS</span>
       <span class="mobile-tab-text">Tracking</span>
-    </button>
-    <button type="button" class="mobile-tab-btn" data-page="page-add-stop">
-      <span class="mobile-tab-icon">Stops</span>
-      <span class="mobile-tab-text">Manage</span>
     </button>
   </nav>
     </div>
@@ -1085,6 +1105,28 @@
     </div>
   </div>
 
+  <div id="timeWindowExceptionModal" hidden>
+    <div class="confirm-route-dialog time-window-dialog" role="dialog" aria-modal="true" aria-labelledby="timeWindowExceptionTitle" aria-describedby="timeWindowExceptionIntro">
+      <h3 id="timeWindowExceptionTitle">Delivery hours conflict</h3>
+      <p id="timeWindowExceptionIntro">These stops cannot be served inside the customer's delivery hours with the current start time and routes. Nothing has been saved yet.</p>
+      <div class="time-window-table-wrap">
+        <table class="time-window-table">
+          <thead><tr><th scope="col">Route</th><th scope="col">Customer</th><th scope="col">ETA</th><th scope="col">Receiving</th><th scope="col">Reason</th></tr></thead>
+          <tbody id="timeWindowExceptionRows"></tbody>
+        </table>
+      </div>
+      <div id="timeWindowOverrideBox" class="time-window-override" hidden>
+        <label for="timeWindowOverrideReason">Reason for saving outside delivery hours (recorded with your name)</label>
+        <textarea id="timeWindowOverrideReason" rows="2" maxlength="300" placeholder="e.g. Customer agreed by phone to receive at 18:30"></textarea>
+        <p id="timeWindowOverrideError" class="time-window-error" role="alert"></p>
+      </div>
+      <div class="confirm-route-actions">
+        <button type="button" id="timeWindowChangeStartBtn" class="action-button-secondary">Change start time</button>
+        <button type="button" id="timeWindowAdjustRoutesBtn" class="action-button-secondary">Adjust routes</button>
+        <button type="button" id="timeWindowOverrideBtn" class="action-button-primary">Save with override…</button>
+      </div>
+    </div>
+  </div>
   <div id="confirmRouteModal" hidden>
     <div class="confirm-route-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmRouteModalTitle">
       <h3 id="confirmRouteModalTitle">Confirm Route Save</h3>
@@ -1128,6 +1170,10 @@
 <script src="map-handler.js"></script>
 <script src="route-engine.js"></script>
 <script src="ui.js"></script>
+<script src="delivery-constraints.js"></script>
+<script src="delivery-schedule-editor.js"></script>
+<script src="customer-constraints-form.js"></script>
+<script src="route-time-windows.js"></script>
 <script src="route-storage.js"></script>
   <script src="orders/route-planning-preferences.js"></script>
   <script src="orders/master-search.js"></script>
@@ -1451,6 +1497,20 @@
     function getDefaultStayMinutes() {
         return window.GoRouteXSettings?.getCachedSettings?.().routePlanning?.serviceMinutes || DEFAULT_STAY_MINUTES;
     }
+    // Effective delivery rules for one customer: its custom values first, then the current Settings
+    // defaults (resolved now, never copied onto the customer). See delivery-constraints.js.
+    function getCustomerDeliveryConstraints(customerId) {
+        const C = window.GoRouteXDeliveryConstraints;
+        const settings = window.GoRouteXSettings?.getCachedSettings?.() || null;
+        const entry = typeof getCustomerById === 'function' ? getCustomerById(customerId) : null;
+        if (!C) return { schedule: null, scheduleMode: 'default', serviceMinutes: getDefaultStayMinutes(), serviceMode: 'default' };
+        const resolved = C.resolveCustomerConstraints(entry, settings);
+        return { ...resolved, serviceMinutes: resolved.serviceMinutes || getDefaultStayMinutes() };
+    }
+    // Default service (stay) minutes for a route visit to this customer; planners can still change one visit.
+    function getDefaultStayMinutesForStop(customerId) {
+        return customerId ? getCustomerDeliveryConstraints(customerId).serviceMinutes : getDefaultStayMinutes();
+    }
     const DEFAULT_VEHICLE_DRIVER = 'YQ3896B';
     const VEHICLE_DRIVER_STORAGE_KEY = 'goroutexVehicleDriver';
     const VEHICLE_DRIVER_LIST_STORAGE_KEY = 'goroutexVehicleDriverList';
@@ -1481,7 +1541,8 @@
         if (!policy) return;
         for (const slots of Object.values(manualRouteSlots)) {
             for (const slot of Object.values(slots)) {
-                if (!slot.location && slot.stay === DEFAULT_STAY_MINUTES) slot.stay = policy.serviceMinutes;
+                if (slot.stay !== DEFAULT_STAY_MINUTES) continue;
+                slot.stay = slot.location ? getDefaultStayMinutesForStop(slot.location) : policy.serviceMinutes;
             }
         }
         if (routeStartTime === DEFAULT_ROUTE_START_TIME && !localStorage.getItem(PREFERRED_PLANNING_TIME_STORAGE_KEY)) {
@@ -1801,6 +1862,7 @@
       tracking: 'page-gps-tracking',
       gps: 'page-gps-tracking',
       customers: 'page-add-stop',
+      'customer-workspace': 'page-add-stop',
       'manage-stops': 'page-add-stop',
       account: 'page-account-access',
       billing: 'page-account-access',
@@ -3197,17 +3259,8 @@
     window.goToDashboardPage = goToDashboardPage;
 
     function updateMobileNavigationState(activePageId) {
-      if (desktopAppNav) {
-        desktopAppNav.querySelectorAll('button[data-page]').forEach((btn) => {
-          const isActive = btn.dataset.page === activePageId;
-          btn.classList.toggle('is-active', isActive);
-          if (isActive) {
-            btn.setAttribute('aria-current', 'page');
-          } else {
-            btn.removeAttribute('aria-current');
-          }
-        });
-      }
+      // Every app.html page is part of the Dashboard workflow except Account (lower sidebar area).
+      window.GoRouteXSidebar?.setActive(activePageId === 'page-account-access' ? 'account' : 'dashboard');
 
       if (!mobileTabBar) return;
 
@@ -3832,11 +3885,11 @@
 
     function getRouteStopStayMinutes(routeData, stopId) {
         if (!routeData || !Array.isArray(routeData.routeStopConfigs)) {
-            return getDefaultStayMinutes();
+            return getDefaultStayMinutesForStop(stopId);
         }
 
         const match = routeData.routeStopConfigs.find((stopConfig) => stopConfig && stopConfig.customerId === stopId);
-        return match ? normalizeStayMinutes(match.stayMinutes) : getDefaultStayMinutes();
+        return match ? normalizeStayMinutes(match.stayMinutes) : getDefaultStayMinutesForStop(stopId);
     }
 
     
@@ -4433,7 +4486,8 @@
         }
 
         if (routeOriginMode === 'custom') {
-            messageBarPg2.textContent = 'Select a custom start address before planning routes.';
+            messageBarPg2.textContent = 'Select a custom start address in Route settings before planning routes.';
+            window.openRouteSettingsPanel?.();
             if (customOriginInput) customOriginInput.focus();
         } else {
             messageBarPg2.textContent = 'Waiting for current location. You can switch to a custom address if GPS is unavailable.';
@@ -4461,7 +4515,8 @@
             return true;
         }
 
-        messageBarPg2.textContent = 'Select a custom end address or turn off the required end location option.';
+        messageBarPg2.textContent = 'Select a custom end address in Route settings or turn off the required end location option.';
+        window.openRouteSettingsPanel?.();
         if (customEndInput) customEndInput.focus();
         return false;
     }
@@ -6935,6 +6990,11 @@
             lat: lat,
             lng: lng,
             coordinate: coordinate,
+            // Delivery availability / service time overrides; absent fields mean "use the Settings default".
+            deliveryScheduleMode: stop.deliveryScheduleMode === 'custom' ? 'custom' : 'default',
+            customDeliverySchedule: stop.deliveryScheduleMode === 'custom' ? (stop.customDeliverySchedule || null) : null,
+            serviceTimeMode: stop.serviceTimeMode === 'custom' ? 'custom' : 'default',
+            customServiceMinutes: stop.serviceTimeMode === 'custom' ? (stop.customServiceMinutes ?? null) : null,
             uniqueId: stopId
         };
     }
@@ -7904,6 +7964,48 @@
         return window._activeRoutes;
     }
 
+    // Google orders stops by travel time only. Where that order would miss a customer's receiving hours,
+    // reorder inside the route using windows, waiting, service time, travel time and distance
+    // (route-time-windows.js). The notice is shown on the assignment page.
+    function applyDeliveryWindowsToPackedRoutes(packedRoutes, directionsResult) {
+        window._timeWindowPlanningNotice = '';
+        const planner = window.GoRouteXTimeWindows;
+        const legs = directionsResult?.routes?.[0]?.legs || [];
+        if (!planner || !legs.length) return packedRoutes;
+        try {
+            const outcome = planner.applyToPackedRoutes(packedRoutes, {
+                origin: legs[0]?.start_location,
+                end: legs[legs.length - 1]?.end_location,
+                startDate: getRouteStartDateTime(),
+                legs,
+                stopId: (stop) => getPackedRouteStopId(stop),
+                resolveStop: (stop) => {
+                    const id = getPackedRouteStopId(stop);
+                    const lat = Number(stop.lat), lng = Number(stop.lng);
+                    const constraints = getCustomerDeliveryConstraints(id);
+                    return {
+                        id,
+                        location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+                        serviceMinutes: constraints.serviceMinutes,
+                        schedule: constraints.schedule
+                    };
+                }
+            });
+            const notes = [];
+            if (outcome.changedRouteIndexes.length) {
+                notes.push(`Reordered ${outcome.changedRouteIndexes.map((index) => `Route ${index + 1}`).join(', ')} to meet customer delivery hours.`);
+            }
+            if (outcome.remainingViolations.length) {
+                notes.push(`${outcome.remainingViolations.length} stop(s) may miss their delivery hours; you can adjust before confirming.`);
+            }
+            window._timeWindowPlanningNotice = notes.join(' ');
+            return outcome.routes;
+        } catch (error) {
+            console.warn('Delivery-window ordering skipped:', error);
+            return packedRoutes;
+        }
+    }
+
     async function generateOptimizedActiveRoutesFromSelection(selectedStops, maxPerRoute = 8) {
         if (routeArrangementIsDirectionReturn()) {
             return generateDirectionOrderedActiveRoutes(selectedStops, maxPerRoute);
@@ -7944,7 +8046,8 @@
             ? waypointOrder.map((stopIndex) => safeStops[stopIndex]).filter(Boolean)
             : safeStops;
 
-        const packedRoutes = splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxPerRoute);
+        let packedRoutes = splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxPerRoute);
+        packedRoutes = applyDeliveryWindowsToPackedRoutes(packedRoutes, result);
         window._activeRoutes = assignRouteColors(packedRoutes.map((route, index) => ({
             ...route,
             id: route.id || (index + 1),
@@ -9868,18 +9971,15 @@
         return;
       }
 
-      const LUNCH_START_HOUR = 12;
-      const LUNCH_END_HOUR = 13;
       let fullScheduleHtml = '';
       const scheduleRouteBlocks = [];
       let currentTime = getRouteStartDateTime();
-
-      const applyLunchBreakIfNeeded = () => {
-          if (currentTime.getHours() === LUNCH_START_HOUR && currentTime.getMinutes() > 0) {
-              fullScheduleHtml += `<div class="schedule-stop lunch-break" style="text-align:center;">Lunch Break (12 PM - 1 PM)</div>`;
-              currentTime.setHours(LUNCH_END_HOUR, 0, 0, 0);
-          }
-      };
+      // Hard delivery windows (delivery-constraints.js): each customer's own schedule, else the Settings
+      // default. Early arrivals wait for opening; service never runs into a break; anything that cannot fit
+      // is recorded as a violation so confirmation can block it. Replaces the old fixed 12:00-13:00 jump.
+      const DeliveryRules = window.GoRouteXDeliveryConstraints;
+      const timeWindowViolations = [];
+      const minutesOfDay = (date) => date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
 
       for (let routeIdx = 0; routeIdx < AppState.plannedRoutes.length; routeIdx++) {
           const routeHtmlStartIndex = fullScheduleHtml.length;
@@ -9928,10 +10028,10 @@
               departureTimeStr: departureTimeFormatted
           });
 
+          routeData.timeWindowViolations = [];
           for (let i = 0; i < routeLegs.length; i++) {
               const leg = routeLegs[i];
               currentTime.setSeconds(currentTime.getSeconds() + leg.duration.value);
-              applyLunchBreakIfNeeded();
 
               const currentStopId = stopsForThisRoute[i + 1];
               const currentStopName = getStopDisplayName(currentStopId);
@@ -9943,21 +10043,48 @@
               const stayMinutes = shouldApplyStay ? getRouteStopStayMinutes(routeData, currentStopId) : 0;
 
               fullScheduleHtml += `<div class="schedule-stop"><strong>${currentStopName} (Arrival):</strong> ${arrivalTimeFormatted}</div>`;
-              routeData.detailedStopTimes.push({
+              const stopEntry = {
                   address: currentStopAddress,
                   name: currentStopName,
                   stopId: currentStopId,
                   arrivalTime: new Date(currentTime.getTime()),
                   arrivalTimeStr: arrivalTimeFormatted
-              });
+              };
+              routeData.detailedStopTimes.push(stopEntry);
+
+              if (!isHqStop && DeliveryRules) {
+                  const constraints = getCustomerDeliveryConstraints(currentStopId);
+                  const serviceMinutes = stayMinutes || getRouteStopStayMinutes(routeData, currentStopId);
+                  const day = DeliveryRules.dayKeyFromDate(currentTime);
+                  const fit = DeliveryRules.scheduleService(minutesOfDay(currentTime), serviceMinutes, constraints.schedule, day);
+                  const receiving = DeliveryRules.describeDay(constraints.schedule?.[day]);
+                  // Planning-time snapshot: saved plans keep the rules they were checked against.
+                  stopEntry.deliveryConstraints = { day, receiving, scheduleMode: constraints.scheduleMode, serviceMode: constraints.serviceMode, serviceMinutes };
+                  if (fit.ok) {
+                      stopEntry.windowStatus = 'ok';
+                      if (fit.waitMinutes > 0.5) {
+                          currentTime = new Date(currentTime.getTime() + fit.waitMinutes * 60000);
+                          stopEntry.waitMinutes = Math.round(fit.waitMinutes);
+                          stopEntry.serviceStartTime = new Date(currentTime.getTime());
+                          stopEntry.serviceStartTimeStr = formatTime12Hour(currentTime);
+                          fullScheduleHtml += `<div class="schedule-stop schedule-wait" style="padding-left:15px; font-size:0.85em; color:#92400e;">Waits ${stopEntry.waitMinutes}m for receiving hours (${escapeHtml(receiving)}); service starts ${stopEntry.serviceStartTimeStr}</div>`;
+                      }
+                  } else {
+                      stopEntry.windowStatus = 'violation';
+                      const violation = { routeId: routeData.id, stopId: currentStopId, customer: currentStopName, eta: arrivalTimeFormatted, receiving, day, reason: fit.reason, message: fit.message };
+                      stopEntry.windowViolation = violation;
+                      routeData.timeWindowViolations.push(violation);
+                      timeWindowViolations.push(violation);
+                      fullScheduleHtml += `<div class="schedule-stop schedule-violation" style="padding-left:15px; font-size:0.85em; color:#b42318;"><strong>Outside delivery hours:</strong> ${escapeHtml(fit.message)} Receiving: ${escapeHtml(receiving)}.</div>`;
+                  }
+              }
 
               if (shouldApplyStay) {
                   currentTime.setMinutes(currentTime.getMinutes() + stayMinutes);
-                  applyLunchBreakIfNeeded();
 
                   const departureAfterStay = formatTime12Hour(currentTime);
                   const stayLabel = `<em>(Stay: ${stayMinutes}m)</em>`;
-                  const lastStopEntry = routeData.detailedStopTimes.find(s => s.address === currentStopAddress);
+                  const lastStopEntry = stopEntry;
                   if (lastStopEntry) {
                       lastStopEntry.stayMinutes = stayMinutes;
                       lastStopEntry.departureTime = new Date(currentTime.getTime());
@@ -9992,11 +10119,13 @@
       }
 
       appLog(`Full day detailed stop times:`, JSON.parse(JSON.stringify(AppState.plannedRoutes.map(r => r ? r.detailedStopTimes : null ))));
+      AppState.timeWindowViolations = timeWindowViolations;
       renderSchedulePreviewPages(scheduleRouteBlocks);
 
       if (anySuccessfulRoute && options.print !== false) {
           printSummaryPage3();
       }
+      return { timeWindowViolations };
     }
 
     function generateTimeListAndShowOnPage3(...args) {
@@ -12321,14 +12450,14 @@
             const isActive = button.dataset.stopWorkspaceMode === nextMode;
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-pressed', String(isActive));
-            const labels = { add: 'Add New Stop', edit: 'Search', import: 'Import / Export' };
+            const labels = { add: 'Add Customer', edit: 'Search', import: 'Import / Export' };
             button.textContent = isActive
-                ? ({ add: 'Add New Stop', edit: 'Search', import: 'Import / Export' }[nextMode])
+                ? ({ add: 'Add Customer', edit: 'Search', import: 'Import / Export' }[nextMode])
                 : labels[button.dataset.stopWorkspaceMode] || button.textContent;
         });
         if (nextMode === 'edit') refreshUnifiedSearch().catch(error => { if(manageStopsList) manageStopsList.textContent = error.message; });
         const createHeading = document.getElementById('addStopCreateHeading');
-        if (createHeading) createHeading.textContent = editingStopId ? '✏️ Edit Stop' : '➕ Add New Stop';
+        if (createHeading) createHeading.textContent = editingStopId ? 'Edit Customer' : 'Add Customer';
         if (nextMode === 'add' && mapAddStop) {
             setTimeout(() => MapHandler.triggerResize(mapAddStop, 'resize'), 0);
         }
@@ -12394,15 +12523,16 @@
 
     function setAddStopFormMode(isEditing) {
         const submitBtn = document.getElementById('submitStopBtn');
-        if (submitBtn) submitBtn.textContent = isEditing ? 'Save Changes' : 'Add Stop';
+        if (submitBtn) submitBtn.textContent = isEditing ? 'Save Changes' : 'Add Customer';
         const createHeading = document.getElementById('addStopCreateHeading');
-        if (createHeading) createHeading.textContent = isEditing ? '✏️ Edit Stop' : '➕ Add New Stop';
+        if (createHeading) createHeading.textContent = isEditing ? 'Edit Customer' : 'Add Customer';
         if (cancelEditStopBtn) cancelEditStopBtn.style.display = isEditing ? 'inline-flex' : 'none';
     }
 
     function clearAddStopForm(resetStatus = false) {
         const form = document.getElementById('addStopForm');
         if (form) form.reset();
+        window.GoRouteXCustomerConstraints?.set(null);
 
         editingStopId = null;
         setAddStopFormMode(false);
@@ -12569,6 +12699,7 @@
         if (document.getElementById('stopCustomerId')) document.getElementById('stopCustomerId').value = entry.customerId || '';
         if (phoneInput) phoneInput.value = entry['Hp No'] || '';
         if (addressInput) addressInput.value = entry.Address || '';
+        window.GoRouteXCustomerConstraints?.set(entry);
 
         const lat = typeof entry.lat === 'number' ? entry.lat : null;
         const lng = typeof entry.lng === 'number' ? entry.lng : null;
@@ -12824,13 +12955,16 @@
             ? (allCustomerEntries.find(entry => entry.uniqueId === editingStopId)?.siteCode || '')
             : (window.OrderMasterMaintenance?.getPendingSiteCode?.() || '');
         const latLng = parseLatLngFromCoordinateText(stopCoordinate);
+        const constraints = window.GoRouteXCustomerConstraints?.read() || { fields: {}, errors: [] };
         return {
             name: stopName,
             customerName, customerId, siteCode, label: stopName,
             phone: stopPhone,
             address: stopAddress,
             lat: latLng.lat,
-            lng: latLng.lng
+            lng: latLng.lng,
+            ...(constraints.fields || {}),
+            constraintErrors: constraints.errors
         };
     }
 
@@ -12862,9 +12996,18 @@
         if (!stopName || !stopAddress) {
             statusDiv.style.display = 'block';
             statusDiv.className = 'add-stop-status error';
-            statusDiv.textContent = 'Please fill in Stop / Contact Name and Address';
+            statusDiv.textContent = 'Please fill in Customer name and Address';
             return;
         }
+
+        if (stopData.constraintErrors?.length) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'add-stop-status error';
+            statusDiv.textContent = `Check Delivery Availability / Service Time: ${stopData.constraintErrors[0]}`;
+            document.getElementById('customerConstraintErrors')?.scrollIntoView({ block: 'center' });
+            return;
+        }
+        delete stopData.constraintErrors;
 
         if (!isEditing) {
             const customerLimitStatus = getUsageStatus('customers');
@@ -13725,7 +13868,7 @@
             return;
         }
 
-        const confirmed = confirm(`Delete all ${currentEntries.length} saved stops? This cannot be undone.`);
+        const confirmed = confirm(`Delete all ${currentEntries.length} customers? This cannot be undone.`);
         if (!confirmed) return;
 
         setImportStatus('Deleting all saved stops...', 'loading');
@@ -13785,7 +13928,7 @@
         if (!listContainer) return;
 
         if (recentlyAddedStops.length === 0) {
-            listContainer.innerHTML = '<p class="no-items">No stops added yet</p>';
+            listContainer.innerHTML = '<p class="no-items">No customers added yet</p>';
             return;
         }
 

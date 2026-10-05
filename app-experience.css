@@ -3359,3 +3359,109 @@
 #historyStatsPanel[hidden] {
   display: none !important;
 }
+
+/* Stops Selection: description under the title, and route settings as an on-demand panel. */
+#page-select-stops .workspace-intro-title {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+#page-select-stops .workspace-intro-description {
+  margin: 0;
+  max-width: 62ch;
+  color: #536479;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.route-settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8vh 16px 16px;
+  background: rgba(15, 23, 42, 0.35);
+  overflow-y: auto;
+}
+
+.route-settings-overlay[hidden] {
+  display: none;
+}
+
+.route-settings-overlay-card {
+  width: min(760px, 100%);
+  box-sizing: border-box;
+  padding: 20px 22px 22px;
+  border: 1px solid #dce3ec;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+
+.route-settings-overlay-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.route-settings-overlay-head h3 {
+  margin: 0 0 4px;
+  color: #192b40;
+  font-size: 1.2rem;
+}
+
+.route-settings-overlay-head p {
+  margin: 0;
+  color: #536479;
+  font-size: 0.9rem;
+}
+
+.route-settings-overlay-head .action-button-primary {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-width: 96px;
+  margin: 0;
+}
+
+/* Inside the panel the old collapsible header/summary is not shown and the inputs are always open. */
+.route-settings-overlay .route-settings-header {
+  display: none !important;
+}
+
+.route-settings-overlay .route-settings-body {
+  display: block !important;
+}
+
+/* Google address suggestions must appear above the panel. */
+.pac-container {
+  z-index: 1300 !important;
+}
+
+@media (max-width: 640px) {
+  .route-settings-overlay {
+    padding: 12px;
+  }
+
+  .route-settings-overlay-card {
+    padding: 16px;
+  }
+}
+
+/* Delivery hours conflict dialog (hard customer time windows at route confirmation). */
+#timeWindowExceptionModal[hidden] { display: none !important; }
+#timeWindowExceptionModal { position: fixed; inset: 0; z-index: 10003; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15, 23, 42, 0.5); }
+#timeWindowExceptionModal .time-window-dialog { width: min(760px, 100%); }
+.time-window-table-wrap { max-height: 40vh; overflow: auto; margin-bottom: 14px; border: 1px solid #f1c7c2; border-radius: 10px; }
+.time-window-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.time-window-table th { position: sticky; top: 0; background: #fff4f2; color: #7a271a; text-align: left; padding: 8px 10px; }
+.time-window-table td { padding: 8px 10px; border-top: 1px solid #f6dcd8; vertical-align: top; overflow-wrap: anywhere; }
+.time-window-override { display: grid; gap: 6px; margin-bottom: 12px; }
+.time-window-override label { font-weight: 600; color: #192b40; font-size: 0.88rem; }
+.time-window-override textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+.time-window-error { margin: 0; color: #b42318; font-size: 0.85rem; }
+.time-window-error:empty { display: none; }

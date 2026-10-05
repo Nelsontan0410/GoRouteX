@@ -67,14 +67,14 @@ else window.FirebaseApp.auth.onAuthStateChange(async user=>{
   $('workspace').hidden=true;
   if(!user){location.href='login.html?next='+encodeURIComponent('order-hub.html');return;}
   if(window.FirebaseApp.auth.isDriverAccount?.(user)){location.replace('driver.html');return;}
-  $('account-name').textContent='Loading account…';
+  window.GoRouteXSidebar?.setAccount({name:'Loading account…',plan:'Loading plan…'});
   let identity;
   try {
     identity=await window.GoRouteXAccountContext.loadIdentity(user);
     if(generation!==state.authGeneration||window.FirebaseApp.auth.getCurrentUser()?.uid!==identity.uid)return;
   } catch(error) {
     if(generation!==state.authGeneration)return;
-    $('account-name').textContent='Account unavailable';
+    window.GoRouteXSidebar?.setAccount({name:'Account unavailable',plan:'Plan unavailable'});
     showRetry('Unable to load your account: '+error.message,()=>location.reload());
     return;
   }
@@ -84,7 +84,7 @@ else window.FirebaseApp.auth.onAuthStateChange(async user=>{
   let planLabel='Plan unavailable';
   try {planLabel=window.GoRouteXAccountContext.resolvePlan(identity).planLabel;}
   catch(error){console.warn('ORDER_HUB_PLAN_UNAVAILABLE',{code:String(error?.code||'unknown').slice(0,60)});}
-  $('account-name').textContent=identity.displayName+' · '+planLabel;
+  window.GoRouteXSidebar?.setAccount({name:identity.displayName,plan:planLabel});
   $('workspace').hidden=false;
   const [orders,master]=await Promise.allSettled([refresh(),refreshMaster()]);
   if(generation!==state.authGeneration)return;

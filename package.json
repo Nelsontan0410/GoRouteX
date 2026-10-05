@@ -6,7 +6,8 @@
     "lta:update": "node scripts/update-lta-restrictions.mjs",
     "test:lta": "node --test tests/*.test.mjs",
     "test": "node --test tests/*.test.mjs",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-goroutex \"node --test --test-concurrency=1 'tests/rules/*.rules.mjs'\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-goroutex \"node --test --test-concurrency=1 'tests/rules/*.rules.mjs'\"",
+    "test:auth": "firebase emulators:exec --only auth --project demo-goroutex \"node --test --test-concurrency=1 'tests/auth/*.auth.mjs'\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
