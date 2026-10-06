@@ -10010,12 +10010,8 @@
               continue;
           }
 
-          if (routeIdx > 0) {
-              const prevRoute = AppState.plannedRoutes[routeIdx - 1];
-              if (prevRoute && prevRoute.directionsResult && prevRoute.finalEtaAtLastStop instanceof Date) {
-                  currentTime = new Date(prevRoute.finalEtaAtLastStop.getTime());
-              }
-          }
+          // Each route is a separate vehicle with its own driver; all leave at the planning start time.
+          currentTime = getRouteStartDateTime();
 
           routeData.detailedStopTimes = [];
           routeData.finalEtaAtLastStop = null;
@@ -10024,9 +10020,8 @@
           fullScheduleHtml += `<div class="route-header">Route ${routeData.id}</div>`;
           const routeLegs = routeData.directionsResult.routes[0].legs;
           const stopsForThisRoute = routeData.optimizedStops;
-          const hasFollowingRoute = AppState.plannedRoutes
-              .slice(routeIdx + 1)
-              .some(r => r && r.directionsResult && r.directionsResult.routes && r.directionsResult.routes.length > 0);
+          // Routes run in parallel, so no route continues into the next one.
+          const hasFollowingRoute = false;
 
           const departureTimeFormatted = formatTime12Hour(currentTime);
           const startStopName = getStopDisplayName(stopsForThisRoute[0]);

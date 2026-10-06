@@ -138,7 +138,7 @@
 
   /**
    * Reorder stops inside each packed route when Google's order breaks a delivery window.
-   * routes: [{ stops: [...] }] in driving sequence (route N starts when route N-1 ends).
+   * routes: [{ stops: [...] }], one vehicle each, all leaving at the planning start time.
    * options: { origin, end, startDate: Date, legs, resolveStop(stop) -> { id, location, serviceMinutes, schedule } }
    * Returns { routes, changedRouteIndexes, remainingViolations }. Routes without a violation keep Google's order.
    */
@@ -152,7 +152,8 @@
     const model = calibrate(options.legs);
     const end = point(options.end);
     const day = C().dayKeyFromDate(options.startDate);
-    let startMinutes = options.startDate.getHours() * 60 + options.startDate.getMinutes();
+    // Each route is its own vehicle and leaves at the planning start time.
+    const startMinutes = options.startDate.getHours() * 60 + options.startDate.getMinutes();
     const nextRoutes = routes.map((route, routeIndex) => {
       const resolved = (route.stops || []).map((stop) => ({ stop, info: options.resolveStop(stop) }));
       // Stops without coordinates cannot be simulated; keep the route as Google ordered it.
@@ -171,7 +172,6 @@
         }
       }
       finalResult.violations.forEach((violation) => remainingViolations.push({ routeIndex, ...violation }));
-      startMinutes = finalResult.endMinutes;
       if (finalItems === items) return route;
       const stops = finalItems.map((item) => item.original);
       return { ...route, stops, stopIds: stops.map((stop) => options.stopId ? options.stopId(stop) : stop.id).filter(Boolean), timeWindowOrdered: true };
