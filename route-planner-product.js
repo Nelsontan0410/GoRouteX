@@ -10,7 +10,8 @@
       storageMode: 'indexeddb',
       limits: {
         maxSavedStops: 50,
-        maxSavedRoutesPerDay: 1,
+        // Daily automatic plans (entries into Review & Assign). Name kept for stored data compatibility.
+        maxSavedRoutesPerDay: 2,
         maxStopsPerRoute: 8,
         maxSelectableStops: 16
       },
@@ -291,7 +292,7 @@
     const limits = getPlanLimits(planKey);
     return {
       savedStops: formatLimitValue(limits.maxSavedStops, 'saved stops'),
-      savedRoutesPerDay: formatLimitValue(limits.maxSavedRoutesPerDay, 'saved routes/day'),
+      savedRoutesPerDay: formatLimitValue(limits.maxSavedRoutesPerDay, 'auto plans/day'),
       stopsPerRoute: formatLimitValue(limits.maxStopsPerRoute, 'stops/route'),
       storageMode: getStorageModeForPlan(planKey) === 'indexeddb' ? 'Device-only storage' : 'Cloud sync'
     };

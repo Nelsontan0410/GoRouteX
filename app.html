@@ -1130,26 +1130,26 @@
   <div id="confirmRouteModal" hidden>
     <div class="confirm-route-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmRouteModalTitle">
       <h3 id="confirmRouteModalTitle">Confirm Route Save</h3>
-      <p>Review your current daily route quota before saving. The route will only be stored after you confirm here.</p>
+      <p>Review the plan before saving. The route will only be stored after you confirm here.</p>
       <div class="confirm-route-meta">
         <div class="confirm-route-meta-card">
           <span>Current plan</span>
           <strong id="confirmRoutePlanName">--</strong>
         </div>
         <div class="confirm-route-meta-card">
-          <span>Daily route limit</span>
+          <span>Auto plans per day</span>
           <strong id="confirmRouteDailyLimit">--</strong>
         </div>
         <div class="confirm-route-meta-card">
-          <span>Used today</span>
+          <span>Auto plans used today</span>
           <strong id="confirmRouteUsedToday">--</strong>
         </div>
         <div class="confirm-route-meta-card">
-          <span>Remaining today</span>
+          <span>Auto plans left today</span>
           <strong id="confirmRouteRemainingToday">--</strong>
         </div>
       </div>
-      <div id="confirmRouteWarning" class="confirm-route-warning">Clicking Yes will consume 1 route plan chance for today.</div>
+      <div id="confirmRouteWarning" class="confirm-route-warning">Saving this route does not use your daily automatic planning allowance.</div>
       <div class="confirm-route-actions">
         <button type="button" id="confirmRouteCancelBtn" class="action-button-secondary">Cancel</button>
         <button type="button" id="confirmRouteConfirmBtn" class="action-button-primary">Yes, Confirm Route</button>
@@ -2424,9 +2424,14 @@
       return nextCount;
     }
 
-    function syncRouteUsageFromServer(serverUsed) {
+    // The server is authoritative for the daily automatic-planning allowance (count and limit; a Stripe
+    // trial has a smaller limit than the plan table). allowLower accepts a refund or a status read.
+    let serverAutoPlanLimit = null;
+    function syncRouteUsageFromServer(serverUsed, serverLimit = null, options = {}) {
       const userId = window.FirebaseApp?.auth?.getCurrentUser?.()?.uid || '';
-      const nextCount = Math.max(getTodayUsage(userId), Number(serverUsed) || 0);
+      if (Number.isFinite(Number(serverLimit)) && Number(serverLimit) > 0) serverAutoPlanLimit = Number(serverLimit);
+      const used = Number(serverUsed) || 0;
+      const nextCount = options.allowLower ? used : Math.max(getTodayUsage(userId), used);
       try {
         localStorage.setItem(getTodayRouteUsageKey(new Date(), userId), String(nextCount));
       } catch (error) {
@@ -2472,10 +2477,8 @@
 
     function getCurrentUsageSnapshot() {
       const savedStopsUsed = Array.isArray(allCustomerEntries) ? allCustomerEntries.length : 0;
-      const todaySavedRoutes = Math.max(
-        getTodayUsage(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid),
-        getTodayHistoryUsage()
-      );
+      // Automatic plans used today (entries into Review & Assign), not saved routes.
+      const todaySavedRoutes = getTodayUsage(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
       const usersUsed = Number.isFinite(Number(window.currentUserProfile?.teamMembersCount))
         ? Number(window.currentUserProfile.teamMembersCount)
         : 1;
@@ -2500,8 +2503,16 @@
       };
       const mappedLimitKey = limitKeyMap[limitKey] || limitKey;
 
-      if (limitKey === 'activeRoutes') {
-        console.log('PLAN:', planKey, 'USAGE:', usage[limitKey] || 0, 'LIMIT:', getCurrentProductLimits().maxSavedRoutesPerDay);
+      if (limitKey === 'activeRoutes' && serverAutoPlanLimit) {
+        const used = Number(usage.activeRoutes) || 0;
+        return {
+          limit: serverAutoPlanLimit,
+          used,
+          remaining: Math.max(serverAutoPlanLimit - used, 0),
+          percent: Math.max(0, Math.min(100, Math.round((used / serverAutoPlanLimit) * 100))),
+          reached: used >= serverAutoPlanLimit,
+          nearLimit: used >= Math.ceil(serverAutoPlanLimit * 0.8)
+        };
       }
 
       if (productToolkit?.getUsageStatus) {
@@ -2536,7 +2547,7 @@
       const status = getUsageStatus(limitKey);
       const unitLabelMap = {
         customers: 'saved stops',
-        activeRoutes: 'saved routes/day',
+        activeRoutes: 'auto plans/day',
         selectedStops: 'selected stops',
         stopsPerRoute: 'stops/route'
       };
@@ -2609,8 +2620,8 @@
       const nextPlanKey = toolkit?.getNextPlanKey?.(getCurrentProductPlan()) || null;
       openAccessUpgradeModal({
         eyebrow: 'Plan limit reached',
-        title: 'Daily saved route limit reached',
-        message: `You have used ${routeStatus.used} of ${toolkit?.formatLimitValue(routeStatus.limit, 'saved routes/day') || 'your daily route allowance'} on the ${getCurrentProductPlanDefinition().name || 'current'} plan. Confirming another route today is not available until you upgrade or a new day starts.`,
+        title: 'Daily automatic planning used up',
+        message: `You have used ${routeStatus.used} of ${toolkit?.formatLimitValue(routeStatus.limit, 'auto plans/day') || 'your daily automatic plans'} on the ${getCurrentProductPlanDefinition().name || 'current'} plan. You can still plan today by arranging stops manually. Upgrade for more automatic plans, or wait for a new day.`,
         requiredPlanLabel: nextPlanKey
           ? (toolkit?.getPlanDefinition?.(nextPlanKey)?.name || 'Upgrade')
           : (getCurrentProductPlanDefinition().name || 'Current plan'),
@@ -2686,8 +2697,8 @@
           getValue: (planKey) => toolkit.formatLimitValue(toolkit.getPlanLimits(planKey).maxSavedStops, 'saved stops')
         },
         {
-          label: 'Saved routes/day',
-          getValue: (planKey) => toolkit.formatLimitValue(toolkit.getPlanLimits(planKey).maxSavedRoutesPerDay, 'saved routes/day')
+          label: 'Auto plans/day',
+          getValue: (planKey) => toolkit.formatLimitValue(toolkit.getPlanLimits(planKey).maxSavedRoutesPerDay, 'auto plans/day')
         },
         {
           label: 'Stops per route',
@@ -2798,7 +2809,7 @@
       if (!accountUsageCardsDiv) return;
       const usageLimitEntries = [
         { key: 'customers', label: 'Saved Stops', unitLabel: 'saved stops' },
-        { key: 'activeRoutes', label: 'Saved Routes Today', unitLabel: 'saved routes/day' },
+        { key: 'activeRoutes', label: 'Auto Plans Today', unitLabel: 'auto plans/day' },
         { key: 'selectedStops', label: 'Selected Stops', unitLabel: 'selected stops' }
       ];
       const cards = usageLimitEntries.map((entry) => {
@@ -3046,7 +3057,7 @@
         const highlights = planDefinition?.key === 'basic'
           ? ['Cloud sync & backup', 'CSV import', 'Higher saved-stop limits', 'Higher daily route limits']
           : planDefinition?.key === 'goplan'
-            ? ['1500 saved stops', '50 saved routes/day', 'KPI / print summary', 'Advanced WhatsApp tools']
+            ? ['1500 saved stops', '50 auto plans/day', 'KPI / print summary', 'Advanced WhatsApp tools']
             : ['Cloud sync', 'CSV import', 'KPI / print summary', 'Advanced WhatsApp tools'];
 
         dashboardUpgradeHighlightsDiv.innerHTML = highlights.map((item) => `
@@ -4953,6 +4964,7 @@
       } else if (pageId === 'page-account-access') {
         renderPricingAccessUi();
       } else if (pageId === 'page-select-stops') {
+        refreshAutoPlanStatus();
         const orderPlan = window.GoRouteXOrderPlan?.read(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
         const orderPlanNotice = document.getElementById('orderPlanNotice');
         if (orderPlanNotice && !orderPlan) orderPlanNotice.hidden = true;
@@ -9998,12 +10010,8 @@
               continue;
           }
 
-          if (routeIdx > 0) {
-              const prevRoute = AppState.plannedRoutes[routeIdx - 1];
-              if (prevRoute && prevRoute.directionsResult && prevRoute.finalEtaAtLastStop instanceof Date) {
-                  currentTime = new Date(prevRoute.finalEtaAtLastStop.getTime());
-              }
-          }
+          // Each route is a separate vehicle with its own driver; all leave at the planning start time.
+          currentTime = getRouteStartDateTime();
 
           routeData.detailedStopTimes = [];
           routeData.finalEtaAtLastStop = null;
@@ -10012,9 +10020,8 @@
           fullScheduleHtml += `<div class="route-header">Route ${routeData.id}</div>`;
           const routeLegs = routeData.directionsResult.routes[0].legs;
           const stopsForThisRoute = routeData.optimizedStops;
-          const hasFollowingRoute = AppState.plannedRoutes
-              .slice(routeIdx + 1)
-              .some(r => r && r.directionsResult && r.directionsResult.routes && r.directionsResult.routes.length > 0);
+          // Routes run in parallel, so no route continues into the next one.
+          const hasFollowingRoute = false;
 
           const departureTimeFormatted = formatTime12Hour(currentTime);
           const startStopName = getStopDisplayName(stopsForThisRoute[0]);

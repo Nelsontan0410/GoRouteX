@@ -64,14 +64,13 @@ test('waiting for opening and the lunch break is part of the simulated duration'
   assert.ok(atLunch.endMinutes >= C.toMinutes('13:20'), 'served after the break, 20 minutes of service');
 });
 
-test('later routes start when the previous route ends', () => {
+test('routes run in parallel: every route leaves at the planning start time', () => {
   const late = C.defaultSchedule();
   late.monday = { open: true, windows: [{ start: '09:00', end: '09:30' }], breaks: [] };
   const r1 = stop('r1', near(0.05, 0), C.defaultSchedule(), 60);
   const r2 = stop('r2', near(0.001, 0), late, 15);
   const result = T.applyToPackedRoutes([{ stops: [{ id: 'r1' }] }, { stops: [{ id: 'r2' }] }], { origin: depot, end: depot, startDate: monday9, legs, resolveStop: (s) => ({ r1, r2 })[s.id] });
-  assert.equal(result.remainingViolations.length, 1, 'route 2 starts after route 1 and misses its window');
-  assert.equal(result.remainingViolations[0].routeIndex, 1);
+  assert.equal(result.remainingViolations.length, 0, 'route 2 does not wait for route 1');
 });
 
 test('routes larger than 8 stops are improved with local search', () => {

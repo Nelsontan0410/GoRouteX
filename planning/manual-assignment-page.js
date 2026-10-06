@@ -34,7 +34,9 @@ async function handleGoToManualAssignPage() {
         addSimpleMarkersForMasterList(unassignedStops.concat(getAssignedStopIds())); 
         
         hasShownOptimizationSuggestion = true;
-        messageBarPg2.textContent = ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
+        messageBarPg2.textContent = window._autoPlanManualMode
+            ? 'Automatic planning for today is used up. Drag the stops into routes yourself, then click Confirm Route.'
+            : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
         updateRouteLines();
         updateConfirmRouteButtonState();
     }
@@ -333,7 +335,15 @@ async function handleGoToManualAssignPageLegacy() {
                 return;
             }
         }
-        try {
+        // Every entry into Review & Assign uses one automatic plan (server-counted, including re-entries).
+        // With none left today, the stops are listed unassigned and the planner arranges them by hand.
+        const autoPlan = await startAutoPlanSession();
+        window._autoPlanManualMode = autoPlan.mode === 'manual';
+        if (autoPlan.mode === 'manual') {
+            unassignedStops = Array.from(selectedCustomers);
+            resetManualRouteSlots();
+            openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
+        } else try {
             await generateOptimizedActiveRoutesFromSelection(selectedStops, 8);
             buildManualRouteSlotsFromActiveRoutes(window._activeRoutes);
             if (routeArrangementIsDirectionReturn()) recordDirectionDebug('SUCCESS', 'Direction order applied; opening manual preview');
@@ -349,6 +359,7 @@ async function handleGoToManualAssignPageLegacy() {
                 if (routeArrangementStatus) routeArrangementStatus.textContent = failureMessage;
                 console.error('Direction order failed', error);
                 showToast(failureMessage, 'warning', 10000);
+                await refundAutoPlanSession(autoPlan.sessionId);
                 return;
             }
             console.warn('Global route optimization failed. Falling back to route engine grouping.', error);
@@ -366,6 +377,7 @@ async function handleGoToManualAssignPageLegacy() {
                 console.warn('GoRouteXRouteEngine is not loaded.');
                 unassignedStops = Array.from(selectedCustomers);
                 resetManualRouteSlots();
+                await refundAutoPlanSession(autoPlan.sessionId);
             }
         }
 
@@ -393,7 +405,9 @@ async function handleGoToManualAssignPageLegacy() {
         }
 
         hasShownOptimizationSuggestion = true;
-        messageBarPg2.textContent = ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
+        messageBarPg2.textContent = window._autoPlanManualMode
+            ? 'Automatic planning for today is used up. Drag the stops into routes yourself, then click Confirm Route.'
+            : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
         updateRouteLines();
         updateConfirmRouteButtonState();
     }
