@@ -17,28 +17,16 @@ function hideConfirmRouteModal() {
 function renderConfirmRouteModalState() {
       const planDefinition = getCurrentProductPlanDefinition();
       const routeStatus = getUsageStatus('activeRoutes');
-      const isBasicPlan = getCurrentProductPlan() === 'basic';
-      const remainingAfterConfirm = Number.isFinite(routeStatus.remaining)
-        ? Math.max(routeStatus.remaining - 1, 0)
-        : 0;
-
       if (confirmRoutePlanNameEl) confirmRoutePlanNameEl.textContent = planDefinition?.name || 'Basic';
       if (confirmRouteDailyLimitEl) confirmRouteDailyLimitEl.textContent = Number.isFinite(routeStatus.limit) ? String(routeStatus.limit) : 'Unlimited';
       if (confirmRouteUsedTodayEl) confirmRouteUsedTodayEl.textContent = String(routeStatus.used || 0);
       if (confirmRouteRemainingTodayEl) confirmRouteRemainingTodayEl.textContent = String(routeStatus.remaining || 0);
       if (confirmRouteWarningEl) {
-        confirmRouteWarningEl.textContent = isBasicPlan
-          ? `Basic includes ${routeStatus.limit} route plan per day. Clicking Yes will consume your ${routeStatus.remaining === 1 ? 'only' : 'next'} route plan chance for today. You will have ${remainingAfterConfirm} remaining after save.`
-          : `Clicking Yes will consume one route plan chance for today. You have ${routeStatus.remaining} remaining now and ${remainingAfterConfirm} remaining after save.`;
+        confirmRouteWarningEl.textContent = 'Saving this route does not use your daily automatic planning allowance.';
       }
       if (confirmRouteConfirmBtn) {
-        const quotaFinished = Number.isFinite(routeStatus.limit) && routeStatus.remaining <= 0;
-        confirmRouteConfirmBtn.disabled = !!currentRouteConfirmationState.saving || quotaFinished;
-        confirmRouteConfirmBtn.textContent = currentRouteConfirmationState.saving
-          ? 'Saving...'
-          : quotaFinished
-            ? 'Quota Reached'
-            : 'Yes, Confirm Route';
+        confirmRouteConfirmBtn.disabled = !!currentRouteConfirmationState.saving;
+        confirmRouteConfirmBtn.textContent = currentRouteConfirmationState.saving ? 'Saving...' : 'Yes, Confirm Route';
       }
       if (confirmRouteCancelBtn) {
         confirmRouteCancelBtn.disabled = !!currentRouteConfirmationState.saving;
@@ -112,13 +100,7 @@ function updateConfirmRouteButtonState() {
         return;
       }
 
-      const routeStatus = getUsageStatus('activeRoutes');
-      if (Number.isFinite(routeStatus.limit) && routeStatus.remaining <= 0) {
-        setButtonState('CONFIRM ROUTE', true, 'Daily route confirm quota is finished for the current plan.');
-        return;
-      }
-
-      setButtonState('CONFIRM ROUTE', false, 'Review quota details and confirm before saving this route.');
+      setButtonState('CONFIRM ROUTE', false, 'Review the plan and confirm before saving this route.');
     }
 
 function handleConfirmRouteButtonClick() {
@@ -142,12 +124,6 @@ function handleConfirmRouteButtonClick() {
       if (!validatePlanningDateForSave()) return;
       if (unassignedStops.length > 0 && !confirm('You have unassigned stops. Confirm this route without them?')) return;
 
-      const routeStatus = getUsageStatus('activeRoutes');
-      if (Number.isFinite(routeStatus.limit) && routeStatus.remaining <= 0) {
-        openRouteLimitReachedModal(routeStatus);
-        return;
-      }
-
       currentRouteConfirmationState = {
         saved: false,
         saving: false,
@@ -159,13 +135,6 @@ function handleConfirmRouteButtonClick() {
 
 async function handleConfirmRouteModalConfirm() {
       if (currentRouteConfirmationState.saving) return;
-      const routeStatus = getUsageStatus('activeRoutes');
-      if (Number.isFinite(routeStatus.limit) && routeStatus.remaining <= 0) {
-        hideConfirmRouteModal();
-        openRouteLimitReachedModal(routeStatus);
-        updateConfirmRouteButtonState();
-        return;
-      }
       if (routeArrangementIsDirectionReturn() && directionPlanStale) {
         setManualAssignmentMessage('Re-plan direction order after changing the start or direction settings.');
         return;

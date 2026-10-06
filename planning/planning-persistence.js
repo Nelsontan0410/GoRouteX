@@ -36,26 +36,64 @@ function buildCompactPlannedRoutesSnapshot(routes = AppState.plannedRoutes) {
             }));
     }
 
-let reservedRoutePlanId = null;
+// Daily automatic-planning allowance (server-side, netlify/functions/route-plan-usage.js). One entry into
+// Review & Assign uses one automatic plan; saving does not. When none are left, planning is manual.
+async function callRoutePlanUsage(body) {
+        const idToken = await getCurrentUserIdToken();
+        if (!idToken) return null;
+        const response = await fetch('/.netlify/functions/route-plan-usage', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const payload = await response.json().catch(() => ({}));
+        return { status: response.status, payload };
+    }
 
-// Returns { limitReached, used } from the server, or null when it cannot be reached (the local check
-// already passed, so the save proceeds rather than blocking users during a function outage).
-async function consumeServerRoutePlan(routeId) {
+function newAutoPlanSessionId() {
+        return (window.crypto?.randomUUID?.() || `s${Date.now()}${Math.random().toString(36).slice(2, 10)}`).replace(/[^A-Za-z0-9_-]/g, '');
+    }
+
+// Returns { mode: 'auto' | 'manual', sessionId, used, limit }. If the usage service cannot be reached,
+// the local counter decides, so an outage does not block planning but cannot be used to exceed it.
+async function startAutoPlanSession() {
+        const sessionId = newAutoPlanSessionId();
         try {
-            const idToken = await getCurrentUserIdToken();
-            if (!idToken) return null;
-            const response = await fetch('/.netlify/functions/route-plan-usage', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ routeId: String(routeId) })
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (response.status === 429 && payload.limitReached) return { limitReached: true, used: Number(payload.used) || 0 };
-            if (!response.ok || !payload.success) return null;
-            return { limitReached: false, used: Number(payload.used) || 0 };
+            const result = await callRoutePlanUsage({ action: 'start', sessionId });
+            if (result && result.status === 429 && result.payload.limitReached) {
+                syncRouteUsageFromServer(result.payload.used, result.payload.limit);
+                return { mode: 'manual', sessionId: null, used: Number(result.payload.used) || 0, limit: Number(result.payload.limit) || 0 };
+            }
+            if (result && result.status === 200 && result.payload.success) {
+                syncRouteUsageFromServer(result.payload.used, result.payload.limit);
+                return { mode: 'auto', sessionId, used: Number(result.payload.used) || 0, limit: Number(result.payload.limit) || 0 };
+            }
         } catch (error) {
-            console.warn('Route plan usage check unavailable:', error);
-            return null;
+            console.warn('Automatic planning allowance unavailable:', error);
+        }
+        const status = getUsageStatus('activeRoutes');
+        if (Number.isFinite(status.limit) && status.remaining <= 0) return { mode: 'manual', sessionId: null, used: status.used, limit: status.limit };
+        incrementUsage();
+        return { mode: 'auto', sessionId: null, used: status.used + 1, limit: status.limit };
+    }
+
+// Gives the allowance back when the automatic planner could not produce a plan.
+async function refundAutoPlanSession(sessionId) {
+        if (!sessionId) return;
+        try {
+            const result = await callRoutePlanUsage({ action: 'refund', sessionId });
+            if (result?.payload?.success) syncRouteUsageFromServer(result.payload.used, result.payload.limit, { allowLower: true });
+        } catch (error) {
+            console.warn('Automatic planning refund failed:', error);
+        }
+    }
+
+async function refreshAutoPlanStatus() {
+        try {
+            const result = await callRoutePlanUsage({ action: 'status' });
+            if (result?.payload?.success) syncRouteUsageFromServer(result.payload.used, result.payload.limit, { allowLower: true });
+        } catch (error) {
+            console.warn('Automatic planning status unavailable:', error);
         }
     }
 
@@ -176,13 +214,6 @@ async function saveCurrentRouteToHistory(options = {}) {
             return { success: false, error: 'No successful routes to save' };
         }
 
-        const dailyRouteStatus = getUsageStatus('activeRoutes');
-        const projectedRouteCount = dailyRouteStatus.used + 1;
-        if (Number.isFinite(dailyRouteStatus.limit) && projectedRouteCount > dailyRouteStatus.limit) {
-            openRouteLimitReachedModal(dailyRouteStatus);
-            return { success: false, limitReached: true };
-        }
-
         const authUser = (window.FirebaseApp && window.FirebaseApp.auth && window.FirebaseApp.auth.getCurrentUser)
             ? window.FirebaseApp.auth.getCurrentUser()
             : null;
@@ -289,18 +320,6 @@ async function saveCurrentRouteToHistory(options = {}) {
             user: username
         };
 
-        // The daily route plan count lives on the server so clearing browser storage cannot reset it.
-        const usageRouteId = reservedRoutePlanId || historyEntry.id;
-        const serverUsage = await consumeServerRoutePlan(usageRouteId);
-        if (serverUsage?.limitReached) {
-            syncRouteUsageFromServer(serverUsage.used);
-            openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
-            return { success: false, limitReached: true };
-        }
-        // Reuse the counted ID if this save fails and is retried, so a retry is not charged twice.
-        reservedRoutePlanId = usageRouteId;
-        historyEntry.id = usageRouteId;
-
         const originalHistoryId = String(historyEntry.id);
 
         try {
@@ -325,13 +344,11 @@ async function saveCurrentRouteToHistory(options = {}) {
                 routeHistory = window.RoutePlannerStorage.sortHistoryEntries(routeHistory);
             }
 
-            reservedRoutePlanId = null;
-            if (serverUsage) syncRouteUsageFromServer(serverUsage.used); else incrementUsage();
             appLog("Route saved:", historyEntry.id);
             markCurrentRouteAsSaved(historyEntry.id, 'confirmed');
             if (orderPlan && authUser) window.GoRouteXOrderPlan.clear(authUser.uid);
             if (messageBarOptimizedPg3) {
-                messageBarOptimizedPg3.innerHTML = '<strong>✅ Route confirmed and saved. This consumed 1 route plan chance for today.</strong>';
+                messageBarOptimizedPg3.innerHTML = '<strong>✅ Route confirmed and saved.</strong>';
             }
             renderHistoryDashboard();
             setTimeout(() => {
