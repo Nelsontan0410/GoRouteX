@@ -23,6 +23,10 @@ const window = (value, label) => {
   if (end < start) fail(`${label} ends before it starts.`);
   return [start, end];
 };
+const amount = (value, label) => {
+  if (!Array.isArray(value) || value.length !== 1) fail(`${label} must be one amount.`);
+  return [int(value[0], 0, 1000000, label)];
+};
 const windows = (value, label, max = 10) => {
   if (!Array.isArray(value) || !value.length || value.length > max) fail(`${label} needs 1-${max} time windows.`);
   return value.map((w) => window(w, label));
@@ -45,7 +49,8 @@ export function sanitizePlannerProblem(raw) {
         id,
         location: location(job.location, `Stop ${index + 1}`),
         service: int(job.service, 0, PLANNER_LIMITS.maxServiceSeconds, `Stop ${index + 1} service`),
-        time_windows: windows(job.time_windows, `Stop ${index + 1}`)
+        time_windows: windows(job.time_windows, `Stop ${index + 1}`),
+        ...(job.delivery !== undefined ? { delivery: amount(job.delivery, `Stop ${index + 1} load`) } : {})
       };
     });
     const cleanVehicles = vehicles.map((vehicle, index) => {
@@ -59,6 +64,7 @@ export function sanitizePlannerProblem(raw) {
         costs: { fixed: int(vehicle.costs?.fixed ?? 0, 0, 1000000, `${label} cost`) }
       };
       if (vehicle.end !== undefined) clean.end = location(vehicle.end, `${label} end`);
+      if (vehicle.capacity !== undefined) clean.capacity = amount(vehicle.capacity, `${label} capacity`);
       if (vehicle.breaks !== undefined) {
         if (!Array.isArray(vehicle.breaks) || vehicle.breaks.length > 3) fail(`${label} breaks are invalid.`);
         clean.breaks = vehicle.breaks.map((item, b) => ({
@@ -70,6 +76,43 @@ export function sanitizePlannerProblem(raw) {
       return clean;
     });
     return { ok: true, problem: { jobs: cleanJobs, vehicles: cleanVehicles, options: { g: false } } };
+  } catch (error) {
+    if (error instanceof ProblemError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
+
+/** 2-27 [lng, lat] points inside the service area, in visiting order. */
+export function sanitizeRouteRequest(raw) {
+  try {
+    if (!Array.isArray(raw) || raw.length < 2 || raw.length > 27) fail('Send 2-27 points.');
+    return { ok: true, coordinates: raw.map((p, i) => location(p, `Point ${i + 1}`)) };
+  } catch (error) {
+    if (error instanceof ProblemError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
+
+/** Baseline routes for shadow mode: job IDs that exist in the problem, one array per vehicle. */
+export function sanitizeBaselineRoutes(raw, problem) {
+  const ids = new Set(problem.jobs.map((job) => job.id));
+  if (!Array.isArray(raw) || raw.length > PLANNER_LIMITS.maxVehicles) return null;
+  const routes = raw.map((route) => (Array.isArray(route) ? route.filter((id) => Number.isInteger(id) && ids.has(id)) : []));
+  return routes;
+}
+
+/** Calibration legs: Google-confirmed durations with their endpoints (inside the service area). */
+export function sanitizeCalibrationLegs(raw) {
+  try {
+    if (!Array.isArray(raw) || !raw.length || raw.length > 50) fail('Send 1-50 legs.');
+    return {
+      ok: true,
+      legs: raw.map((leg, i) => ({
+        from: location(leg?.from, `Leg ${i + 1} start`),
+        to: location(leg?.to, `Leg ${i + 1} end`),
+        google: int(leg?.google, 1, 4 * 3600, `Leg ${i + 1} duration`)
+      }))
+    };
   } catch (error) {
     if (error instanceof ProblemError) return { ok: false, error: error.message };
     throw error;

@@ -84,8 +84,33 @@ const MapHandler = (() => {
         if (isReady() && listener) google.maps.event.removeListener(listener);
     }
 
+    // Results from the self-hosted road network (_source: 'osrm') are drawn as a polyline in the
+    // renderer's style; a DirectionsRenderer only draws Google results.
+    function clearOsrmLine(renderer) {
+        if (renderer && renderer.__goroutexOsrmLine) {
+            renderer.__goroutexOsrmLine.setMap(null);
+            renderer.__goroutexOsrmLine = null;
+        }
+    }
+
     function setDirections(renderer, directions) {
-        if (renderer) renderer.setDirections(directions);
+        if (!renderer) return;
+        clearOsrmLine(renderer);
+        if (directions && directions._source === 'osrm') {
+            renderer.setDirections({ routes: [] });
+            const map = typeof renderer.getMap === 'function' ? renderer.getMap() : null;
+            if (!map || !isReady()) return;
+            const style = (typeof renderer.get === 'function' && renderer.get('polylineOptions')) || {};
+            renderer.__goroutexOsrmLine = new google.maps.Polyline({
+                map,
+                path: directions.routes?.[0]?.overview_path || [],
+                strokeColor: style.strokeColor || '#1E90FF',
+                strokeOpacity: style.strokeOpacity ?? 0.9,
+                strokeWeight: style.strokeWeight || 5
+            });
+            return;
+        }
+        renderer.setDirections(directions);
     }
 
     function clearDirections(renderer) {
@@ -93,6 +118,7 @@ const MapHandler = (() => {
     }
 
     function clearRendererMap(renderer) {
+        clearOsrmLine(renderer);
         if (renderer) renderer.setMap(null);
     }
 
@@ -129,6 +155,20 @@ const MapHandler = (() => {
                 return null;
             }
             return Promise.reject('NO_DIRECTIONS_SERVICE');
+        }
+        // Basic and manual mode: self-hosted road network instead of Google (falls back to Google on error).
+        const osrm = typeof window !== 'undefined' ? window.GoRouteXOsrmRouting : null;
+        const points = osrm ? osrm.pointsFor(request) : null;
+        if (points) {
+            const viaOsrm = osrm.route(request, points).catch((error) => {
+                console.warn('Road network route failed, using Google:', error?.code || error);
+                return service.route(request);
+            });
+            if (callback) {
+                viaOsrm.then((result) => callback(result, 'OK'), (error) => callback(null, error?.code || 'ERROR'));
+                return null;
+            }
+            return viaOsrm;
         }
         if (callback) return service.route(request, callback);
         return service.route(request);

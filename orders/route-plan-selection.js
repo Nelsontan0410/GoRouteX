@@ -26,6 +26,35 @@
     return values[0];
   }
 
+  // Per-stop limits from the orders' own time windows and service minutes. Several orders at one stop:
+  // the window is their overlap (latest start, earliest end) and the service time the longest one.
+  const hhmm = value => {
+    const match = String(value || '').trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
+  };
+  function stopConstraints(orders) {
+    const result = {};
+    for (const order of orders) {
+      const id = String(order.savedStopId || '').trim();
+      if (!id) continue;
+      const entry = result[id] || {};
+      const start = hhmm(order.timeWindowStart), end = hhmm(order.timeWindowEnd);
+      if (start && end && start < end) {
+        entry.windowStart = entry.windowStart && entry.windowStart > start ? entry.windowStart : start;
+        entry.windowEnd = entry.windowEnd && entry.windowEnd < end ? entry.windowEnd : end;
+      }
+      // Load per stop for capacity planning: orders at the same stop add up.
+      for (const field of ['weight', 'quantity']) {
+        const value = Number(order[field]);
+        if (Number.isFinite(value) && value > 0) entry[field] = Math.round(((entry[field] || 0) + value) * 1000) / 1000;
+      }
+      const minutes = Number(order.serviceTimeMinutes);
+      if (Number.isInteger(minutes) && minutes > 0 && minutes <= 240) entry.serviceMinutes = Math.max(entry.serviceMinutes || 0, minutes);
+      if (Object.keys(entry).length) result[id] = entry;
+    }
+    return result;
+  }
+
   function prepare(orders, stops, maxStops) {
     if (!Array.isArray(orders) || !orders.length) throw Error('Select at least one order.');
     const unavailable = orders.filter(order => order.status !== 'READY' || order.executionStatus);
@@ -36,12 +65,12 @@
     const stopIds = [...new Set(orders.map(order => String(order.savedStopId || '').trim()))];
     if (stopIds.some(id => !id || !stopById.has(id))) throw Error('A selected order needs a saved delivery stop. Review the order before planning.');
     if (Number.isFinite(maxStops) && stopIds.length > maxStops) throw Error('This plan supports ' + maxStops + ' selected stops. Choose fewer orders or change plan.');
-    return { orderIds, stopIds, planningDateTime: selectedSchedule(orders), selectedAddresses: stopIds.map(id => stopById.get(id).address) };
+    return { orderIds, stopIds, planningDateTime: selectedSchedule(orders), selectedAddresses: stopIds.map(id => stopById.get(id).address), stopConstraints: stopConstraints(orders) };
   }
 
   function save(uid, selection) {
     if (!uid || !selection?.orderIds?.length || !selection?.stopIds?.length) throw Error('Order planning selection is incomplete.');
-    global.sessionStorage.setItem(KEY, JSON.stringify({ uid, orderIds: selection.orderIds, stopIds: selection.stopIds, planningDateTime: selection.planningDateTime, createdAt: Date.now() }));
+    global.sessionStorage.setItem(KEY, JSON.stringify({ uid, orderIds: selection.orderIds, stopIds: selection.stopIds, planningDateTime: selection.planningDateTime, stopConstraints: selection.stopConstraints || {}, createdAt: Date.now() }));
   }
 
   function read(uid) {

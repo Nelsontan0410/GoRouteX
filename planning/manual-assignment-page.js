@@ -339,7 +339,9 @@ async function handleGoToManualAssignPageLegacy() {
         // With none left today, the stops are listed unassigned and the planner arranges them by hand.
         const autoPlan = await startAutoPlanSession();
         window._autoPlanManualMode = autoPlan.mode === 'manual';
+        window._autoPlanRecord = null;
         if (autoPlan.mode === 'manual') {
+            window._autoPlanRecord = { source: 'manual', routes: [], unassigned: Array.from(selectedCustomers), at: new Date().toISOString() };
             unassignedStops = Array.from(selectedCustomers);
             resetManualRouteSlots();
             openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
@@ -350,6 +352,13 @@ async function handleGoToManualAssignPageLegacy() {
             if (routeArrangementIsDirectionReturn()) recordDirectionDebug('SUCCESS', 'Direction order applied; opening manual preview');
             // Customers the planner could not fit stay unassigned for the planner to handle.
             unassignedStops = Array.isArray(window._plannerUnassignedIds) ? [...window._plannerUnassignedIds] : [];
+            // Remember the automatic plan to measure later how much the planner changed it (plan-edits.js).
+            window._autoPlanRecord = {
+                source: window._plannerUsedEngine ? 'plan-engine' : 'google',
+                routes: (window._activeRoutes || []).map((route) => [...(route.stopIds || [])]),
+                unassigned: [...unassignedStops],
+                at: new Date().toISOString()
+            };
         } catch (error) {
             if (routeArrangementIsDirectionReturn()) {
                 messageBarPg2.textContent = `Direction plan was not applied: ${error.message || 'Unable to order these stops.'}`;

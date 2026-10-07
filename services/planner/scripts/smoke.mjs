@@ -26,7 +26,7 @@ const solution = await res.json();
 const ms = Math.round(performance.now() - t0);
 if (solution.code !== 0) { console.log('FAILED', res.status, solution); process.exit(1); }
 const mapped = P.mapSolution(solution, built);
-console.log(`solve ${ms} ms; routes ${mapped.routes.length}; cost ${solution.summary.cost}; unassigned ${mapped.unassigned.map((u) => `${u.id}:${u.reason}`).join(', ') || 'none'}`);
+console.log(`solve ${ms} ms; routes ${mapped.routes.length}; waiting ${Math.round(solution.summary.waiting_time / 60)} min; travel ${Math.round(solution.summary.duration / 60)} min; improved ${solution.improvedBy || 'no'}; unassigned ${mapped.unassigned.map((u) => `${u.id}:${u.reason}`).join(', ') || 'none'}`);
 let violations = 0;
 for (const [i, route] of mapped.routes.entries()) {
   console.log(`Route ${i + 1} (${route.stops.length} stops): ` + route.stops.map((s) => `${s.id}@${s.serviceStart}${s.waitMinutes ? `(wait ${s.waitMinutes})` : ''}`).join(' -> '));

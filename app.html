@@ -1176,6 +1176,7 @@
 <script src="route-time-windows.js"></script>
 <script src="planner-problem.js"></script>
 <script src="planning/plan-engine-client.js"></script>
+<script src="planning/plan-edits.js"></script>
 <script src="route-storage.js"></script>
   <script src="orders/route-planning-preferences.js"></script>
   <script src="orders/master-search.js"></script>
@@ -1507,6 +1508,16 @@
         const entry = typeof getCustomerById === 'function' ? getCustomerById(customerId) : null;
         if (!C) return { schedule: null, scheduleMode: 'default', serviceMinutes: getDefaultStayMinutes(), serviceMode: 'default' };
         const resolved = C.resolveCustomerConstraints(entry, settings);
+        // Orders planned from Order Hub add their own time window and service minutes for this stop.
+        const orderPlan = window.GoRouteXOrderPlan?.read?.(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
+        const fromOrders = orderPlan?.stopConstraints?.[String(customerId)];
+        if (fromOrders) {
+            if (fromOrders.windowStart && fromOrders.windowEnd) {
+                resolved.schedule = C.restrictSchedule(resolved.schedule, fromOrders.windowStart, fromOrders.windowEnd);
+                resolved.orderWindow = `${fromOrders.windowStart}–${fromOrders.windowEnd}`;
+            }
+            if (fromOrders.serviceMinutes) resolved.serviceMinutes = fromOrders.serviceMinutes;
+        }
         return { ...resolved, serviceMinutes: resolved.serviceMinutes || getDefaultStayMinutes() };
     }
     // Default service (stay) minutes for a route visit to this customer; planners can still change one visit.
@@ -8038,8 +8049,10 @@
         // Plan Engine (VRPTW): routes, order and number of routes decided together. Falls back to the
         // Google ordering below when it is off, not applicable (e.g. outside Singapore) or unavailable.
         window._plannerUnassignedIds = [];
+        window._plannerUsedEngine = false;
         const engine = await planWithPlanEngine(safeStops, destinationId, window._autoPlanSessionId);
         if (!engine.fallback) {
+            window._plannerUsedEngine = true;
             window._activeRoutes = assignRouteColors(engine.routes.map((route, index) => ({
                 id: index + 1,
                 index,
@@ -8102,6 +8115,8 @@
         window._testRoutes = window._activeRoutes;
         console.log('OPTIMIZED ROUTES:', window._activeRoutes);
         validatePackedActiveRoutes(window._activeRoutes, maxPerRoute);
+        // Shadow mode: score the Plan Engine against this plan in the background (nothing is shown).
+        if (engine.fallback === 'disabled' && typeof runPlanEngineShadow === 'function') runPlanEngineShadow(safeStops, destinationId, window._autoPlanSessionId, window._activeRoutes);
         return window._activeRoutes;
     }
 

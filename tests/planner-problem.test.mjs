@@ -78,3 +78,14 @@ test('the solution maps back to stop IDs per route, with arrival, service start 
   const withUnassigned = plain(P.mapSolution({ routes: [], unassigned: [{ id: 1 }] }, built));
   assert.equal(withUnassigned.unassigned.find((u) => u.id === 'a').reason, 'no-feasible-route');
 });
+
+test('capacity: one vehicle per active vehicle with a capacity, loads on jobs, clearer unassigned reason', () => {
+  const built = P.buildProblem(input([stop('a', { demand: 120.4 }), stop('bb', { demand: null })], { capacity: { vehicles: [500, 300.9] } }));
+  assert.equal(built.problem.vehicles.length, 2);
+  assert.deepEqual(plain(built.problem.vehicles.map((v) => v.capacity)), [[500], [300]]);
+  assert.deepEqual(plain(built.problem.jobs.map((j) => j.delivery)), [[121], [0]], 'rounded up; unknown load counts as 0');
+  assert.match(P.mapSolution({ routes: [], unassigned: [{ id: 1 }] }, built).unassigned[0].message, /capacity/);
+  const none = P.buildProblem(input([stop('a')]));
+  assert.equal('capacity' in none.problem.vehicles[0], false);
+  assert.equal('delivery' in none.problem.jobs[0], false);
+});

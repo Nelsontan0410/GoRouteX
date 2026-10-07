@@ -52,8 +52,35 @@ function warmPlanEngine() {
         callPlanRoutes({ action: 'warm' }, 6000).catch(() => {});
     }
 
+// Capacity planning (Settings > Vehicles, off by default): active vehicles with a capacity, loaded once.
+let planEngineVehicles = null;
+async function loadCapacityVehicles() {
+        const mode = window.GoRouteXSettings?.getCachedSettings?.()?.capacityPlanning;
+        if (!mode?.enabled) return null;
+        if (planEngineVehicles) return planEngineVehicles;
+        try {
+            const vehicles = await window.GoRouteXSettings?.listVehicles?.();
+            planEngineVehicles = (vehicles || [])
+                .filter((vehicle) => vehicle.active !== false && Number(vehicle.capacity?.value) > 0)
+                .map((vehicle) => Number(vehicle.capacity.value));
+        } catch (error) {
+            console.info('Vehicle capacities unavailable:', error?.message || error);
+            planEngineVehicles = null;
+        }
+        return planEngineVehicles;
+    }
+
+// Load at a stop in the capacity unit: weight (kg) in weight mode, otherwise quantity (pallets/cartons).
+function stopDemand(stopId) {
+        const mode = window.GoRouteXSettings?.getCachedSettings?.()?.capacityPlanning?.mode;
+        const orderPlan = window.GoRouteXOrderPlan?.read?.(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
+        const fromOrders = orderPlan?.stopConstraints?.[String(stopId)];
+        if (!fromOrders) return null;
+        return mode === 'weight' ? (fromOrders.weight ?? null) : (fromOrders.quantity ?? null);
+    }
+
 /** The planner input from the current selection, or { unsupported } when it cannot be used. */
-function buildPlanEngineInput(selectedStops, destinationId) {
+function buildPlanEngineInput(selectedStops, destinationId, capacityVehicles = null) {
         const origin = toLatLngPoint(getLocationInput(currentLocationOrigin));
         const end = destinationId ? toLatLngPoint(getLocationInput(destinationId)) : null;
         const settings = window.GoRouteXSettings?.getCachedSettings?.() || {};
@@ -64,6 +91,7 @@ function buildPlanEngineInput(selectedStops, destinationId) {
             availableDrivers: 0,
             driverRules: settings.drivers || {},
             maxDurationMinutes: settings.routePlanning?.maxDurationMinutes,
+            capacity: Array.isArray(capacityVehicles) && capacityVehicles.length ? { vehicles: capacityVehicles } : null,
             stops: selectedStops.map((stop) => {
                 const id = getPackedRouteStopId(stop);
                 const constraints = getCustomerDeliveryConstraints(id);
@@ -73,7 +101,8 @@ function buildPlanEngineInput(selectedStops, destinationId) {
                     lat: Number.isFinite(lat) ? lat : null,
                     lng: Number.isFinite(lng) ? lng : null,
                     serviceMinutes: constraints.serviceMinutes,
-                    schedule: constraints.schedule
+                    schedule: constraints.schedule,
+                    demand: stopDemand(id)
                 };
             })
         };
@@ -88,7 +117,7 @@ function buildPlanEngineInput(selectedStops, destinationId) {
 async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
         if (!isPlanEngineEnabled()) return { fallback: 'disabled' };
         if (!sessionId) return { fallback: 'no-session' };
-        const prepared = buildPlanEngineInput(selectedStops, destinationId);
+        const prepared = buildPlanEngineInput(selectedStops, destinationId, await loadCapacityVehicles());
         if (prepared.unsupported) return { fallback: prepared.unsupported };
         const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
         if (!built.problem.jobs.length) {
@@ -102,4 +131,127 @@ async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
             routes: mapped.routes.map((route) => ({ stops: route.stopIds.map((id) => byId.get(id)).filter(Boolean), plannedStops: route.stops })),
             unassigned: mapped.unassigned
         };
+    }
+
+// ---- Road routes from the self-hosted network (decision 2: Basic and manual mode use OSRM, no Google) ----
+// MapHandler.route/setDirections call this. A result is shaped like google.maps.DirectionsResult for the
+// fields GoRouteX reads (legs, durations, distances, step paths, overview path) and marked _source: 'osrm';
+// MapHandler draws it as a polyline because a DirectionsRenderer cannot draw a non-Google result.
+
+function osrmRoutingWanted() {
+        if (!isPlanEngineEnabled()) return false;
+        return getCurrentProductPlan() === 'basic' || window._autoPlanManualMode === true;
+    }
+
+function requestPoints(request) {
+        if (!request || request.optimizeWaypoints) return null;
+        const list = [request.origin, ...(request.waypoints || []).map((w) => w?.location), request.destination];
+        const points = list.map(toLatLngPoint);
+        if (points.some((p) => !p) || points.length > 27) return null;
+        return window.GoRouteXPlannerProblem?.inSingapore && points.every((p) => window.GoRouteXPlannerProblem.inSingapore(p)) ? points : null;
+    }
+
+function makeLatLng(lng, lat) {
+        return window.google?.maps?.LatLng ? new google.maps.LatLng(lat, lng) : { lat, lng };
+    }
+
+function formatDistance(meters) {
+        return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+    }
+
+function formatDuration(seconds) {
+        const minutes = Math.max(1, Math.round(seconds / 60));
+        return minutes >= 60 ? `${Math.floor(minutes / 60)} hour ${minutes % 60} mins` : `${minutes} mins`;
+    }
+
+/** Converts the planning service's route into a DirectionsResult-like object. */
+function toDirectionsResult(route, points, request) {
+        const legs = route.legs.map((leg, index) => {
+            const path = (leg.geometry || []).map(([lng, lat]) => makeLatLng(lng, lat));
+            const start = makeLatLng(points[index].lng, points[index].lat);
+            const end = makeLatLng(points[index + 1].lng, points[index + 1].lat);
+            return {
+                distance: { value: Math.round(leg.distance), text: formatDistance(leg.distance) },
+                duration: { value: Math.round(leg.duration), text: formatDuration(leg.duration) },
+                start_location: start,
+                end_location: end,
+                start_address: '',
+                end_address: '',
+                steps: [{ path, start_location: start, end_location: end, distance: { value: Math.round(leg.distance) }, duration: { value: Math.round(leg.duration) } }],
+                via_waypoints: []
+            };
+        });
+        return {
+            _source: 'osrm',
+            status: 'OK',
+            request,
+            geocoded_waypoints: [],
+            routes: [{
+                legs,
+                overview_path: (route.geometry || []).map(([lng, lat]) => makeLatLng(lng, lat)),
+                waypoint_order: (request.waypoints || []).map((_, index) => index),
+                summary: 'GoRouteX road network',
+                warnings: [],
+                copyrights: '© OpenStreetMap contributors'
+            }]
+        };
+    }
+
+window.GoRouteXOsrmRouting = {
+        /** Points to route with OSRM, or null to use Google for this request. */
+        pointsFor(request) {
+            return osrmRoutingWanted() ? requestPoints(request) : null;
+        },
+        async route(request, points) {
+            const result = await callPlanRoutes({ action: 'route', coordinates: points.map((p) => [p.lng, p.lat]) }, 12000);
+            if (!result.ok || !result.payload.route) throw Object.assign(new Error('Road route unavailable'), { code: result.code || 'planner-failed' });
+            return toDirectionsResult(result.payload.route, points, request);
+        }
+    };
+
+// ---- Shadow mode and calibration (phase 6 / phase 5) ----
+// While the Plan Engine is not shown to users, every automatic plan is also solved in the background and
+// scored against the plan actually used; confirmed Google legs are compared with the road network to
+// calibrate travel times. Both are silent: nothing is shown, nothing blocks, failures are ignored, and
+// while the planning service is not configured the server answers 'planner-unavailable' immediately.
+const PLAN_ENGINE_SHADOW = true;
+
+function runPlanEngineShadow(selectedStops, destinationId, sessionId, activeRoutes, unassignedCount = 0) {
+        if (!PLAN_ENGINE_SHADOW || isPlanEngineEnabled() || !sessionId || !window.GoRouteXPlannerProblem) return;
+        try {
+            const prepared = buildPlanEngineInput(selectedStops, destinationId, planEngineVehicles);
+            if (prepared.unsupported) return;
+            const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
+            if (!built.problem.jobs.length) return;
+            const jobIdOf = new Map([...built.jobIds.entries()].map(([jobId, stopId]) => [String(stopId), jobId]));
+            const baselineRoutes = (activeRoutes || []).map((route) => (route.stopIds || []).map((id) => jobIdOf.get(String(id))).filter(Boolean));
+            callPlanRoutes({ action: 'shadow', sessionId, problem: built.problem, baselineRoutes, baselineUnassigned: unassignedCount, baselineSource: 'google' }, 25000).catch(() => {});
+        } catch (error) {
+            console.info('Plan Engine shadow skipped:', error?.message || error);
+        }
+    }
+
+function sendPlanEngineCalibration(plannedRoutes, startDate, planEngineRecord = null) {
+        if (!PLAN_ENGINE_SHADOW || !window.GoRouteXPlannerProblem) return;
+        try {
+            const legs = [];
+            for (const route of plannedRoutes || []) {
+                const result = route?.directionsResult;
+                if (!result || result._source === 'osrm') continue;
+                for (const leg of result.routes?.[0]?.legs || []) {
+                    const from = toLatLngPoint(leg.start_location);
+                    const to = toLatLngPoint(leg.end_location);
+                    const google = Math.round(Number(leg.duration?.value));
+                    if (!from || !to || !(google > 0) || !window.GoRouteXPlannerProblem.inSingapore(from) || !window.GoRouteXPlannerProblem.inSingapore(to)) continue;
+                    legs.push({ from: [from.lng, from.lat], to: [to.lng, to.lat], google });
+                }
+            }
+            if (!legs.length) return;
+            const hour = typeof startDate?.getHours === 'function' ? startDate.getHours() : 9;
+            // Edit counts only (see plan-edits.js), so plan quality can be tracked without customer data.
+            const edits = planEngineRecord?.edits ? { source: planEngineRecord.source, ...planEngineRecord.edits } : null;
+            callPlanRoutes({ action: 'calibrate', hour, legs: legs.slice(0, 50), edits }, 15000).catch(() => {});
+        } catch (error) {
+            console.info('Plan Engine calibration skipped:', error?.message || error);
+        }
     }

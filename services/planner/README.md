@@ -28,7 +28,9 @@ The browser builds the problem (`planner-problem.js`). Netlify then:
 |---|---|---|---|
 | GET | `/health` | none | Wake the instance |
 | POST | `/solve` | `X-Planner-Key` | VROOM problem with `[lng, lat]` locations → VROOM solution |
-| POST | `/route` | `X-Planner-Key` | `{ coordinates }` → road route: distance, duration, legs, GeoJSON line. Reserved for the next phase (manual mode without Google) |
+| POST | `/route` | `X-Planner-Key` | `{ coordinates }` → road route: distance, duration, legs, GeoJSON line. Used for Basic and manual mode instead of Google Directions |
+| POST | `/shadow` | `X-Planner-Key` | Plans in the background and compares with the plan GoRouteX used (metrics only) |
+| POST | `/legs` | `X-Planner-Key` | Network travel times for driven legs, for calibration against Google |
 
 **Environment variables:**
 
@@ -86,6 +88,17 @@ Then plan a route as usual.
 
 **Roll back:** set it back to `false`, or remove `PLANNER_URL`. GoRouteX then uses the existing planner again.
 
+## Shadow data and rollout gate
+
+While `PLAN_ENGINE_ENABLED` is false and `PLANNER_URL` is set, each plan is also solved in the background and only the comparison is stored (`planEngineShadow`). Paid plans also store Google vs network leg times (`planEngineCalibration`). To read them:
+
+```bash
+gcloud auth application-default login   # once
+node scripts/plan-engine-report.mjs --days 30
+```
+
+The report says whether the rollout gate is met (at least 50 comparisons, no worse in at least 95%, total time not longer) and suggests a `DURATION_FACTOR`.
+
 ## Smoke test
 
 `scripts/smoke.mjs` plans 18 real Singapore locations, including morning-only, afternoon-only and closed customers. It checks that every service starts and finishes inside its customer window, and that no route has more than 8 stops.
@@ -107,6 +120,7 @@ OSRM_DATA=… VROOM_BIN=… PLANNER_KEY=test-key PORT=8088 node server.mjs
 
 - **Singapore only.** Plans with a stop outside Singapore use the existing planner.
 - **Driver rules come from company defaults.** Drivers are assigned later, at Dispatch, so per-driver overrides are not used. The driver break can be taken any time between 11:30 and 14:30.
-- **Waiting time is not part of VROOM's objective.** VROOM optimises travel time only. A route can therefore wait a long time for a customer to open, or for a customer's lunch to end, and the driver break may be scheduled separately from that wait. Tune this in shadow mode before rollout.
+- **Waiting time:** VROOM (up to v1.15) optimises travel time only. `improve.mjs` therefore re-optimises its solution with GoRouteX's objective (no violations, then least total route time including waiting, break and service, then travel), takes the driver break during long waits, and keeps VROOM's answer unless the result is strictly better. On the 18-stop smoke test, waiting dropped from 157 to 5 minutes for 30 more minutes of driving. Set `PLANNER_IMPROVE=0` to turn the second pass off.
 - **Car profile.** Lorry restrictions are still checked at confirmation by the existing LTA check.
-- **Order time windows and vehicle capacity are not yet in the problem.**
+- **Order time windows and service minutes** from Order Hub narrow the customer's delivery hours for that plan (overlap of all orders at a stop; longest service time).
+- **Vehicle capacity** is used only when capacity planning is on in Settings. There is then one route per active vehicle that has a capacity, and the orders' weight (weight mode) or quantity (pallet/carton mode) at each stop must fit. Stops without a load count as 0.
