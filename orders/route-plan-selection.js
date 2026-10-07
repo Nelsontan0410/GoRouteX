@@ -43,6 +43,11 @@
         entry.windowStart = entry.windowStart && entry.windowStart > start ? entry.windowStart : start;
         entry.windowEnd = entry.windowEnd && entry.windowEnd < end ? entry.windowEnd : end;
       }
+      // Load per stop for capacity planning: orders at the same stop add up.
+      for (const field of ['weight', 'quantity']) {
+        const value = Number(order[field]);
+        if (Number.isFinite(value) && value > 0) entry[field] = Math.round(((entry[field] || 0) + value) * 1000) / 1000;
+      }
       const minutes = Number(order.serviceTimeMinutes);
       if (Number.isInteger(minutes) && minutes > 0 && minutes <= 240) entry.serviceMinutes = Math.max(entry.serviceMinutes || 0, minutes);
       if (Object.keys(entry).length) result[id] = entry;

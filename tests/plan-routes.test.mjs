@@ -75,3 +75,15 @@ test('plan-routes requires login, an active session and configuration, and times
   assert.match(source, /code: 'planner-unavailable'/);
   assert.match(source, /const SOLVE_TIMEOUT_MS = 15000;/);
 });
+
+test('validation keeps single-dimension capacity and loads', () => {
+  const problem = built();
+  problem.vehicles[0].capacity = [500];
+  problem.jobs[0].delivery = [120];
+  const clean = sanitizePlannerProblem(problem);
+  assert.equal(clean.ok, true, clean.error);
+  assert.deepEqual(clean.problem.vehicles[0].capacity, [500]);
+  assert.deepEqual(clean.problem.jobs[0].delivery, [120]);
+  problem.jobs[0].delivery = [1, 2];
+  assert.match(sanitizePlannerProblem(problem).error, /one amount/);
+});

@@ -69,3 +69,10 @@ test('a given assignment is scored with violations counted instead of rejected',
   assert.equal(sol.violations, 0);
   assert.equal(sol.unassigned, 1);
 });
+
+test('the second pass never overloads a vehicle', () => {
+  const jobs = [{ ...job(1, 1, [[32400, 60000]]), delivery: [60] }, { ...job(2, 2, [[32400, 60000]]), delivery: [60] }];
+  const v = { ...vehicle(1), capacity: [100] };
+  assert.equal(simulateRoute(v, [1, 2], ctxOf(jobs, M(3))), null);
+  assert.ok(simulateRoute(v, [1], ctxOf(jobs, M(3))));
+});

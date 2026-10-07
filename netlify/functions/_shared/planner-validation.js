@@ -23,6 +23,10 @@ const window = (value, label) => {
   if (end < start) fail(`${label} ends before it starts.`);
   return [start, end];
 };
+const amount = (value, label) => {
+  if (!Array.isArray(value) || value.length !== 1) fail(`${label} must be one amount.`);
+  return [int(value[0], 0, 1000000, label)];
+};
 const windows = (value, label, max = 10) => {
   if (!Array.isArray(value) || !value.length || value.length > max) fail(`${label} needs 1-${max} time windows.`);
   return value.map((w) => window(w, label));
@@ -45,7 +49,8 @@ export function sanitizePlannerProblem(raw) {
         id,
         location: location(job.location, `Stop ${index + 1}`),
         service: int(job.service, 0, PLANNER_LIMITS.maxServiceSeconds, `Stop ${index + 1} service`),
-        time_windows: windows(job.time_windows, `Stop ${index + 1}`)
+        time_windows: windows(job.time_windows, `Stop ${index + 1}`),
+        ...(job.delivery !== undefined ? { delivery: amount(job.delivery, `Stop ${index + 1} load`) } : {})
       };
     });
     const cleanVehicles = vehicles.map((vehicle, index) => {
@@ -59,6 +64,7 @@ export function sanitizePlannerProblem(raw) {
         costs: { fixed: int(vehicle.costs?.fixed ?? 0, 0, 1000000, `${label} cost`) }
       };
       if (vehicle.end !== undefined) clean.end = location(vehicle.end, `${label} end`);
+      if (vehicle.capacity !== undefined) clean.capacity = amount(vehicle.capacity, `${label} capacity`);
       if (vehicle.breaks !== undefined) {
         if (!Array.isArray(vehicle.breaks) || vehicle.breaks.length > 3) fail(`${label} breaks are invalid.`);
         clean.breaks = vehicle.breaks.map((item, b) => ({

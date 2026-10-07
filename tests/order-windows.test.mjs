@@ -39,3 +39,21 @@ test('the effective customer rules include the order window and service time (pl
   assert.match(fn, /C\.restrictSchedule\(resolved\.schedule, fromOrders\.windowStart, fromOrders\.windowEnd\)/);
   assert.match(fn, /if \(fromOrders\.serviceMinutes\) resolved\.serviceMinutes = fromOrders\.serviceMinutes;/);
 });
+
+test('Order Hub hand-off adds up weight and quantity per stop for capacity planning', () => {
+  const base = { status: 'READY', deliveryDate: '2026-10-05', deliveryTime: '09:00' };
+  const orders = [
+    { ...base, internalId: 'o1', savedStopId: 's1', weight: 120.5, quantity: 2 },
+    { ...base, internalId: 'o2', savedStopId: 's1', weight: '30', quantity: 0 },
+    { ...base, internalId: 'o3', savedStopId: 's2', weight: -5 }
+  ];
+  const prepared = plain(ctx.GoRouteXOrderPlan.prepare(orders, [{ id: 's1', address: 'A' }, { id: 's2', address: 'B' }], 50));
+  assert.deepEqual(prepared.stopConstraints, { s1: { weight: 150.5, quantity: 2 } });
+});
+
+test('the browser sends vehicle capacities only when capacity planning is on', () => {
+  const client = read('planning/plan-engine-client.js');
+  assert.match(client, /if \(!mode\?\.enabled\) return null;/);
+  assert.match(client, /vehicle\.active !== false && Number\(vehicle\.capacity\?\.value\) > 0/);
+  assert.match(client, /demand: stopDemand\(id\)/);
+});

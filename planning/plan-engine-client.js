@@ -52,8 +52,35 @@ function warmPlanEngine() {
         callPlanRoutes({ action: 'warm' }, 6000).catch(() => {});
     }
 
+// Capacity planning (Settings > Vehicles, off by default): active vehicles with a capacity, loaded once.
+let planEngineVehicles = null;
+async function loadCapacityVehicles() {
+        const mode = window.GoRouteXSettings?.getCachedSettings?.()?.capacityPlanning;
+        if (!mode?.enabled) return null;
+        if (planEngineVehicles) return planEngineVehicles;
+        try {
+            const vehicles = await window.GoRouteXSettings?.listVehicles?.();
+            planEngineVehicles = (vehicles || [])
+                .filter((vehicle) => vehicle.active !== false && Number(vehicle.capacity?.value) > 0)
+                .map((vehicle) => Number(vehicle.capacity.value));
+        } catch (error) {
+            console.info('Vehicle capacities unavailable:', error?.message || error);
+            planEngineVehicles = null;
+        }
+        return planEngineVehicles;
+    }
+
+// Load at a stop in the capacity unit: weight (kg) in weight mode, otherwise quantity (pallets/cartons).
+function stopDemand(stopId) {
+        const mode = window.GoRouteXSettings?.getCachedSettings?.()?.capacityPlanning?.mode;
+        const orderPlan = window.GoRouteXOrderPlan?.read?.(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
+        const fromOrders = orderPlan?.stopConstraints?.[String(stopId)];
+        if (!fromOrders) return null;
+        return mode === 'weight' ? (fromOrders.weight ?? null) : (fromOrders.quantity ?? null);
+    }
+
 /** The planner input from the current selection, or { unsupported } when it cannot be used. */
-function buildPlanEngineInput(selectedStops, destinationId) {
+function buildPlanEngineInput(selectedStops, destinationId, capacityVehicles = null) {
         const origin = toLatLngPoint(getLocationInput(currentLocationOrigin));
         const end = destinationId ? toLatLngPoint(getLocationInput(destinationId)) : null;
         const settings = window.GoRouteXSettings?.getCachedSettings?.() || {};
@@ -64,6 +91,7 @@ function buildPlanEngineInput(selectedStops, destinationId) {
             availableDrivers: 0,
             driverRules: settings.drivers || {},
             maxDurationMinutes: settings.routePlanning?.maxDurationMinutes,
+            capacity: Array.isArray(capacityVehicles) && capacityVehicles.length ? { vehicles: capacityVehicles } : null,
             stops: selectedStops.map((stop) => {
                 const id = getPackedRouteStopId(stop);
                 const constraints = getCustomerDeliveryConstraints(id);
@@ -73,7 +101,8 @@ function buildPlanEngineInput(selectedStops, destinationId) {
                     lat: Number.isFinite(lat) ? lat : null,
                     lng: Number.isFinite(lng) ? lng : null,
                     serviceMinutes: constraints.serviceMinutes,
-                    schedule: constraints.schedule
+                    schedule: constraints.schedule,
+                    demand: stopDemand(id)
                 };
             })
         };
@@ -88,7 +117,7 @@ function buildPlanEngineInput(selectedStops, destinationId) {
 async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
         if (!isPlanEngineEnabled()) return { fallback: 'disabled' };
         if (!sessionId) return { fallback: 'no-session' };
-        const prepared = buildPlanEngineInput(selectedStops, destinationId);
+        const prepared = buildPlanEngineInput(selectedStops, destinationId, await loadCapacityVehicles());
         if (prepared.unsupported) return { fallback: prepared.unsupported };
         const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
         if (!built.problem.jobs.length) {
@@ -190,7 +219,7 @@ const PLAN_ENGINE_SHADOW = true;
 function runPlanEngineShadow(selectedStops, destinationId, sessionId, activeRoutes, unassignedCount = 0) {
         if (!PLAN_ENGINE_SHADOW || isPlanEngineEnabled() || !sessionId || !window.GoRouteXPlannerProblem) return;
         try {
-            const prepared = buildPlanEngineInput(selectedStops, destinationId);
+            const prepared = buildPlanEngineInput(selectedStops, destinationId, planEngineVehicles);
             if (prepared.unsupported) return;
             const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
             if (!built.problem.jobs.length) return;

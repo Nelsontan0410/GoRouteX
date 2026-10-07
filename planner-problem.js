@@ -52,7 +52,14 @@
     return null;
   }
 
+  function capacityVehicles(input) {
+    const list = Array.isArray(input.capacity?.vehicles) ? input.capacity.vehicles.filter((value) => finite(value) && value > 0) : [];
+    return list.slice(0, LIMITS.maxVehicles);
+  }
+
   function vehicleCount(input) {
+    const capacities = capacityVehicles(input);
+    if (capacities.length) return capacities.length;
     const needed = Math.ceil(input.stops.length / MAX_STOPS_PER_ROUTE);
     return Math.min(LIMITS.maxVehicles, Math.max(needed, Number(input.availableDrivers) || 0, 1));
   }
@@ -74,7 +81,9 @@
   /**
    * input: { startDate: Date, origin: {lat,lng}, end: {lat,lng}|null, availableDrivers,
    *          stops: [{ id, lat, lng, serviceMinutes, schedule }],
-   *          driverRules: { workingStart, workingEnd, breakMinutes, maxStops }, maxDurationMinutes, routeFixedCost }
+   *          driverRules: { workingStart, workingEnd, breakMinutes, maxStops }, maxDurationMinutes, routeFixedCost,
+   *          capacity: { vehicles: [capacity, ...] } | null }  (stops may carry `demand` in the same unit)
+   * With capacity, there is one vehicle per active vehicle that has a capacity, and loads must fit.
    * Returns { problem, jobIds: Map<jobId, stopId>, preUnassigned: [{ id, reason, message }] }.
    */
   function buildProblem(input) {
@@ -92,6 +101,7 @@
     const breakFits = breakSec > 0 && breakTo > startSec && breakFrom < endSec;
     const point = (p) => [p.lng, p.lat];
 
+    const capacities = capacityVehicles(input);
     const jobs = [];
     const jobIds = new Map();
     const preUnassigned = [];
@@ -103,7 +113,9 @@
       }
       const jobId = jobs.length + 1;
       jobIds.set(jobId, stop.id);
-      jobs.push({ id: jobId, location: point(stop), service: Math.round(stop.serviceMinutes * 60), time_windows: windows });
+      const job = { id: jobId, location: point(stop), service: Math.round(stop.serviceMinutes * 60), time_windows: windows };
+      if (capacities.length) job.delivery = [Math.ceil(finite(stop.demand) && stop.demand > 0 ? stop.demand : 0)];
+      jobs.push(job);
     });
 
     const vehicles = Array.from({ length: vehicleCount(input) }, (_, index) => ({
@@ -114,10 +126,11 @@
       time_window: [startSec, endSec],
       max_tasks: maxTasks,
       costs: { fixed: Math.max(0, Math.round(Number(input.routeFixedCost) || DEFAULT_ROUTE_FIXED_COST)) },
+      ...(capacities.length ? { capacity: [Math.floor(capacities[index])] } : {}),
       ...(breakFits ? { breaks: [{ id: index + 1, time_windows: [[Math.max(breakFrom, startSec), Math.min(breakTo, endSec)]], service: breakSec }] } : {})
     }));
 
-    return { problem: { jobs, vehicles, options: { g: false } }, jobIds, preUnassigned, day, startSec };
+    return { problem: { jobs, vehicles, options: { g: false } }, jobIds, preUnassigned, day, startSec, capacityUsed: capacities.length > 0 };
   }
 
   const clock = (sec) => C().fromMinutes(Math.floor(sec / 60));
@@ -150,7 +163,9 @@
       .map((job) => ({
         id: built.jobIds.get(job.id),
         reason: 'no-feasible-route',
-        message: 'No route can reach this customer within its delivery hours and the drivers’ working hours.'
+        message: built.capacityUsed
+          ? 'No route can fit this customer within its delivery hours, the drivers’ working hours and the vehicles’ capacity.'
+          : 'No route can reach this customer within its delivery hours and the drivers’ working hours.'
       })));
     return { routes, unassigned };
   }

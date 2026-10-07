@@ -30,6 +30,10 @@ export function simulateRoute(vehicle, jobIds, ctx) {
   const breakTo = brk ? brk.time_windows[0][1] : 0;
   const breakLen = brk ? brk.service : 0;
   let breakDone = !brk;
+  if (Array.isArray(vehicle.capacity)) {
+    const load = jobIds.reduce((sum, id) => sum + (ctx.jobs.get(id)?.delivery?.[0] || 0), 0);
+    if (load > vehicle.capacity[0]) return null;
+  }
   let clock = shiftStart;
   let pos = vehicle.start_index;
   let travel = 0;
