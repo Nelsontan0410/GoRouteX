@@ -11,7 +11,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
 import OSRMModule from '@project-osrm/osrm';
-import { improveSolution } from './improve.mjs';
+import { improveSolution, evaluateAssignment, evaluateSolution } from './improve.mjs';
 
 const OSRM = OSRMModule.default || OSRMModule;
 const KEY = process.env.PLANNER_KEY || '';
@@ -109,6 +109,24 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') return send(res, 200, { ok: true });
     if (!authorized(req)) return send(res, 401, { error: 'Unauthorized' });
     if (req.method === 'POST' && req.url === '/solve') return send(res, 200, await solve(await readBody(req)));
+    if (req.method === 'POST' && req.url === '/shadow') {
+      // Shadow mode: solve, and score the plan GoRouteX actually used, on the same matrix and rules.
+      const body = await readBody(req);
+      const input = await withMatrix(body.problem);
+      const solution = improveSolution(input, await runVroom(input));
+      return send(res, 200, { engine: evaluateSolution(input, solution), baseline: { ...evaluateAssignment(input, body.baselineRoutes || []), unassigned: body.baselineUnassigned || 0 } });
+    }
+    if (req.method === 'POST' && req.url === '/legs') {
+      // Calibration: road-network durations for [[from], [to]] pairs (seconds, before DURATION_FACTOR).
+      const body = await readBody(req);
+      const pairs = Array.isArray(body.pairs) ? body.pairs.slice(0, 50) : [];
+      const durations = [];
+      for (const [from, to] of pairs) {
+        const table = await osrmCall('table', { coordinates: [from, to], sources: [0], destinations: [1], annotations: ['duration'] });
+        durations.push(table.durations[0][0]);
+      }
+      return send(res, 200, { durations });
+    }
     if (req.method === 'POST' && req.url === '/route') {
       const body = await readBody(req);
       const coordinates = Array.isArray(body.coordinates) ? body.coordinates : [];

@@ -54,3 +54,18 @@ test('an infeasible or failed baseline is returned unchanged', () => {
   const failed = { code: 2, error: 'x' };
   assert.equal(improveSolution(problem, failed), failed);
 });
+
+test('a given assignment is scored with violations counted instead of rejected', async () => {
+  const { evaluateAssignment, evaluateSolution } = await import('../services/planner/improve.mjs');
+  const jobs = [job(1, 1, [[32400, 33000]]), job(2, 2, [[50400, 60000]])];
+  const problem = { jobs, vehicles: [vehicle(1)], matrices: { car: { durations: M(3) } } };
+  const late = evaluateAssignment(problem, [[2, 1]]); // job 1 reached far too late
+  assert.equal(late.violations, 1);
+  assert.equal(late.stops, 2);
+  assert.ok(late.waiting > 0);
+  const good = evaluateAssignment(problem, [[1, 2]]);
+  assert.equal(good.violations, 0);
+  const sol = evaluateSolution(problem, { routes: [{ vehicle: 1, steps: [{ type: 'job', id: 1 }, { type: 'job', id: 2 }] }], unassigned: [{ id: 9 }] });
+  assert.equal(sol.violations, 0);
+  assert.equal(sol.unassigned, 1);
+});

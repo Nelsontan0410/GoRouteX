@@ -86,3 +86,29 @@ export function sanitizeRouteRequest(raw) {
     throw error;
   }
 }
+
+/** Baseline routes for shadow mode: job IDs that exist in the problem, one array per vehicle. */
+export function sanitizeBaselineRoutes(raw, problem) {
+  const ids = new Set(problem.jobs.map((job) => job.id));
+  if (!Array.isArray(raw) || raw.length > PLANNER_LIMITS.maxVehicles) return null;
+  const routes = raw.map((route) => (Array.isArray(route) ? route.filter((id) => Number.isInteger(id) && ids.has(id)) : []));
+  return routes;
+}
+
+/** Calibration legs: Google-confirmed durations with their endpoints (inside the service area). */
+export function sanitizeCalibrationLegs(raw) {
+  try {
+    if (!Array.isArray(raw) || !raw.length || raw.length > 50) fail('Send 1-50 legs.');
+    return {
+      ok: true,
+      legs: raw.map((leg, i) => ({
+        from: location(leg?.from, `Leg ${i + 1} start`),
+        to: location(leg?.to, `Leg ${i + 1} end`),
+        google: int(leg?.google, 1, 4 * 3600, `Leg ${i + 1} duration`)
+      }))
+    };
+  } catch (error) {
+    if (error instanceof ProblemError) return { ok: false, error: error.message };
+    throw error;
+  }
+}

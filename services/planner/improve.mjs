@@ -173,3 +173,46 @@ export function improveSolution(problem, solution, { timeBudgetMs = 1500 } = {})
     improvedBy: 'goroutex'
   };
 }
+
+/**
+ * Scores a given assignment (e.g. the plan GoRouteX would have used without the Plan Engine) on the same
+ * matrix and rules, counting violations instead of rejecting: a late stop is served on arrival.
+ * routes: [[jobId, ...], ...] in vehicle order. Returns totals in seconds plus violation and stop counts.
+ */
+export function evaluateAssignment(problem, routes) {
+  const d = problem.matrices.car.durations;
+  const jobs = new Map(problem.jobs.map((job) => [job.id, job]));
+  const totals = { routes: 0, stops: 0, travel: 0, waiting: 0, duration: 0, violations: 0, overShift: 0 };
+  (routes || []).forEach((jobIds, index) => {
+    const vehicle = problem.vehicles[index] || problem.vehicles[problem.vehicles.length - 1];
+    const ids = (jobIds || []).filter((id) => jobs.has(id));
+    if (!ids.length) return;
+    totals.routes++;
+    let clock = vehicle.time_window[0];
+    let pos = vehicle.start_index;
+    for (const id of ids) {
+      const job = jobs.get(id);
+      const leg = d[pos][job.location_index];
+      totals.travel += leg;
+      clock += leg;
+      const window = job.time_windows.find(([, end]) => end >= clock);
+      if (!window) totals.violations++;
+      const start = window ? Math.max(clock, window[0]) : clock;
+      totals.waiting += start - clock;
+      clock = start + job.service;
+      pos = job.location_index;
+      totals.stops++;
+    }
+    if (vehicle.end_index !== undefined) { totals.travel += d[pos][vehicle.end_index]; clock += d[pos][vehicle.end_index]; }
+    if (clock > vehicle.time_window[1]) totals.overShift++;
+    totals.duration += clock - vehicle.time_window[0];
+  });
+  return totals;
+}
+
+/** The same totals for a planning-service solution. */
+export function evaluateSolution(problem, solution) {
+  const routes = (solution?.routes || []).slice().sort((a, b) => a.vehicle - b.vehicle)
+    .map((route) => route.steps.filter((s) => s.type === 'job').map((s) => s.id));
+  return { ...evaluateAssignment(problem, routes), unassigned: (solution?.unassigned || []).length };
+}

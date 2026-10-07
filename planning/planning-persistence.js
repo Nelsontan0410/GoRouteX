@@ -357,6 +357,7 @@ async function saveCurrentRouteToHistory(options = {}) {
             }
 
             appLog("Route saved:", historyEntry.id);
+            if (typeof sendPlanEngineCalibration === 'function') sendPlanEngineCalibration(AppState.plannedRoutes, getRouteStartDateTime(), historyEntry.planEngine);
             markCurrentRouteAsSaved(historyEntry.id, 'confirmed');
             if (orderPlan && authUser) window.GoRouteXOrderPlan.clear(authUser.uid);
             if (messageBarOptimizedPg3) {

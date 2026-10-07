@@ -179,3 +179,50 @@ window.GoRouteXOsrmRouting = {
             return toDirectionsResult(result.payload.route, points, request);
         }
     };
+
+// ---- Shadow mode and calibration (phase 6 / phase 5) ----
+// While the Plan Engine is not shown to users, every automatic plan is also solved in the background and
+// scored against the plan actually used; confirmed Google legs are compared with the road network to
+// calibrate travel times. Both are silent: nothing is shown, nothing blocks, failures are ignored, and
+// while the planning service is not configured the server answers 'planner-unavailable' immediately.
+const PLAN_ENGINE_SHADOW = true;
+
+function runPlanEngineShadow(selectedStops, destinationId, sessionId, activeRoutes, unassignedCount = 0) {
+        if (!PLAN_ENGINE_SHADOW || isPlanEngineEnabled() || !sessionId || !window.GoRouteXPlannerProblem) return;
+        try {
+            const prepared = buildPlanEngineInput(selectedStops, destinationId);
+            if (prepared.unsupported) return;
+            const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
+            if (!built.problem.jobs.length) return;
+            const jobIdOf = new Map([...built.jobIds.entries()].map(([jobId, stopId]) => [String(stopId), jobId]));
+            const baselineRoutes = (activeRoutes || []).map((route) => (route.stopIds || []).map((id) => jobIdOf.get(String(id))).filter(Boolean));
+            callPlanRoutes({ action: 'shadow', sessionId, problem: built.problem, baselineRoutes, baselineUnassigned: unassignedCount, baselineSource: 'google' }, 25000).catch(() => {});
+        } catch (error) {
+            console.info('Plan Engine shadow skipped:', error?.message || error);
+        }
+    }
+
+function sendPlanEngineCalibration(plannedRoutes, startDate, planEngineRecord = null) {
+        if (!PLAN_ENGINE_SHADOW || !window.GoRouteXPlannerProblem) return;
+        try {
+            const legs = [];
+            for (const route of plannedRoutes || []) {
+                const result = route?.directionsResult;
+                if (!result || result._source === 'osrm') continue;
+                for (const leg of result.routes?.[0]?.legs || []) {
+                    const from = toLatLngPoint(leg.start_location);
+                    const to = toLatLngPoint(leg.end_location);
+                    const google = Math.round(Number(leg.duration?.value));
+                    if (!from || !to || !(google > 0) || !window.GoRouteXPlannerProblem.inSingapore(from) || !window.GoRouteXPlannerProblem.inSingapore(to)) continue;
+                    legs.push({ from: [from.lng, from.lat], to: [to.lng, to.lat], google });
+                }
+            }
+            if (!legs.length) return;
+            const hour = typeof startDate?.getHours === 'function' ? startDate.getHours() : 9;
+            // Edit counts only (see plan-edits.js), so plan quality can be tracked without customer data.
+            const edits = planEngineRecord?.edits ? { source: planEngineRecord.source, ...planEngineRecord.edits } : null;
+            callPlanRoutes({ action: 'calibrate', hour, legs: legs.slice(0, 50), edits }, 15000).catch(() => {});
+        } catch (error) {
+            console.info('Plan Engine calibration skipped:', error?.message || error);
+        }
+    }

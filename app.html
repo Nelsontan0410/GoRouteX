@@ -8105,6 +8105,8 @@
         window._testRoutes = window._activeRoutes;
         console.log('OPTIMIZED ROUTES:', window._activeRoutes);
         validatePackedActiveRoutes(window._activeRoutes, maxPerRoute);
+        // Shadow mode: score the Plan Engine against this plan in the background (nothing is shown).
+        if (engine.fallback === 'disabled' && typeof runPlanEngineShadow === 'function') runPlanEngineShadow(safeStops, destinationId, window._autoPlanSessionId, window._activeRoutes);
         return window._activeRoutes;
     }
 
