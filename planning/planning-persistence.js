@@ -97,6 +97,17 @@ async function refreshAutoPlanStatus() {
         }
     }
 
+// Automatic plan vs what the planner saved (feeds Plan Engine quality measurement).
+function buildPlanEngineRecord(plannedRoutes) {
+        const record = window._autoPlanRecord;
+        if (!record) return null;
+        const finalRoutes = (Array.isArray(plannedRoutes) ? plannedRoutes : [])
+            .filter(Boolean)
+            .map((route) => (Array.isArray(route.customerStops) ? route.customerStops : []).map((stop) => String(stop?.id || stop?.uniqueId || '')).filter(Boolean));
+        const edits = window.GoRouteXPlanEdits ? window.GoRouteXPlanEdits.comparePlans(record.routes, finalRoutes) : null;
+        return { source: record.source, plannedAt: record.at, automaticRoutes: record.routes, unassignedByPlanner: record.unassigned, edits };
+    }
+
 // Selection saves are serialized so an older full-overwrite write can never land after a newer one.
 let selectionSaveInFlight = false;
 let selectionSavePending = false;
@@ -317,6 +328,7 @@ async function saveCurrentRouteToHistory(options = {}) {
             // Delivery-window outcome at planning time; per-stop rules are snapshotted in detailedStopTimes.
             timeWindowViolationCount: (AppState.timeWindowViolations || []).length,
             timeWindowOverride: AppState.timeWindowOverride || null,
+            planEngine: buildPlanEngineRecord(driverPlannedRoutes),
             user: username
         };
 

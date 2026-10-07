@@ -1176,6 +1176,7 @@
 <script src="route-time-windows.js"></script>
 <script src="planner-problem.js"></script>
 <script src="planning/plan-engine-client.js"></script>
+<script src="planning/plan-edits.js"></script>
 <script src="route-storage.js"></script>
   <script src="orders/route-planning-preferences.js"></script>
   <script src="orders/master-search.js"></script>
@@ -8038,8 +8039,10 @@
         // Plan Engine (VRPTW): routes, order and number of routes decided together. Falls back to the
         // Google ordering below when it is off, not applicable (e.g. outside Singapore) or unavailable.
         window._plannerUnassignedIds = [];
+        window._plannerUsedEngine = false;
         const engine = await planWithPlanEngine(safeStops, destinationId, window._autoPlanSessionId);
         if (!engine.fallback) {
+            window._plannerUsedEngine = true;
             window._activeRoutes = assignRouteColors(engine.routes.map((route, index) => ({
                 id: index + 1,
                 index,

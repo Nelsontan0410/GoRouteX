@@ -87,7 +87,7 @@ test('the client starts a session before automatic planning, and saving no longe
   const entry = read('planning/manual-assignment-page.js');
   const flow = entry.slice(entry.indexOf('async function handleGoToManualAssignPageLegacy('));
   assert.ok(flow.indexOf('await startAutoPlanSession()') < flow.indexOf('await generateOptimizedActiveRoutesFromSelection('));
-  assert.match(flow, /if \(autoPlan\.mode === 'manual'\) \{\s*unassignedStops = Array\.from\(selectedCustomers\);\s*resetManualRouteSlots\(\);/);
+  assert.match(flow, /if \(autoPlan\.mode === 'manual'\) \{[^}]*\};\s*unassignedStops = Array\.from\(selectedCustomers\);\s*resetManualRouteSlots\(\);/);
   assert.match(flow, /await refundAutoPlanSession\(autoPlan\.sessionId\);/);
   assert.doesNotMatch(persistence, /consumeServerRoutePlan|reservedRoutePlanId|projectedRouteCount/);
   const finalization = read('planning/route-finalization.js');
