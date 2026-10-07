@@ -11,6 +11,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
 import OSRMModule from '@project-osrm/osrm';
+import { improveSolution } from './improve.mjs';
 
 const OSRM = OSRMModule.default || OSRMModule;
 const KEY = process.env.PLANNER_KEY || '';
@@ -96,7 +97,11 @@ export function runVroom(input, seconds = SOLVE_SECONDS) {
 }
 
 export async function solve(problem) {
-  return runVroom(await withMatrix(problem));
+  const input = await withMatrix(problem);
+  const solution = await runVroom(input);
+  // VROOM does not count waiting time; re-optimise with GoRouteX's objective (see improve.mjs).
+  if (process.env.PLANNER_IMPROVE === '0') return solution;
+  return improveSolution(input, solution);
 }
 
 const server = http.createServer(async (req, res) => {

@@ -107,6 +107,6 @@ OSRM_DATA=… VROOM_BIN=… PLANNER_KEY=test-key PORT=8088 node server.mjs
 
 - **Singapore only.** Plans with a stop outside Singapore use the existing planner.
 - **Driver rules come from company defaults.** Drivers are assigned later, at Dispatch, so per-driver overrides are not used. The driver break can be taken any time between 11:30 and 14:30.
-- **Waiting time is not part of VROOM's objective.** VROOM optimises travel time only. A route can therefore wait a long time for a customer to open, or for a customer's lunch to end, and the driver break may be scheduled separately from that wait. Tune this in shadow mode before rollout.
+- **Waiting time:** VROOM (up to v1.15) optimises travel time only. `improve.mjs` therefore re-optimises its solution with GoRouteX's objective (no violations, then least total route time including waiting, break and service, then travel), takes the driver break during long waits, and keeps VROOM's answer unless the result is strictly better. On the 18-stop smoke test, waiting dropped from 157 to 5 minutes for 30 more minutes of driving. Set `PLANNER_IMPROVE=0` to turn the second pass off.
 - **Car profile.** Lorry restrictions are still checked at confirmation by the existing LTA check.
 - **Order time windows and vehicle capacity are not yet in the problem.**
