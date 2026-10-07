@@ -5,6 +5,49 @@ const state = { user: null, settings: null, baseline: '', loaded: false, saving:
 const sections = ['company', 'drivers', 'vehicles', 'routePlanning', 'orders', 'driverApp'];
 function notice(message, error = false) { const el = $('settingsNotice'); el.textContent = message; el.classList.toggle('is-error', error); }
 function status(message, kind = '') { const el = $('saveStatus'); el.textContent = message; el.className = kind; }
+// Planned vs actual (netlify/functions/plan-insights.js); loaded once per visit to the section.
+let planInsightsLoaded = false;
+async function loadPlanInsights() {
+  const box = $('planInsights');
+  if (!box || planInsightsLoaded || !state.user) return;
+  planInsightsLoaded = true;
+  box.replaceChildren(Object.assign(document.createElement('p'), { textContent: 'Loading planned vs actual…' }));
+  try {
+    const token = await state.user.getIdToken();
+    const response = await fetch('/.netlify/functions/plan-insights', { headers: { Authorization: `Bearer ${token}` } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) throw new Error(payload.error || 'unavailable');
+    renderPlanInsights(box, payload.insights);
+  } catch (error) {
+    planInsightsLoaded = false;
+    box.replaceChildren(Object.assign(document.createElement('p'), { textContent: `Planned vs actual is unavailable: ${error.message}` }));
+  }
+}
+function renderPlanInsights(box, r) {
+  const line = (text) => Object.assign(document.createElement('p'), { textContent: text });
+  const parts = [];
+  if (!r.completedStops) {
+    box.replaceChildren(line('No completed deliveries yet. Figures appear after drivers complete dispatched routes.'));
+    return;
+  }
+  parts.push(Object.assign(document.createElement('strong'), { textContent: `${r.completedStops} completed stops on ${r.routes} routes` }));
+  if (r.eta.samples) parts.push(line(`Arrival vs plan: typically ${r.eta.p50AbsMinutes} min off (90% within ${r.eta.p90AbsMinutes} min); ${r.eta.within15MinutesShare}% within 15 min. Median ${r.eta.medianErrorMinutes > 0 ? 'late' : 'early'} by ${Math.abs(r.eta.medianErrorMinutes)} min.`));
+  if (r.service.samples) parts.push(line(`Actual time at a customer: median ${r.service.medianMinutes} min (80% within ${r.service.p80Minutes} min). Default Service Time is ${r.service.defaultMinutes} min.`));
+  if (r.service.suggestedDefaultMinutes) {
+    const button = Object.assign(document.createElement('button'), { type: 'button', className: 'secondary', textContent: `Use ${r.service.suggestedDefaultMinutes} min as Default Service Time` });
+    button.addEventListener('click', () => { $('serviceMinutes').value = r.service.suggestedDefaultMinutes; updateSave(); $('serviceMinutes').focus(); });
+    parts.push(button);
+  }
+  if (r.customerSuggestions.length) {
+    parts.push(line(`Customers whose actual time differs from the default by 5 min or more (at least ${r.minimumVisitsForSuggestion} visits). Set a custom service time for them in Customer Workspace:`));
+    const list = document.createElement('ul');
+    for (const c of r.customerSuggestions) list.append(Object.assign(document.createElement('li'), { textContent: `${c.name}: about ${c.suggestedServiceMinutes} min (${c.visits} visits)` }));
+    parts.push(list);
+    parts.push(Object.assign(document.createElement('a'), { className: 'text-link', href: 'app.html#customer-workspace', textContent: 'Open Customer Workspace →' }));
+  }
+  box.replaceChildren(...parts);
+}
+
 function go(section) {
   if (section === 'planning' || section === 'route-planning') section = 'routePlanning';
   if (section === 'capacity') section = 'vehicles';
@@ -12,6 +55,7 @@ function go(section) {
   for (const name of sections) $('section-' + name).hidden = name !== section;
   for (const button of $('settingsNav').querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.section === section ? 'page' : 'false');
   history.replaceState(null, '', '#' + section);
+  if (section === 'routePlanning') loadPlanInsights();
 }
 function setValue(id, value) { $(id).value = value ?? ''; }
 function setChecked(id, value) { $(id).checked = value === true; }
@@ -244,6 +288,7 @@ else window.FirebaseApp.auth.onAuthStateChange(async user => {
     const identity = await window.GoRouteXAccountContext.loadIdentity(user);
     if (generation !== state.accountGeneration || window.FirebaseApp.auth.getCurrentUser()?.uid !== identity.uid) return;
     state.user = user;
+    if (location.hash === '#routePlanning') loadPlanInsights();
     let planLabel = 'Plan unavailable';
     try { planLabel = window.GoRouteXAccountContext.resolvePlan(identity).planLabel; }
     catch (error) { console.warn('SETTINGS_PLAN_UNAVAILABLE', { code: String(error?.code || 'unknown').slice(0, 60) }); }
