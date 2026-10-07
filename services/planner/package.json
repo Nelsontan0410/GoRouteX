@@ -1,0 +1,9 @@
+{
+  "name": "goroutex-planner",
+  "private": true,
+  "type": "module",
+  "main": "server.mjs",
+  "dependencies": {
+    "@project-osrm/osrm": "26.10.0"
+  }
+}

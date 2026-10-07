@@ -1,0 +1,33 @@
+# Build the planning image and deploy it to Cloud Run (Singapore), scaled to zero.
+# Run from services/planner:  gcloud builds submit --config cloudbuild.yaml .
+# Re-run monthly to refresh the Singapore road network.
+substitutions:
+  _REGION: asia-southeast1
+  _SERVICE: goroutex-planner
+  _REPO: goroutex
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${BUILD_ID}'
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${BUILD_ID}', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${BUILD_ID}']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${BUILD_ID}
+      - --region=${_REGION}
+      - --cpu=1
+      - --memory=512Mi
+      - --min-instances=0
+      - --max-instances=3
+      - --concurrency=4
+      - --timeout=30s
+      - --allow-unauthenticated
+      - --set-secrets=PLANNER_KEY=planner-key:latest
+options:
+  machineType: E2_HIGHCPU_8
+timeout: 1800s

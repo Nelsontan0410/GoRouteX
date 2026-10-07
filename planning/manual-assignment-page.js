@@ -344,10 +344,12 @@ async function handleGoToManualAssignPageLegacy() {
             resetManualRouteSlots();
             openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
         } else try {
+            window._autoPlanSessionId = autoPlan.sessionId;
             await generateOptimizedActiveRoutesFromSelection(selectedStops, 8);
             buildManualRouteSlotsFromActiveRoutes(window._activeRoutes);
             if (routeArrangementIsDirectionReturn()) recordDirectionDebug('SUCCESS', 'Direction order applied; opening manual preview');
-            unassignedStops = [];
+            // Customers the planner could not fit stay unassigned for the planner to handle.
+            unassignedStops = Array.isArray(window._plannerUnassignedIds) ? [...window._plannerUnassignedIds] : [];
         } catch (error) {
             if (routeArrangementIsDirectionReturn()) {
                 messageBarPg2.textContent = `Direction plan was not applied: ${error.message || 'Unable to order these stops.'}`;

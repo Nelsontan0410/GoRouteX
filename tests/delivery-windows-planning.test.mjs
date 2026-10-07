@@ -132,7 +132,7 @@ test('the confirm flow checks windows after ETA and before saving, and saves the
 });
 
 test('Google-optimised routes pass through the delivery-window ordering before assignment', () => {
-  const generator = app.slice(app.indexOf('async function generateOptimizedActiveRoutesFromSelection('), app.indexOf('window._testRoutes = window._activeRoutes;', app.indexOf('async function generateOptimizedActiveRoutesFromSelection(')));
+  const generator = app.slice(app.indexOf('async function generateOptimizedActiveRoutesFromSelection('), app.indexOf('validatePackedActiveRoutes(window._activeRoutes, maxPerRoute);', app.indexOf('async function generateOptimizedActiveRoutesFromSelection(')));
   assert.ok(generator.indexOf('splitOptimizedStopsIntoPackedRoutes(optimizedStops') < generator.indexOf('packedRoutes = applyDeliveryWindowsToPackedRoutes(packedRoutes, result);'));
   const order = ['delivery-constraints.js', 'delivery-schedule-editor.js', 'customer-constraints-form.js', 'route-time-windows.js'].map((f) => app.indexOf(`<script src="${f}"></script>`));
   assert.ok(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1])), 'scripts load in dependency order');

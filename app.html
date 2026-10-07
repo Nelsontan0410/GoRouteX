@@ -1174,6 +1174,8 @@
 <script src="delivery-schedule-editor.js"></script>
 <script src="customer-constraints-form.js"></script>
 <script src="route-time-windows.js"></script>
+<script src="planner-problem.js"></script>
+<script src="planning/plan-engine-client.js"></script>
 <script src="route-storage.js"></script>
   <script src="orders/route-planning-preferences.js"></script>
   <script src="orders/master-search.js"></script>
@@ -4965,6 +4967,7 @@
         renderPricingAccessUi();
       } else if (pageId === 'page-select-stops') {
         refreshAutoPlanStatus();
+        warmPlanEngine();
         const orderPlan = window.GoRouteXOrderPlan?.read(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
         const orderPlanNotice = document.getElementById('orderPlanNotice');
         if (orderPlanNotice && !orderPlan) orderPlanNotice.hidden = true;
@@ -8030,6 +8033,35 @@
         const destinationId = getCurrentConfiguredEndLocationId();
         if (!destinationId) {
             throw new Error('End location is required before route optimization.');
+        }
+
+        // Plan Engine (VRPTW): routes, order and number of routes decided together. Falls back to the
+        // Google ordering below when it is off, not applicable (e.g. outside Singapore) or unavailable.
+        window._plannerUnassignedIds = [];
+        const engine = await planWithPlanEngine(safeStops, destinationId, window._autoPlanSessionId);
+        if (!engine.fallback) {
+            window._activeRoutes = assignRouteColors(engine.routes.map((route, index) => ({
+                id: index + 1,
+                index,
+                label: `Route ${index + 1}`,
+                stops: [...route.stops],
+                stopIds: route.stops.map((stop) => getPackedRouteStopId(stop)).filter(Boolean),
+                maxStops: maxPerRoute,
+                plannedStops: route.plannedStops,
+                color: getRouteColor(index)
+            })));
+            window._testRoutes = window._activeRoutes;
+            window._plannerUnassignedIds = engine.unassigned.map((item) => item.id);
+            const names = engine.unassigned.map((item) => `${getCustomerById(item.id)?.Name || item.id} (${item.message})`);
+            window._timeWindowPlanningNotice = names.length
+                ? `${names.length} stop(s) could not be placed and are left unassigned: ${names.join('; ')}`
+                : '';
+            return window._activeRoutes;
+        }
+        if (engine.fallback !== 'disabled') console.info('Plan Engine not used:', engine.fallback);
+        // Basic must not fall back to paid Google optimisation when the planner service fails.
+        if (getCurrentProductPlan() === 'basic' && ['planner-failed', 'planner-unavailable', 'planner-timeout', 'timeout', 'network'].includes(engine.fallback)) {
+            throw new Error('Plan Engine unavailable');
         }
 
         const origin = getLocationInput(currentLocationOrigin);
