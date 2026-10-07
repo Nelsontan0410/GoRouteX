@@ -93,7 +93,8 @@ Then plan a route as usual.
 While `PLAN_ENGINE_ENABLED` is false and `PLANNER_URL` is set, each plan is also solved in the background and only the comparison is stored (`planEngineShadow`). Paid plans also store Google vs network leg times (`planEngineCalibration`). To read them:
 
 ```bash
-node scripts/plan-engine-report.mjs   # needs Firebase Admin credentials in the environment
+gcloud auth application-default login   # once
+node scripts/plan-engine-report.mjs --days 30
 ```
 
 The report says whether the rollout gate is met (at least 50 comparisons, no worse in at least 95%, total time not longer) and suggests a `DURATION_FACTOR`.
