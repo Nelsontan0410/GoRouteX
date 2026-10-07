@@ -77,3 +77,10 @@ export async function refundRoutePlan(db, uid, profile, sessionId, now = new Dat
     return result(true, used);
   });
 }
+
+// True when this Review & Assign session used an automatic plan today and was not refunded. The planner
+// only runs for such sessions, so the daily allowance cannot be bypassed by calling it directly.
+export async function isActiveSession(db, uid, sessionId, now = new Date()) {
+  const usage = readUsage(await usageRef(db, uid, now).get());
+  return usage.sessions.includes(sessionId) && !usage.refunded.includes(sessionId);
+}
