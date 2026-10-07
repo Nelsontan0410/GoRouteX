@@ -1,12 +1,13 @@
 import { getFirebaseAdmin, jsonResponse, readJson, verifyFirebaseUser } from './_shared/firebase-admin.js';
 import { isActiveSession, isValidSessionId } from './_shared/route-plan-usage.js';
-import { sanitizePlannerProblem } from './_shared/planner-validation.js';
+import { sanitizePlannerProblem, sanitizeRouteRequest } from './_shared/planner-validation.js';
 
 // Plan Engine: forwards a validated VROOM problem to the planning service (VROOM + OSRM Singapore on
 // Cloud Run). Configure PLANNER_URL and PLANNER_KEY; without them it reports 'planner-unavailable' and
 // the browser keeps the existing planner. Actions: warm (wake the scaled-to-zero service), solve.
 const SOLVE_TIMEOUT_MS = 15000;
 const WARM_TIMEOUT_MS = 4000;
+const ROUTE_TIMEOUT_MS = 10000;
 
 function plannerConfig() {
   const env = (name) => (typeof Netlify !== 'undefined' ? Netlify.env.get(name) : process.env[name]) || '';
@@ -44,6 +45,14 @@ export default async (req) => {
     if (body.action === 'warm') {
       const result = await callPlanner(config, '/health', null, WARM_TIMEOUT_MS).catch(() => ({ ok: false }));
       return jsonResponse({ success: true, ready: !!result.ok });
+    }
+    if (body.action === 'route') {
+      // Road route between ordered points (manual mode and Basic): free self-hosted OSRM instead of Google.
+      const checked = sanitizeRouteRequest(body.coordinates);
+      if (!checked.ok) return jsonResponse({ success: false, code: 'invalid-route', error: checked.error }, 400);
+      const result = await callPlanner(config, '/route', { coordinates: checked.coordinates }, ROUTE_TIMEOUT_MS);
+      if (!result.ok) return jsonResponse({ success: false, code: 'planner-failed', error: 'The road route is unavailable.' }, 502);
+      return jsonResponse({ success: true, route: result.payload });
     }
     const sessionId = String(body.sessionId || '');
     if (!isValidSessionId(sessionId)) return jsonResponse({ success: false, error: 'Invalid planning session.' }, 400);

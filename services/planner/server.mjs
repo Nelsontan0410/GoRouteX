@@ -111,9 +111,20 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/solve') return send(res, 200, await solve(await readBody(req)));
     if (req.method === 'POST' && req.url === '/route') {
       const body = await readBody(req);
-      const result = await osrmCall('route', { coordinates: body.coordinates, overview: 'full', geometries: 'geojson', steps: false });
+      const coordinates = Array.isArray(body.coordinates) ? body.coordinates : [];
+      if (coordinates.length < 2 || coordinates.length > 27) return send(res, 400, { error: 'Send 2-27 coordinates.' });
+      const result = await osrmCall('route', { coordinates, overview: 'full', geometries: 'geojson', steps: true });
       const route = result.routes[0];
-      return send(res, 200, { distance: route.distance, duration: route.duration * DURATION_FACTOR, legs: route.legs.map((leg) => ({ distance: leg.distance, duration: leg.duration * DURATION_FACTOR })), geometry: route.geometry });
+      // Each leg carries its own road geometry ([lng, lat] points), needed for the lorry restriction check.
+      const legs = route.legs.map((leg) => {
+        const points = [];
+        for (const step of leg.steps) for (const point of step.geometry.coordinates) {
+          const last = points[points.length - 1];
+          if (!last || last[0] !== point[0] || last[1] !== point[1]) points.push(point);
+        }
+        return { distance: leg.distance, duration: Math.round(leg.duration * DURATION_FACTOR), geometry: points };
+      });
+      return send(res, 200, { distance: route.distance, duration: Math.round(route.duration * DURATION_FACTOR), legs, geometry: route.geometry.coordinates });
     }
     return send(res, 404, { error: 'Not found' });
   } catch (error) {

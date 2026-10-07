@@ -75,3 +75,14 @@ export function sanitizePlannerProblem(raw) {
     throw error;
   }
 }
+
+/** 2-27 [lng, lat] points inside the service area, in visiting order. */
+export function sanitizeRouteRequest(raw) {
+  try {
+    if (!Array.isArray(raw) || raw.length < 2 || raw.length > 27) fail('Send 2-27 points.');
+    return { ok: true, coordinates: raw.map((p, i) => location(p, `Point ${i + 1}`)) };
+  } catch (error) {
+    if (error instanceof ProblemError) return { ok: false, error: error.message };
+    throw error;
+  }
+}

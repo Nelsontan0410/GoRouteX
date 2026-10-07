@@ -103,3 +103,79 @@ async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
             unassigned: mapped.unassigned
         };
     }
+
+// ---- Road routes from the self-hosted network (decision 2: Basic and manual mode use OSRM, no Google) ----
+// MapHandler.route/setDirections call this. A result is shaped like google.maps.DirectionsResult for the
+// fields GoRouteX reads (legs, durations, distances, step paths, overview path) and marked _source: 'osrm';
+// MapHandler draws it as a polyline because a DirectionsRenderer cannot draw a non-Google result.
+
+function osrmRoutingWanted() {
+        if (!isPlanEngineEnabled()) return false;
+        return getCurrentProductPlan() === 'basic' || window._autoPlanManualMode === true;
+    }
+
+function requestPoints(request) {
+        if (!request || request.optimizeWaypoints) return null;
+        const list = [request.origin, ...(request.waypoints || []).map((w) => w?.location), request.destination];
+        const points = list.map(toLatLngPoint);
+        if (points.some((p) => !p) || points.length > 27) return null;
+        return window.GoRouteXPlannerProblem?.inSingapore && points.every((p) => window.GoRouteXPlannerProblem.inSingapore(p)) ? points : null;
+    }
+
+function makeLatLng(lng, lat) {
+        return window.google?.maps?.LatLng ? new google.maps.LatLng(lat, lng) : { lat, lng };
+    }
+
+function formatDistance(meters) {
+        return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+    }
+
+function formatDuration(seconds) {
+        const minutes = Math.max(1, Math.round(seconds / 60));
+        return minutes >= 60 ? `${Math.floor(minutes / 60)} hour ${minutes % 60} mins` : `${minutes} mins`;
+    }
+
+/** Converts the planning service's route into a DirectionsResult-like object. */
+function toDirectionsResult(route, points, request) {
+        const legs = route.legs.map((leg, index) => {
+            const path = (leg.geometry || []).map(([lng, lat]) => makeLatLng(lng, lat));
+            const start = makeLatLng(points[index].lng, points[index].lat);
+            const end = makeLatLng(points[index + 1].lng, points[index + 1].lat);
+            return {
+                distance: { value: Math.round(leg.distance), text: formatDistance(leg.distance) },
+                duration: { value: Math.round(leg.duration), text: formatDuration(leg.duration) },
+                start_location: start,
+                end_location: end,
+                start_address: '',
+                end_address: '',
+                steps: [{ path, start_location: start, end_location: end, distance: { value: Math.round(leg.distance) }, duration: { value: Math.round(leg.duration) } }],
+                via_waypoints: []
+            };
+        });
+        return {
+            _source: 'osrm',
+            status: 'OK',
+            request,
+            geocoded_waypoints: [],
+            routes: [{
+                legs,
+                overview_path: (route.geometry || []).map(([lng, lat]) => makeLatLng(lng, lat)),
+                waypoint_order: (request.waypoints || []).map((_, index) => index),
+                summary: 'GoRouteX road network',
+                warnings: [],
+                copyrights: '© OpenStreetMap contributors'
+            }]
+        };
+    }
+
+window.GoRouteXOsrmRouting = {
+        /** Points to route with OSRM, or null to use Google for this request. */
+        pointsFor(request) {
+            return osrmRoutingWanted() ? requestPoints(request) : null;
+        },
+        async route(request, points) {
+            const result = await callPlanRoutes({ action: 'route', coordinates: points.map((p) => [p.lng, p.lat]) }, 12000);
+            if (!result.ok || !result.payload.route) throw Object.assign(new Error('Road route unavailable'), { code: result.code || 'planner-failed' });
+            return toDirectionsResult(result.payload.route, points, request);
+        }
+    };
