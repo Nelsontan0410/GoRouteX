@@ -237,7 +237,29 @@
     return messages;
   }
 
+  /**
+   * Narrows a schedule to one extra window (an order's time window) on every day: receiving periods are
+   * cut to [start, end]; a day with nothing left becomes closed; breaks outside what is left are dropped.
+   */
+  function restrictSchedule(schedule, start, end) {
+    const from = toMinutes(start), to = toMinutes(end);
+    const result = cloneSchedule(schedule);
+    if (from === null || to === null || to <= from) return result;
+    DAY_KEYS.forEach((day) => {
+      const entry = result[day];
+      if (!entry.open) return;
+      const windows = entry.windows
+        .map((w) => ({ start: Math.max(toMinutes(w.start), from), end: Math.min(toMinutes(w.end), to) }))
+        .filter((w) => w.end > w.start);
+      if (!windows.length) { result[day] = { open: false, windows: [], breaks: [] }; return; }
+      entry.windows = windows.map((w) => ({ start: fromMinutes(w.start), end: fromMinutes(w.end) }));
+      entry.breaks = entry.breaks.filter((b) => windows.some((w) => toMinutes(b.start) >= w.start && toMinutes(b.end) <= w.end));
+    });
+    return result;
+  }
+
   const api = {
+    restrictSchedule,
     DAY_KEYS,
     DAY_LABELS,
     DAY_SHORT,

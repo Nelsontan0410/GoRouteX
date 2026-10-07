@@ -1508,6 +1508,16 @@
         const entry = typeof getCustomerById === 'function' ? getCustomerById(customerId) : null;
         if (!C) return { schedule: null, scheduleMode: 'default', serviceMinutes: getDefaultStayMinutes(), serviceMode: 'default' };
         const resolved = C.resolveCustomerConstraints(entry, settings);
+        // Orders planned from Order Hub add their own time window and service minutes for this stop.
+        const orderPlan = window.GoRouteXOrderPlan?.read?.(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
+        const fromOrders = orderPlan?.stopConstraints?.[String(customerId)];
+        if (fromOrders) {
+            if (fromOrders.windowStart && fromOrders.windowEnd) {
+                resolved.schedule = C.restrictSchedule(resolved.schedule, fromOrders.windowStart, fromOrders.windowEnd);
+                resolved.orderWindow = `${fromOrders.windowStart}–${fromOrders.windowEnd}`;
+            }
+            if (fromOrders.serviceMinutes) resolved.serviceMinutes = fromOrders.serviceMinutes;
+        }
         return { ...resolved, serviceMinutes: resolved.serviceMinutes || getDefaultStayMinutes() };
     }
     // Default service (stay) minutes for a route visit to this customer; planners can still change one visit.
