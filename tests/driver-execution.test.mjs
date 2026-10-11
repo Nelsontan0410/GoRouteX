@@ -12,3 +12,16 @@ test('master edits cannot rewrite a started route snapshot',()=>{const execution
 import {enrichPlannedRoutes} from '../driver/route-enrichment.js';
 test('links same-date ready orders by exact saved stop ID and snapshots one contact',()=>{const input=structuredClone(route.plannedRoutes);const orders=[{internalId:'internal-1',orderId:'SO-1',savedStopId:'rawang',deliveryDate:'2026-09-28',status:'READY',contactId:'contact-1',contactName:'Jane',contactPhone:'0123'},{internalId:'internal-2',orderId:'SO-2',savedStopId:'rawang',deliveryDate:'2026-09-28',status:'READY',contactId:'contact-1',contactName:'Jane',contactPhone:'0123'},{internalId:'internal-3',savedStopId:'kl',deliveryDate:'2026-09-29',status:'READY'}];const result=enrichPlannedRoutes(input,orders,'2026-09-28');assert.equal(result.linkedCount,2);assert.deepEqual(result.plannedRoutes[0].customerStops[0].orderIds,['ORD-1','ORD-2','internal-1','internal-2']);assert.deepEqual(result.plannedRoutes[0].customerStops[0].orderNumbers,['SO-1','SO-2']);assert.equal(result.plannedRoutes[0].customerStops[0].contactName,'Jane');assert.equal(input[0].customerStops[0].contactName,undefined);});
 test('repeated saved stop is left unlinked rather than assigning an order twice',()=>{const group=structuredClone(route.plannedRoutes[0]);const result=enrichPlannedRoutes([group,structuredClone(group)],[{internalId:'one',savedStopId:'rawang',deliveryDate:'2026-09-28',status:'READY'}],'2026-09-28');assert.equal(result.linkedCount,0);assert.ok(result.ambiguousCount>0);assert.deepEqual(result.plannedRoutes[0].customerStops[0].orderIds,['ORD-1','ORD-2']);});
+
+import {pause as _pause, resume as _resume, stopRoute as _stop} from '../driver/execution.js';
+test('pause blocks delivery activity until resumed; stop ends the route early', () => {
+  const run = startExecution(route, 'driver-1');
+  const paused = _pause(run);
+  assert.equal(paused.status, 'PAUSED');
+  assert.throws(() => arrive(paused, run.stops[0].id), /paused/);
+  assert.equal(_resume(paused).status, 'IN_PROGRESS');
+  const stopped = _stop(paused);
+  assert.equal(stopped.status, 'STOPPED');
+  assert.ok(stopped.stops.every(stop => (stop.executionStatus || 'PENDING') === 'PENDING'));
+  assert.throws(() => _resume(stopped));
+});

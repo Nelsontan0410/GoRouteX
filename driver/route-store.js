@@ -1,4 +1,4 @@
-import {startExecution,arrive,deliver,fail,finish} from './execution.js';
+import {startExecution,arrive,deliver,fail,finish,pause,resume,stopRoute} from './execution.js';
 import {readLocal,writeLocal,mutateLocal} from './local-execution-db.js';
 const name=(routeId,stopId)=>`${encodeURIComponent(routeId)}_${encodeURIComponent(stopId)}`;
 // Newest day first; within one dispatched plan, Route 1, 2, 3 in driving order (one driver runs them in turn).
@@ -19,6 +19,9 @@ export class DriverRouteStore{
  async deliver(id,stopId,{recipientName='',notes='',photoDataUrl=null,position=null}={}){const existing=await this.loadExecution(id),stop=existing?.stops.find(item=>item.id===stopId);if(stop?.executionStatus==='DELIVERED'){await this.syncDispatchedOrders(id,stopId,'DELIVERED').catch(console.warn);return existing;}if(!stop||stop.executionStatus!=='ARRIVED')throw Error('Mark this stop Arrived before completing delivery.');const podId=name(id,stopId),photoId=photoDataUrl?`photo_${podId}`:null;if(photoDataUrl)await this.savePhoto(photoId,photoDataUrl,id);const pod={id:podId,routeId:id,stopId,ownerUid:this.uid,recipientName:String(recipientName||'').trim(),notes:String(notes||'').trim(),photoId,completedAt:new Date().toISOString(),lat:position?.lat??null,lng:position?.lng??null};const next=await this.mutate(id,current=>deliver(current,stopId,pod),{pod,orderIds:stop.orderIds||[],outcome:'DELIVERED'});await this.syncDispatchedOrders(id,stopId,'DELIVERED').catch(error=>console.warn('Delivery saved; Order Hub sync pending:',error));return next;}
  async fail(id,stopId,reason,notes,position){const existing=await this.loadExecution(id),stop=existing?.stops.find(item=>item.id===stopId);const next=await this.mutate(id,current=>fail(current,stopId,reason,notes,position),{orderIds:stop?.orderIds||[],outcome:'FAILED'});await this.syncDispatchedOrders(id,stopId,'FAILED').catch(error=>console.warn('Failure saved; Order Hub sync pending:',error));return next;}
  async finish(id){return this.mutate(id,current=>finish(current));}
+ async pause(id){return this.mutate(id,current=>pause(current));}
+ async resume(id){return this.mutate(id,current=>resume(current));}
+ async stop(id){return this.mutate(id,current=>stopRoute(current));}
  async savePhoto(id,dataUrl,routeId){if(!/^data:image\/(jpeg|png|webp);base64,/.test(dataUrl)||dataUrl.length>550000)throw Error('Photo is too large or unsupported. Choose a smaller JPEG, PNG or WebP image.');const record={id,ownerUid:this.uid,routeId,dataUrl,createdAt:new Date().toISOString()};if(this.mode==='indexeddb')await writeLocal(`${this.uid}:photo:${id}`,record);else await this.root.collection('driverPodPhotos').doc(id).set(record);return id;}
  async loadPhoto(id){if(!id)return null;if(this.mode==='indexeddb')return readLocal(`${this.uid}:photo:${id}`);const doc=await this.root.collection('driverPodPhotos').doc(id).get();return doc.exists?doc.data():null;}
 }
