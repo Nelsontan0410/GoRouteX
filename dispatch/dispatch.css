@@ -54,3 +54,4 @@ body { margin: 0; }
 .dispatch-board button:disabled { opacity: .5; cursor: not-allowed; }
 .dispatch-mobile-nav { display: none; }
 @media (max-width: 980px) { .dispatch-shell { display: block; } .dispatch-shell .operations-sidebar { display: none; } .dispatch-mobile-nav { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 13px 16px; background: #fff; border-bottom: 1px solid #dce3ec; } .dispatch-mobile-nav a { color: #2456c4; font-weight: 700; text-decoration: none; } }
+.dispatch-all-driver { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }

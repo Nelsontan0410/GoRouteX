@@ -103,3 +103,10 @@ test('every app handoff uses the segmented navigation builder', () => {
   const shareEnd = app.indexOf('function updateRouteSharePreview', shareStart);
   assert.match(app.slice(shareStart, shareEnd), /const mapsUrl = RouteSafety\.navigationText\(routeData\)/);
 });
+
+test('a bypass blocked only by the 25-point limit says so instead of a generic failure', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../restriction-routing.js', import.meta.url), 'utf8');
+  assert.match(source, /if \(!input\) \{ overPointLimit\+\+; continue; \}/);
+  assert.match(source, /if \(overPointLimit && overPointLimit === candidates\.length\) \{[\s\S]*?too many map points/);
+});

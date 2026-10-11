@@ -486,6 +486,7 @@
       <div class="route-share-actions">
         <button id="copyRouteSharePreviewBtn" class="action-button-secondary" type="button">Copy Preview</button>
         <button id="shareCurrentRouteBtn" class="action-button-primary" type="button">Open Current Route in WhatsApp</button>
+        <button id="shareAllRoutesBtn" class="action-button-primary" type="button" disabled>Share All Routes in WhatsApp</button>
       </div>
     </div>
     <div class="page3-top-container">
@@ -1832,6 +1833,7 @@
     const routeSharePreviewEl = document.getElementById('routeSharePreview');
     const copyRouteSharePreviewBtn = document.getElementById('copyRouteSharePreviewBtn');
     const shareCurrentRouteBtn = document.getElementById('shareCurrentRouteBtn');
+    const shareAllRoutesBtn = document.getElementById('shareAllRoutesBtn');
     const actionsHeaderPage3 = document.getElementById('actionsHeaderPage3'); 
     const showEstimatesBtnPage3 = document.getElementById('showEstimatesBtnPage3');
     const printSummaryBtnPage3 = document.getElementById('printSummaryBtnPage3');
@@ -3027,6 +3029,7 @@
         document.getElementById('professionalPlanBtn'),
         copyRouteSharePreviewBtn,
         shareCurrentRouteBtn,
+        shareAllRoutesBtn,
         mapsPreviewBtn,
         confirmRouteBtn
       ].filter(Boolean);
@@ -5276,6 +5279,7 @@
         if (copyRouteSharePreviewBtn) {
             copyRouteSharePreviewBtn.addEventListener('click', copyCurrentRouteSharePreview);
         }
+        if (shareAllRoutesBtn) shareAllRoutesBtn.addEventListener('click', shareAllRoutes);
         if (shareCurrentRouteBtn) {
             shareCurrentRouteBtn.addEventListener('click', shareCurrentRoutePreview);
         }
@@ -9713,7 +9717,8 @@
           .slice(1)
           .filter((stopId) => !isRouteConfiguredEndStop(routeData, stopId));
       const routeName = routeData.routeName || `Planned Route ${routeData.id}`;
-      const tripDate = formatRegionalDate(new Date(), { day: '2-digit', month: '2-digit', year: 'numeric' });
+      // The day the route is driven, not the day the message is sent.
+      const tripDate = formatRegionalDate(getRouteStartDateTime(), { day: '2-digit', month: '2-digit', year: 'numeric' });
       const manualNavigationStops = getManualNavigationStops(routeData);
       const mapsUrl = RouteSafety.navigationText(routeData);
       const durationSeconds = routeData.directionsResult?.routes?.[0]?.legs?.reduce((total, leg) => total + safeNumber(leg?.duration?.value, 0), 0) || 0;
@@ -9796,6 +9801,7 @@
           if (routeSharePreviewEl) routeSharePreviewEl.textContent = 'Plan a route to generate a WhatsApp-ready summary preview.';
           if (copyRouteSharePreviewBtn) copyRouteSharePreviewBtn.disabled = true;
           if (shareCurrentRouteBtn) shareCurrentRouteBtn.disabled = true;
+          if (shareAllRoutesBtn) shareAllRoutesBtn.disabled = true;
           return;
       }
 
@@ -9807,6 +9813,7 @@
       if (routeSharePreviewEl) routeSharePreviewEl.textContent = shareData.message;
       if (copyRouteSharePreviewBtn) copyRouteSharePreviewBtn.disabled = false;
       if (shareCurrentRouteBtn) shareCurrentRouteBtn.disabled = false;
+      if (shareAllRoutesBtn) shareAllRoutesBtn.disabled = AppState.plannedRoutes.filter((route) => route?.directionsResult).length < 1;
     }
 
     async function copyCurrentRouteSharePreview() {
@@ -9849,6 +9856,35 @@
 
       openWhatsAppWithFallback('', shareData.message, `Sharing ${shareData.title} via WhatsApp...`);
       messageBarOptimizedPg3.textContent = `${shareData.title} opened in WhatsApp.`;
+    }
+
+    // One message with every route in driving order, for the drivers' WhatsApp group. WhatsApp cannot open a
+    // group directly: it opens with the message and the user picks the group. The text is also copied, in
+    // case a very long message is cut by the link.
+    function buildAllRoutesShareMessage() {
+      const parts = [];
+      const blocked = [];
+      AppState.plannedRoutes.forEach((route, index) => {
+          if (!route?.directionsResult) return;
+          const data = buildRouteShareData(index);
+          if (data) parts.push(data.message); else blocked.push(route.id);
+      });
+      return { message: parts.join('\n\n━━━━━━━━━━━━━━━━━━━━\n\n'), count: parts.length, blocked };
+    }
+
+    function shareAllRoutes() {
+      const { message, count, blocked } = buildAllRoutesShareMessage();
+      if (blocked.length) {
+          messageBarOptimizedPg3.textContent = `Route ${blocked.join(', ')} cannot be shared yet (route safety check). Fix it, then share all routes.`;
+          return;
+      }
+      if (!count) {
+          messageBarOptimizedPg3.textContent = 'No planned route to share.';
+          return;
+      }
+      try { navigator.clipboard?.writeText(message); } catch (_) { /* copying is a convenience only */ }
+      openWhatsAppWithFallback('', message, `Sharing ${count} route${count === 1 ? '' : 's'} via WhatsApp… (also copied)`);
+      messageBarOptimizedPg3.textContent = `${count} route${count === 1 ? '' : 's'} ready in WhatsApp. Choose the drivers' group. The message is also copied if you need to paste it.`;
     }
 
     function generateShareableLinkPage3(routeIndexToShare) {

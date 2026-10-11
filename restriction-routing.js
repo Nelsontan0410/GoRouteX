@@ -90,15 +90,19 @@
         }
       }
       candidates.sort((a, b) => a.duration - b.duration || a.via.length - b.via.length);
+      let overPointLimit = 0;
       for (const candidate of candidates) {
         if (requests >= MAX_EXTRA_REQUESTS) break;
         const via = [...(route.safetyWaypoints || []).filter((p) => p.legIndex !== legIndex), ...candidate.via];
         const input = buildRequest(stops, via, route.manualWaypoints || []);
-        if (!input) continue;
+        if (!input) { overPointLimit++; continue; }
         const final = await call(input), finalStops = endpoints(final);
         if (!finalStops || finalStops.length !== stops.length || finalStops.some((p, i) => distance(p, stops[i]) > 30)) continue;
         const result = validate(final);
         if (result.safe) return { directionsResult: final, safetyWaypoints: via, validation: result, reroutes: requests, changed: true };
+      }
+      if (overPointLimit && overPointLimit === candidates.length) {
+        return { ...unchanged, reroutes: requests, reason: 'This route has too many map points for an automatic bypass (stops, detour points and safety points over 25). Remove a detour point or move a stop to another route.' };
       }
       return { ...unchanged, reroutes: requests, reason: 'No alternative passed the selected-code checks within the request limit. Manual route review required.' };
     } catch (error) { return { ...unchanged, reroutes: requests, reason: error.message || 'Google could not return an alternative. Manual route review required.' }; }

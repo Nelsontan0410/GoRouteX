@@ -44,6 +44,32 @@
     return text($(`dispatchDriver_${routeId}`)?.value);
   }
 
+  // One driver runs Route 1, 2, 3 in turn: one choice fills every route. Remembered on this device.
+  const DEFAULT_DRIVER_KEY = 'grxDispatchDefaultDriver';
+  function defaultDriver() {
+    let remembered = '';
+    try { remembered = localStorage.getItem(DEFAULT_DRIVER_KEY) || ''; } catch {}
+    if (remembered && state.drivers.some(driver => driver.uid === remembered)) return remembered;
+    return state.drivers.length === 1 ? state.drivers[0].uid : '';
+  }
+  function renderAllDriverSelect(context, saved) {
+    const select = $('dispatchAllDriver');
+    if (!select) return;
+    select.replaceChildren(new Option(state.drivers.length ? 'Select driver' : state.driversLoaded ? 'No active drivers' : 'Loading drivers...', ''));
+    for (const driver of state.drivers) select.append(new Option(`${driver.name} · ${driver.username ? '@' + driver.username : driver.email}`, driver.uid));
+    select.value = defaultDriver();
+    select.disabled = !saved || state.loading || !state.drivers.length;
+    select.onchange = () => {
+      try { localStorage.setItem(DEFAULT_DRIVER_KEY, select.value); } catch {}
+      for (const route of context?.routes || []) {
+        const routeId = routeKey(route);
+        if (state.dispatched.some(item => item.dispatchPlanId === context.planId && String(item.routeId) === routeId)) continue;
+        try { sessionStorage.setItem(`grxDispatchDriver:${context.planId}:${routeId}`, select.value); } catch {}
+      }
+      render();
+    };
+  }
+
   function routeKey(route) { return text(route?.id); }
   function lookupTiming(route, stop) {
     const id = text(stop?.savedStopId || stop?.id || stop?.uniqueId);
@@ -102,6 +128,7 @@
     $('dispatchPlanSummary').textContent = `${context.date || 'Date unavailable'} · ${context.startTime || 'Start time unavailable'} · ${context.routes.length} route${context.routes.length === 1 ? '' : 's'} · ${context.routes.reduce((n, route) => n + routeStops(route).length, 0)} stops`;
     const saved = Boolean(context.planId);
     if (!context.routes.some(route => routeKey(route) === state.activeRouteId)) state.activeRouteId = routeKey(context.routes[0]);
+    renderAllDriverSelect(context, saved);
     $('dispatchAllBtn').disabled = !saved || state.loading || !state.drivers.length || context.routes.every(route => state.dispatched.some(item => item.dispatchPlanId === context.planId && String(item.routeId) === routeKey(route)));
     for (const route of context.routes) {
       const routeId = routeKey(route);
@@ -125,7 +152,7 @@
       select.append(new Option(state.drivers.length ? 'Select driver' : state.driversLoaded ? 'No active drivers' : 'Loading drivers...', ''));
       for (const driver of state.drivers) select.append(new Option(`${driver.name} · ${driver.username ? '@' + driver.username : driver.email}`, driver.uid));
       if (dispatch?.assignedDriverUid) select.value = dispatch.assignedDriverUid;
-      else { try { select.value = sessionStorage.getItem(`grxDispatchDriver:${context.planId}:${routeId}`) || ''; } catch { select.value = ''; } }
+      else { try { select.value = sessionStorage.getItem(`grxDispatchDriver:${context.planId}:${routeId}`) || defaultDriver(); } catch { select.value = defaultDriver(); } }
       select.addEventListener('change', () => { try { sessionStorage.setItem(`grxDispatchDriver:${context.planId}:${routeId}`, select.value); } catch {} });
       label.append(select);
       assignment.append(label);
