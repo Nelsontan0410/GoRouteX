@@ -1175,6 +1175,7 @@
 <script src="customer-constraints-form.js"></script>
 <script src="route-time-windows.js"></script>
 <script src="planner-problem.js"></script>
+<script src="settings/settings-geocode.js"></script>
 <script src="planning/plan-engine-client.js"></script>
 <script src="planning/plan-edits.js"></script>
 <script src="route-storage.js"></script>
@@ -1563,6 +1564,7 @@
             if (planningDateInput && !planningDateInput.dataset.userEdited) planningDateInput.value = `${planningDate}T${routeStartTime}`;
         }
         if (!currentLocationOrigin && !window.GoRouteXRouteLocations?.read(routeLocationOwner())?.start) restoreSavedRouteLocations();
+        else applyLateCompanyCoordinates(event.detail.settings.routePlanning);
     });
     initializePlanningLocationState();
     const DIRECTION_ORDER_LABELS = { WEST: 'West', NORTH: 'North', EAST: 'East', SOUTH: 'South' };
@@ -1627,6 +1629,8 @@
     const fixedDestinationAddress = "__dispatch_base__"; 
     let currentLocationOrigin = null; 
     let currentLatLng = null; 
+    let routeLocationRequestId = 0; // ensureRouteLocationCoordinates: latest request wins
+    const routeLocationResolutions = new Map(); // in-flight address checks, shared per account/kind/address
     let currentPositionMarkerPage2 = null; 
 
     let draggedItemElement = null;
@@ -4141,11 +4145,32 @@
         window.GoRouteXRouteLocations?.save(routeLocationOwner(), kind, {address, latLng, label});
     }
 
+    // Company settings that arrive after the restore: borrow their coordinates for the same, unedited address.
+    function applyLateCompanyCoordinates(policy) {
+        const geo = window.GoRouteXGeocode;
+        if (!geo || routeOriginMode !== 'custom' || !customOriginAddress || customOriginLatLng) return;
+        const unedited = !customOriginInput || customOriginInput.value === (customOriginLabel || customOriginAddress);
+        const borrowed = unedited ? withCompanyCoordinates({ address: customOriginAddress }, policy?.defaultStart) : null;
+        if (!borrowed?.latLng) return;
+        customOriginLatLng = { ...borrowed.latLng };
+        if (currentLocationOrigin === customOriginAddress) currentLatLng = { ...borrowed.latLng };
+        saveRouteLocation('start', customOriginAddress, customOriginLatLng, customOriginLabel || customOriginAddress);
+    }
+
+    // A saved point without coordinates borrows the company default's coordinates only for the same address.
+    function withCompanyCoordinates(point, companyPoint) {
+        const geo = window.GoRouteXGeocode;
+        if (!point || !geo || geo.cleanLatLng(point.latLng)) return point;
+        const companyLatLng = geo.cleanLatLng(companyPoint?.latLng);
+        return companyLatLng && geo.sameAddress(point.address, companyPoint.address) ? { ...point, latLng: companyLatLng } : point;
+    }
+
+    // Browser's last-used location first, then the company default (Settings > Route Planning).
     function restoreSavedRouteLocations() {
         const saved = window.GoRouteXRouteLocations?.read(routeLocationOwner()) || {};
         const company = window.GoRouteXSettings?.getCachedSettings?.().routePlanning || {};
-        const start = saved.start || company.defaultStart;
-        const end = saved.end || company.defaultEnd;
+        const start = withCompanyCoordinates(saved.start || company.defaultStart, company.defaultStart);
+        const end = saved.endMode === 'same' ? null : withCompanyCoordinates(saved.end || company.defaultEnd, company.defaultEnd);
         routeOriginMode = start ? 'custom' : 'current';
         customOriginAddress = start?.address || '';
         customOriginLatLng = start?.latLng || null;
@@ -4161,7 +4186,60 @@
         if (customEndInput) customEndInput.value = customEndLabel || customEndAddress;
         if (currentLocationOrigin) addressNameMap[currentLocationOrigin] = customOriginLabel || customOriginAddress;
         if (customEndAddress) addressNameMap[customEndAddress] = customEndLabel || customEndAddress;
+        if (saved.endMode === 'same' && saved.end) {
+            customEndAddress = saved.end.address;
+            customEndLatLng = saved.end.latLng || null;
+            customEndLabel = saved.end.label || '';
+            if (customEndInput) customEndInput.value = customEndLabel || customEndAddress;
+        }
         updateRouteOriginControls();
+        ensureRouteLocationCoordinates().catch((error) => console.info('Route location check skipped:', error?.message || error));
+    }
+
+    // Older saved locations may hold an address only. Resolve each once (shared while in flight) and write
+    // the result back only if the account, address, mode and request are still current. Company Settings are
+    // never written from here. Returns { pending } while Google Maps is not ready yet.
+    async function ensureRouteLocationCoordinates() {
+        const uid = routeLocationOwner();
+        const geo = window.GoRouteXGeocode;
+        const wanted = [];
+        if (routeOriginMode === 'custom' && customOriginAddress && !customOriginLatLng) wanted.push({ kind: 'start', address: customOriginAddress });
+        if (routeEndRequired && routeEndMode === 'custom' && customEndAddress && !customEndLatLng) wanted.push({ kind: 'end', address: customEndAddress });
+        if (!wanted.length || !uid || !geo) return { resolved: [], failed: [] };
+        const activeGeocoder = getImportGeocoder();
+        if (!activeGeocoder || !window.google?.maps) return { pending: true };
+        const requestId = ++routeLocationRequestId;
+        const answers = await Promise.all(wanted.map(async ({ kind, address }) => {
+            const key = `${uid}|${kind}|${address}`;
+            let pending = routeLocationResolutions.get(key);
+            if (!pending) {
+                pending = geo.geocodeAddress(address, { maps: window.google.maps, geocoder: activeGeocoder })
+                    .finally(() => routeLocationResolutions.delete(key));
+                routeLocationResolutions.set(key, pending);
+            }
+            return { kind, address, result: await pending };
+        }));
+        const outcome = { resolved: [], failed: [], stale: false };
+        if (requestId !== routeLocationRequestId || routeLocationOwner() !== uid) return { ...outcome, stale: true };
+        for (const { kind, address, result } of answers) {
+            if (kind === 'start') {
+                if (routeOriginMode !== 'custom' || customOriginAddress !== address || customOriginLatLng) continue;
+                if (!result.ok) { outcome.failed.push({ kind, reason: result.reason }); setCustomOriginStatus(`Start location has no map position: ${result.reason}`, true); continue; }
+                customOriginLatLng = { ...result.latLng };
+                if (currentLocationOrigin === address) currentLatLng = { ...result.latLng };
+                saveRouteLocation('start', address, customOriginLatLng, customOriginLabel || address);
+                setCustomOriginStatus('Start location verified.');
+                if (currentLocationOrigin === address) setOriginMarker(currentLatLng, 'Route Start');
+            } else {
+                if (!routeEndRequired || routeEndMode !== 'custom' || customEndAddress !== address || customEndLatLng) continue;
+                if (!result.ok) { outcome.failed.push({ kind, reason: result.reason }); setCustomEndStatus(`End location has no map position: ${result.reason}`, true); continue; }
+                customEndLatLng = { ...result.latLng };
+                saveRouteLocation('end', address, customEndLatLng, customEndLabel || address);
+                setCustomEndStatus('End location verified.');
+            }
+            outcome.resolved.push(kind);
+        }
+        return outcome;
     }
 
     function setSelectedOrigin(address, latLng, displayName, mode, options = {}) {
@@ -4478,6 +4556,7 @@
 
     function handleRouteEndModeChange(event) {
         routeEndMode = event.target.value;
+        window.GoRouteXRouteLocations?.save(routeLocationOwner(), 'endMode', routeEndMode);
         updateRouteEndControls();
 
         if (!routeEndRequired) {
@@ -6520,6 +6599,7 @@
         }
 
         geocoder = geocoder || MapHandler.initGeocoder();
+        ensureRouteLocationCoordinates().catch((error) => console.info('Route location check skipped:', error?.message || error));
         initializeCustomOriginAutocomplete();
         initializeCustomEndAutocomplete();
         updateRouteOriginControls();
@@ -8050,6 +8130,8 @@
         // Google ordering below when it is off, not applicable (e.g. outside Singapore) or unavailable.
         window._plannerUnassignedIds = [];
         window._plannerUsedEngine = false;
+        // Old address-only start/end locations get their coordinates first (once; saved in this browser).
+        if (isPlanEngineEnabled()) await ensureRouteLocationCoordinates().catch(() => null);
         const engine = await planWithPlanEngine(safeStops, destinationId, window._autoPlanSessionId);
         if (!engine.fallback) {
             window._plannerUsedEngine = true;
@@ -8073,7 +8155,7 @@
         }
         if (engine.fallback !== 'disabled') console.info('Plan Engine not used:', engine.fallback);
         // Basic must not fall back to paid Google optimisation when the planner service fails.
-        if (getCurrentProductPlan() === 'basic' && ['planner-failed', 'planner-unavailable', 'planner-timeout', 'timeout', 'network'].includes(engine.fallback)) {
+        if (getCurrentProductPlan() === 'basic' && ['planner-failed', 'planner-unavailable', 'planner-timeout', 'timeout', 'network', 'start-unresolved', 'end-unresolved'].includes(engine.code || engine.fallback)) {
             throw new Error('Plan Engine unavailable');
         }
 
