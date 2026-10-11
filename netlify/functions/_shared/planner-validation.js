@@ -1,6 +1,6 @@
 // Validates a VROOM problem from the browser and rebuilds it from whitelisted fields only, so nothing
 // else reaches the planning service. Mirrors the limits and service area in planner-problem.js.
-export const PLANNER_LIMITS = Object.freeze({ maxJobs: 100, maxVehicles: 20, maxStopsPerRoute: 8, maxDaySeconds: 2 * 86400, maxServiceSeconds: 4 * 3600 });
+export const PLANNER_LIMITS = Object.freeze({ maxJobs: 100, maxVehicles: 20, maxTasksPerVehicle: 100, maxDaySeconds: 2 * 86400, maxServiceSeconds: 4 * 3600 });
 const BOUNDS = { minLat: 1.15, maxLat: 1.48, minLng: 103.59, maxLng: 104.1 };
 
 class ProblemError extends Error {}
@@ -60,7 +60,7 @@ export function sanitizePlannerProblem(raw) {
         profile: 'car',
         start: location(vehicle.start, `${label} start`),
         time_window: window(vehicle.time_window, label),
-        max_tasks: int(vehicle.max_tasks, 1, PLANNER_LIMITS.maxStopsPerRoute, `${label} stops`),
+        max_tasks: int(vehicle.max_tasks, 1, PLANNER_LIMITS.maxTasksPerVehicle, `${label} stops`),
         costs: { fixed: int(vehicle.costs?.fixed ?? 0, 0, 1000000, `${label} cost`) }
       };
       if (vehicle.end !== undefined) clean.end = location(vehicle.end, `${label} end`);

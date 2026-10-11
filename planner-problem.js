@@ -4,11 +4,12 @@
  * One module for the browser (window.GoRouteXPlannerProblem) and the Netlify function (globalThis), so the
  * same rules apply wherever the problem is built. Requires delivery-constraints.js.
  *
- * Model (decided 2026-10-06):
- * - Each route is its own vehicle and driver; all leave at the planning start time.
- * - Up to 8 stops per route (MAX_STOPS_PER_ROUTE).
- * - The solver also decides how many routes to use: every vehicle has a fixed cost, so it opens a new
- *   route only when that is worth it.
+ * Model (decided 2026-10-11): mode 'sequential' (default).
+ * - One driver runs Route 1, then Route 2, then Route 3 without returning to the start in between:
+ *   the solver plans ONE vehicle visiting every stop, and the visit order is cut into routes of
+ *   MAX_STOPS_PER_ROUTE (10). Route k starts at route k-1's last stop; only the last route goes to the end.
+ * - Mode 'parallel' (earlier model, kept for several drivers): each route is its own vehicle; all leave at
+ *   the planning start time; a fixed cost per vehicle lets the solver decide how many routes to use.
  * - Drivers are chosen later at Dispatch, so every vehicle uses the company driver defaults.
  * - Customer delivery hours are hard: a stop's service must START and FINISH inside one allowed period
  *   (receiving hours minus breaks). VROOM time windows bound the service start, so each window ends
@@ -17,7 +18,7 @@
  */
 (function (root) {
   const C = () => root.GoRouteXDeliveryConstraints;
-  const MAX_STOPS_PER_ROUTE = 8;
+  const MAX_STOPS_PER_ROUTE = 10;
   const DEFAULT_ROUTE_FIXED_COST = 3600; // in VROOM cost units (travel seconds): one hour of driving
   // Driver break placement. Settings only stores the length, so it may be taken any time in this band.
   const DRIVER_BREAK_WINDOW = ['11:30', '14:30'];
@@ -57,7 +58,9 @@
     return list.slice(0, LIMITS.maxVehicles);
   }
 
+  const isSequential = (input) => input.mode !== 'parallel';
   function vehicleCount(input) {
+    if (isSequential(input)) return 1;
     const capacities = capacityVehicles(input);
     if (capacities.length) return capacities.length;
     const needed = Math.ceil(input.stops.length / MAX_STOPS_PER_ROUTE);
@@ -95,13 +98,17 @@
     // All vehicles leave at the planning start time; they must be back by the end of the working day
     // (or after the maximum route duration when the plan starts after working hours).
     const endSec = workEnd !== null && workEnd > startSec ? Math.min(workEnd, startSec + maxDuration) : startSec + maxDuration;
-    const maxTasks = Math.min(MAX_STOPS_PER_ROUTE, Number(rules.maxStops) > 0 ? Number(rules.maxStops) : MAX_STOPS_PER_ROUTE);
+    const sequential = isSequential(input);
+    // Sequential: the driver's daily stop limit caps the whole day. Parallel: the per-route limit caps each vehicle.
+    const perVehicleLimit = sequential ? LIMITS.maxStops : MAX_STOPS_PER_ROUTE;
+    const maxTasks = Math.min(perVehicleLimit, Number(rules.maxStops) > 0 ? Number(rules.maxStops) : perVehicleLimit);
     const breakSec = Math.max(0, Math.round((Number(rules.breakMinutes) || 0) * 60));
     const [breakFrom, breakTo] = DRIVER_BREAK_WINDOW.map(seconds);
     const breakFits = breakSec > 0 && breakTo > startSec && breakFrom < endSec;
     const point = (p) => [p.lng, p.lat];
 
-    const capacities = capacityVehicles(input);
+    // Sequential: one vehicle carries the whole day's load (no return to reload), so the largest capacity applies.
+    const capacities = sequential && capacityVehicles(input).length ? [Math.max(...capacityVehicles(input))] : capacityVehicles(input);
     const jobs = [];
     const jobIds = new Map();
     const preUnassigned = [];
@@ -125,12 +132,12 @@
       ...(input.end ? { end: point(input.end) } : {}),
       time_window: [startSec, endSec],
       max_tasks: maxTasks,
-      costs: { fixed: Math.max(0, Math.round(Number(input.routeFixedCost) || DEFAULT_ROUTE_FIXED_COST)) },
+      costs: { fixed: sequential ? 0 : Math.max(0, Math.round(Number(input.routeFixedCost) || DEFAULT_ROUTE_FIXED_COST)) },
       ...(capacities.length ? { capacity: [Math.floor(capacities[index])] } : {}),
       ...(breakFits ? { breaks: [{ id: index + 1, time_windows: [[Math.max(breakFrom, startSec), Math.min(breakTo, endSec)]], service: breakSec }] } : {})
     }));
 
-    return { problem: { jobs, vehicles, options: { g: false } }, jobIds, preUnassigned, day, startSec, capacityUsed: capacities.length > 0 };
+    return { problem: { jobs, vehicles, options: { g: false } }, jobIds, preUnassigned, day, startSec, capacityUsed: capacities.length > 0, mode: sequential ? 'sequential' : 'parallel', maxTasks };
   }
 
   const clock = (sec) => C().fromMinutes(Math.floor(sec / 60));
@@ -140,7 +147,7 @@
    * Returns { routes: [{ stopIds, stops: [{ id, arrival, serviceStart, waitMinutes }] }], unassigned: [{ id, reason, message }] }.
    */
   function mapSolution(solution, built) {
-    const routes = (solution?.routes || [])
+    const vehicleRoutes = (solution?.routes || [])
       .slice()
       .sort((a, b) => a.vehicle - b.vehicle)
       .map((route) => {
@@ -158,16 +165,36 @@
         return { stopIds: stops.map((stop) => stop.id), stops };
       })
       .filter((route) => route.stopIds.length > 0);
+    // Sequential: the single day tour is cut into routes of MAX_STOPS_PER_ROUTE in visit order.
+    const routes = built.mode === 'sequential'
+      ? vehicleRoutes.flatMap((route) => splitIntoRoutes(route.stops))
+      : vehicleRoutes;
+    const assignedCount = vehicleRoutes.reduce((sum, route) => sum + route.stopIds.length, 0);
+    const dailyLimitReached = built.mode === 'sequential' && assignedCount >= built.maxTasks;
+    const message = dailyLimitReached
+      ? `The driver’s daily stop limit (${built.maxTasks}, Settings > Drivers) is reached.`
+      : built.mode === 'sequential'
+        ? (built.capacityUsed
+          ? 'Does not fit the driver’s day: its delivery hours, the working hours or the vehicle’s capacity.'
+          : 'Does not fit the driver’s day: its delivery hours or the remaining working time.')
+        : (built.capacityUsed
+          ? 'No route can fit this customer within its delivery hours, the drivers’ working hours and the vehicles’ capacity.'
+          : 'No route can reach this customer within its delivery hours and the drivers’ working hours.');
     const unassigned = built.preUnassigned.concat((solution?.unassigned || [])
       .filter((job) => built.jobIds.has(job.id))
-      .map((job) => ({
-        id: built.jobIds.get(job.id),
-        reason: 'no-feasible-route',
-        message: built.capacityUsed
-          ? 'No route can fit this customer within its delivery hours, the drivers’ working hours and the vehicles’ capacity.'
-          : 'No route can reach this customer within its delivery hours and the drivers’ working hours.'
-      })));
+      .map((job) => ({ id: built.jobIds.get(job.id), reason: dailyLimitReached ? 'daily-limit' : 'no-feasible-route', message })));
     return { routes, unassigned };
+  }
+
+  /** Cuts a visit order into routes of `size` stops (default MAX_STOPS_PER_ROUTE), keeping each stop's timing. */
+  function splitIntoRoutes(stops, size = MAX_STOPS_PER_ROUTE) {
+    const list = Array.isArray(stops) ? stops : [];
+    const routes = [];
+    for (let i = 0; i < list.length; i += size) {
+      const chunk = list.slice(i, i + size);
+      routes.push({ stopIds: chunk.map((stop) => stop.id), stops: chunk });
+    }
+    return routes;
   }
 
   root.GoRouteXPlannerProblem = {
@@ -178,6 +205,7 @@
     inSingapore,
     unsupportedReason,
     buildProblem,
-    mapSolution
+    mapSolution,
+    splitIntoRoutes
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -24,12 +24,12 @@ test('every problem the browser builds passes server validation unchanged', () =
   assert.deepEqual(checked.problem, problem);
 });
 
-test('validation rejects points outside Singapore, too many stops, routes over 8 stops and bad windows', () => {
+test('validation rejects points outside Singapore, too many stops, a vehicle over 100 stops and bad windows', () => {
   const outside = built(); outside.jobs[0].location = [103.76, 1.49];
   assert.match(sanitizePlannerProblem(outside).error, /outside the service area/);
   const many = built(); many.jobs = Array.from({ length: 101 }, (_, i) => ({ ...many.jobs[0], id: i + 1 }));
   assert.match(sanitizePlannerProblem(many).error, /1-100 stops/);
-  const big = built(); big.vehicles[0].max_tasks = 9;
+  const big = built(); big.vehicles[0].max_tasks = 101;
   assert.match(sanitizePlannerProblem(big).error, /out of range/);
   const backwards = built(); backwards.jobs[0].time_windows = [[50000, 40000]];
   assert.match(sanitizePlannerProblem(backwards).error, /ends before it starts/);

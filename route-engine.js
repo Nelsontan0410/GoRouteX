@@ -1,4 +1,5 @@
 (function (global) {
+  const DEFAULT_STOPS_PER_ROUTE = 10; // matches MAX_WAYPOINTS_PER_ROUTE in app.html
   let routePlan = {
     selectedStops: [],
     routes: []
@@ -96,7 +97,7 @@
     ].map((entry) => entry.stop);
   }
 
-  function clusterStops(stops, maxPerRoute = 8) {
+  function clusterStops(stops, maxPerRoute = DEFAULT_STOPS_PER_ROUTE) {
     const safeStops = Array.isArray(stops) ? stops : [];
     const safeMax = Number.isFinite(Number(maxPerRoute)) && Number(maxPerRoute) > 0
       ? Number(maxPerRoute)
@@ -177,7 +178,7 @@
       }));
   }
 
-  function autoSplitStops(stops, maxPerRoute = 8) {
+  function autoSplitStops(stops, maxPerRoute = DEFAULT_STOPS_PER_ROUTE) {
     const safeStops = Array.isArray(stops) ? stops : [];
     const safeMax = Number.isFinite(Number(maxPerRoute)) && Number(maxPerRoute) > 0
       ? Number(maxPerRoute)
@@ -207,12 +208,12 @@
     return routePlan.selectedStops;
   }
 
-  function generateRoutes(maxPerRoute = 8) {
+  function generateRoutes(maxPerRoute = DEFAULT_STOPS_PER_ROUTE) {
     routePlan.routes = autoSplitStops(routePlan.selectedStops, maxPerRoute);
     return routePlan.routes;
   }
 
-  function splitOptimizedStops(stops, maxPerRoute = 8) {
+  function splitOptimizedStops(stops, maxPerRoute = DEFAULT_STOPS_PER_ROUTE) {
     const safeStops = Array.isArray(stops) ? stops : [];
     const safeMax = Number.isFinite(Number(maxPerRoute)) && Number(maxPerRoute) > 0
       ? Number(maxPerRoute)
@@ -237,7 +238,7 @@
     return configuredMax || fallback;
   }
 
-  function hasRoutePackingIssue(routes, maxPerRoute = 8) {
+  function hasRoutePackingIssue(routes, maxPerRoute = DEFAULT_STOPS_PER_ROUTE) {
     const safeRoutes = Array.isArray(routes) ? routes : [];
     return safeRoutes.some((route, index) => {
       const stopsCount = Array.isArray(route?.stops) ? route.stops.filter(Boolean).length : 0;
@@ -245,7 +246,7 @@
     });
   }
 
-  function splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxStopsPerRoute = 8) {
+  function splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxStopsPerRoute = DEFAULT_STOPS_PER_ROUTE) {
     const safeStops = Array.isArray(optimizedStops) ? optimizedStops.filter(Boolean) : [];
     const safeMax = Number.isFinite(Number(maxStopsPerRoute)) && Number(maxStopsPerRoute) > 0
       ? Math.floor(Number(maxStopsPerRoute))
@@ -295,7 +296,7 @@
 
   async function buildPlannedRoutes() {
     const rawActiveRoutes = Array.isArray(window._activeRoutes) ? window._activeRoutes : [];
-    const maxStopsPerRoute = getRouteMaxStops(rawActiveRoutes, 8);
+    const maxStopsPerRoute = getRouteMaxStops(rawActiveRoutes, DEFAULT_STOPS_PER_ROUTE);
     if (hasRoutePackingIssue(rawActiveRoutes, maxStopsPerRoute)) {
       console.warn('Route packing issue detected', rawActiveRoutes);
     }
