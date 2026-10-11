@@ -8171,6 +8171,9 @@
             return window._activeRoutes;
         }
         if (engine.fallback !== 'disabled') console.info('Plan Engine not used:', engine.fallback);
+        if (typeof isPlanEngineStrict === 'function' && isPlanEngineStrict()) {
+            throw Object.assign(new Error(`Plan Engine only mode: the Plan Engine could not plan this (${engine.fallback}).`), { name: 'PlanEngineStrictError', reason: engine.fallback });
+        }
         // Basic must not fall back to paid Google optimisation when the planner service fails.
         if (getCurrentProductPlan() === 'basic' && ['planner-failed', 'planner-unavailable', 'planner-timeout', 'timeout', 'network', 'start-unresolved', 'end-unresolved'].includes(engine.code || engine.fallback)) {
             throw new Error('Plan Engine unavailable');

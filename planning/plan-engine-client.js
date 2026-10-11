@@ -13,7 +13,13 @@ const PLAN_ENGINE_ENABLED = false;
 
 function isPlanEngineEnabled() {
         if (PLAN_ENGINE_ENABLED) return true;
-        try { return window.localStorage?.getItem('goroutexPlanner') === 'on'; } catch (_) { return false; }
+        try { return ['on', 'only'].includes(window.localStorage?.getItem('goroutexPlanner')); } catch (_) { return false; }
+    }
+
+// Test mode (localStorage goroutexPlanner = 'only'): the Plan Engine or nothing. A problem stops planning
+// with its reason; it never falls back to Google or to local grouping, so the engine in use is never in doubt.
+function isPlanEngineStrict() {
+        try { return window.localStorage?.getItem('goroutexPlanner') === 'only'; } catch (_) { return false; }
     }
 
 function toLatLngPoint(value) {

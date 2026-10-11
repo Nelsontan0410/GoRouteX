@@ -108,3 +108,24 @@ test('an unresolved location falls back with its code (Basic then uses the free 
   assert.match(result.fallback, /end location has no verified coordinates/);
   assert.match(app, /'start-unresolved', 'end-unresolved'\]\.includes\(engine\.code \|\| engine\.fallback\)/);
 });
+
+test('Plan Engine only mode: enables the engine and never falls back', () => {
+  const ctx = vm.createContext({});
+  ctx.window = ctx;
+  let value = 'only';
+  ctx.localStorage = { getItem: () => value };
+  vm.runInContext(read('planning/plan-engine-client.js') + '\nthis.enabled = isPlanEngineEnabled; this.strict = isPlanEngineStrict;', ctx);
+  assert.equal(ctx.enabled(), true);
+  assert.equal(ctx.strict(), true);
+  value = 'on';
+  assert.equal(ctx.strict(), false, "'on' keeps the normal fallback");
+  value = null;
+  assert.equal(ctx.enabled(), false);
+  const gen = app.slice(app.indexOf('async function generateOptimizedActiveRoutesFromSelection('), app.indexOf('const origin = getLocationInput(currentLocationOrigin);', app.indexOf('async function generateOptimizedActiveRoutesFromSelection(')));
+  assert.ok(gen.indexOf("name: 'PlanEngineStrictError'") > gen.indexOf("console.info('Plan Engine not used:'"));
+  assert.ok(gen.indexOf("name: 'PlanEngineStrictError'") < gen.indexOf("getCurrentProductPlan() === 'basic'"), 'checked before any Google or Basic fallback');
+  const page = read('planning/manual-assignment-page.js');
+  const entry = page.slice(page.indexOf('async function handleGoToManualAssignPageLegacy('), page.indexOf('function populateManualAssignmentListsLegacy('));
+  assert.match(entry, /if \(error\?\.name === 'PlanEngineStrictError'\) \{[\s\S]*?await refundAutoPlanSession\(autoPlan\.sessionId\);/);
+  assert.match(entry, /if \(strictFailure\) \{\s*\/\/ handled above: no fallback in Plan Engine only mode\s*\} else if \(window\.GoRouteXRouteEngine\)/);
+});

@@ -348,6 +348,7 @@ async function handleGoToManualAssignPageLegacy() {
         // With none left today, the stops are listed unassigned and the planner arranges them by hand.
         const Status = window.GoRouteXPlannerStatus;
         const planId = Status.begin();
+        let strictFailure = '';
         const autoPlan = await startAutoPlanSession();
         if (!Status.isCurrent(planId)) { await refundAutoPlanSession(autoPlan.sessionId); return; }
         window._autoPlanManualMode = autoPlan.mode === 'manual';
@@ -375,7 +376,15 @@ async function handleGoToManualAssignPageLegacy() {
         } catch (error) {
             // A newer entry replaced this plan while it was running: leave everything to the newer one.
             if (error?.name === 'StalePlanError' || !Status.isCurrent(planId)) return;
-            if (routeArrangementIsDirectionReturn()) {
+            if (error?.name === 'PlanEngineStrictError') {
+                // Test mode: no fallback. Every stop stays unassigned and the reason is shown; the plan is refunded.
+                Status.fail(planId, error.reason || error.message);
+                strictFailure = error.message;
+                unassignedStops = Array.from(selectedCustomers);
+                resetManualRouteSlots();
+                await refundAutoPlanSession(autoPlan.sessionId);
+                showToast(error.message, 'warning', 10000);
+            } else if (routeArrangementIsDirectionReturn()) {
                 Status.fail(planId, error?.message || 'direction order failed');
                 messageBarPg2.textContent = `Direction plan was not applied: ${error.message || 'Unable to order these stops.'}`;
                 const errorDetail = String(error?.message || error?.status || error?.code || error || 'Unknown error');
@@ -389,8 +398,10 @@ async function handleGoToManualAssignPageLegacy() {
                 await refundAutoPlanSession(autoPlan.sessionId);
                 return;
             }
-            console.warn('Global route optimization failed. Falling back to route engine grouping.', error);
-            if (window.GoRouteXRouteEngine) {
+            if (strictFailure) {
+                // handled above: no fallback in Plan Engine only mode
+            } else if (window.GoRouteXRouteEngine) {
+                console.warn('Global route optimization failed. Falling back to route engine grouping.', error);
                 window.GoRouteXRouteEngine.setSelectedStops(selectedStops);
                 window.GoRouteXRouteEngine.generateRoutes(8);
                 const fallbackPlan = window.GoRouteXRouteEngine.getRoutePlan().routes || [];
@@ -434,7 +445,9 @@ async function handleGoToManualAssignPageLegacy() {
         }
 
         hasShownOptimizationSuggestion = true;
-        messageBarPg2.textContent = window._autoPlanManualMode
+        messageBarPg2.textContent = strictFailure
+            ? `${strictFailure} No fallback planner is used in Plan Engine only mode; nothing was planned and today's count was refunded.`
+            : window._autoPlanManualMode
             ? ['Automatic planning for today is used up. Drag the stops into routes yourself, then click Confirm Route.', plannerStatusLine()].filter(Boolean).join(' ')
             : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || '', plannerStatusLine()].filter(Boolean).join(' ');
         updateRouteLines();
