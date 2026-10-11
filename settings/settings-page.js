@@ -1,7 +1,9 @@
 import { CAPACITY_UNITS, normalizeSettings, validateSettings } from './settings-model.js';
 import { getTenantSettings, saveTenantSettings, getCachedSettings, listVehicles, activeVehicleCount, saveVehicle, setVehicleActive, driverAccountsApi } from './settings-store.js';
 const $ = id => document.getElementById(id);
-const state = { user: null, settings: null, baseline: '', loaded: false, saving: false, drivers: [], driverAccounts: [], driverEntitlement: null, vehicles: [], accountGeneration: 0 };
+const state = { user: null, settings: null, baseline: '', loaded: false, saving: false, drivers: [], driverAccounts: [], driverEntitlement: null, vehicles: [], accountGeneration: 0,
+  // Default start/end: coordinates are used only for the exact address they were verified for.
+  verified: { defaultStart: null, defaultEnd: null }, loadedPoints: { defaultStart: null, defaultEnd: null }, locationErrors: { defaultStart: '', defaultEnd: '' } };
 const sections = ['company', 'drivers', 'vehicles', 'routePlanning', 'orders', 'driverApp'];
 function notice(message, error = false) { const el = $('settingsNotice'); el.textContent = message; el.classList.toggle('is-error', error); }
 function status(message, kind = '') { const el = $('saveStatus'); el.textContent = message; el.className = kind; }
@@ -55,7 +57,7 @@ function go(section) {
   for (const name of sections) $('section-' + name).hidden = name !== section;
   for (const button of $('settingsNav').querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.section === section ? 'page' : 'false');
   history.replaceState(null, '', '#' + section);
-  if (section === 'routePlanning') loadPlanInsights();
+  if (section === 'routePlanning') { loadPlanInsights(); attachAddressSuggestions(); }
 }
 function setValue(id, value) { $(id).value = value ?? ''; }
 function setChecked(id, value) { $(id).checked = value === true; }
@@ -64,12 +66,102 @@ function populate(settings) {
   setValue('maxStops', d.maxStops); setValue('workingStart', d.workingStart); setValue('workingEnd', d.workingEnd); setValue('breakMinutes', d.breakMinutes);
   setValue('serviceMinutes', r.serviceMinutes); setValue('maxDurationMinutes', r.maxDurationMinutes); setValue('numberOfRoutes', r.numberOfRoutes); setValue('planningTime', r.planningTime);
   setValue('defaultStart', r.defaultStart?.address); setValue('defaultEnd', r.defaultEnd?.address);
+  for (const field of LOCATION_FIELDS) {
+    const saved = r[field] || null;
+    state.loadedPoints[field] = saved;
+    state.verified[field] = saved?.latLng ? { address: saved.address, latLng: { ...saved.latLng }, quality: 'saved' } : null;
+    state.locationErrors[field] = '';
+    renderLocationStatus(field);
+  }
   window.GoRouteXScheduleEditor?.render($('defaultDeliverySchedule'), r.defaultDeliverySchedule, { idPrefix: 'defaultSchedule' });
   setValue('capacityMode', settings.capacityPlanning.mode); setChecked('contactRequired', settings.orders.contactRequired);
   setChecked('liveTracking', a.liveTracking); setChecked('recipientRequired', a.pod.recipientRequired); setChecked('photoRequired', a.pod.photoRequired); setChecked('signatureRequired', a.pod.signatureRequired);
   updateCapacity(); renderOverrides();
 }
-function point(id) { const address = $(id).value.trim(); return address ? { address, label: address, latLng: null } : null; }
+const LOCATION_FIELDS = ['defaultStart', 'defaultEnd'];
+const LOCATION_LABELS = { defaultStart: 'Default Start Address', defaultEnd: 'Default End Address' };
+function point(id) {
+  const geo = window.GoRouteXGeocode;
+  const address = $(id).value.trim();
+  if (geo) return geo.pointFor(address, state.verified[id], state.loadedPoints[id]);
+  const loaded = state.loadedPoints[id];
+  return address ? { address, label: loaded?.address === address ? loaded.label : address, latLng: loaded?.address === address ? loaded.latLng : null } : null;
+}
+function renderLocationStatus(id) {
+  const el = $(id + 'Status');
+  if (!el) return;
+  const address = $(id).value.trim(), verified = state.verified[id], error = state.locationErrors[id];
+  let text = '', kind = '';
+  if (error) { text = error; kind = 'is-error'; }
+  else if (!address) text = id === 'defaultEnd' ? 'Routes return to the Start Location.' : '';
+  else if (verified && verified.address === address) {
+    const how = verified.quality === 'place' ? ' (selected from the list)' : verified.quality === 'address' ? ' (address matched)' : '';
+    const outside = window.GoRouteXPlannerProblem?.inSingapore && !window.GoRouteXPlannerProblem.inSingapore(verified.latLng);
+    text = `Location verified${how} · GPS coordinates available${outside ? ' · Outside Singapore: plans from here use the standard planner' : ''}`;
+    kind = outside ? 'is-warning' : 'is-verified';
+  } else if (state.loadedPoints[id]?.address === address) {
+    text = 'Location not verified. Pick the address from the suggestions so the route planner can use its map position.'; kind = 'is-warning';
+  } else {
+    text = 'Location not verified. Select the address from the suggestions; Save will also try to check it.'; kind = 'is-warning';
+  }
+  el.textContent = text;
+  el.className = `location-status ${kind}`.trim();
+}
+function onLocationInput(id) {
+  // Any change to the text drops coordinates that belong to a different address.
+  if (state.verified[id] && state.verified[id].address !== $(id).value.trim()) state.verified[id] = null;
+  state.locationErrors[id] = '';
+  renderLocationStatus(id);
+}
+let suggestionsAttached = false;
+async function attachAddressSuggestions() {
+  const geo = window.GoRouteXGeocode;
+  if (suggestionsAttached || !geo) return;
+  suggestionsAttached = true;
+  try {
+    const maps = await geo.loadMapsApi();
+    for (const id of LOCATION_FIELDS) {
+      const input = $(id);
+      const autocomplete = new maps.places.Autocomplete(input, { fields: ['formatted_address', 'geometry', 'name'] });
+      autocomplete.addListener('place_changed', () => {
+        const picked = geo.fromPlace(autocomplete.getPlace(), input.value);
+        if (!picked) {
+          state.verified[id] = null;
+          state.locationErrors[id] = 'That suggestion has no map position. Pick another suggestion.';
+        } else {
+          input.value = picked.address;
+          state.verified[id] = { address: picked.address, latLng: picked.latLng, quality: 'place' };
+          state.locationErrors[id] = '';
+        }
+        renderLocationStatus(id);
+        updateSave();
+      });
+    }
+  } catch (error) {
+    suggestionsAttached = false; // retried the next time the section opens
+    for (const id of LOCATION_FIELDS) if (!state.locationErrors[id]) {
+      const el = $(id + 'Status');
+      if (el && $(id).value.trim() && !(state.verified[id]?.address === $(id).value.trim())) { el.textContent = `Address suggestions are unavailable: ${error.message}`; el.className = 'location-status is-warning'; }
+    }
+  }
+}
+// New or edited addresses must have coordinates before saving. An unchanged older address (saved before
+// coordinates existed) never blocks saving other settings. Works on the save snapshot only.
+async function verifySnapshotLocations(snapshot) {
+  const points = { defaultStart: snapshot.routePlanning.defaultStart, defaultEnd: snapshot.routePlanning.defaultEnd };
+  const needsCheck = LOCATION_FIELDS.filter(id => points[id] && !points[id].latLng && state.loadedPoints[id]?.address !== points[id].address);
+  if (!needsCheck.length) return { ok: true };
+  const geo = window.GoRouteXGeocode;
+  if (!geo) return { ok: false, field: needsCheck[0], reason: `${LOCATION_LABELS[needsCheck[0]]}: the address check is unavailable. Reload the page and try again.` };
+  for (const id of needsCheck) { const el = $(id + 'Status'); if (el) { el.textContent = 'Checking address…'; el.className = 'location-status'; } }
+  const result = await geo.verifyPoints(points, state.loadedPoints);
+  for (const id of result.matched || []) {
+    if ($(id).value.trim() === points[id].address) state.verified[id] = { address: points[id].address, latLng: { ...points[id].latLng }, quality: 'address' };
+  }
+  if (!result.ok) state.locationErrors[result.field] = result.reason;
+  LOCATION_FIELDS.forEach(renderLocationStatus);
+  return result.ok ? result : { ...result, reason: `${LOCATION_LABELS[result.field]}: ${result.reason}` };
+}
 function readForm() {
   const source = state.settings || getCachedSettings();
   const overrides = { ...source.drivers.overrides };
@@ -236,14 +328,24 @@ async function save(event) {
   const input = readForm(), errors = validateSettings(input);
   if (Object.keys(errors).length) { const [field, message] = Object.entries(errors)[0]; status(message, 'is-error'); $(({maxStops:'maxStops',workingHours:'workingStart',breakMinutes:'breakMinutes',serviceMinutes:'serviceMinutes',maxDurationMinutes:'maxDurationMinutes',numberOfRoutes:'numberOfRoutes',planningTime:'planningTime',capacityMode:'capacityMode',overrides:'driverOverrides',deliverySchedule:'defaultDeliverySchedule'})[field])?.focus?.(); if (field === 'deliverySchedule') go('routePlanning'); return; }
   state.saving = true; $('saveSettings').disabled = true; status('Saving…');
-  try { state.settings = await saveTenantSettings(input); state.baseline = JSON.stringify(readForm()); status('Saved'); notice('Company settings saved.'); }
+  try {
+    // `input` is the save snapshot: edits made while saving stay unsaved (the baseline is the snapshot).
+    const located = await verifySnapshotLocations(input);
+    if (!located.ok) { status(located.reason, 'is-error'); go('routePlanning'); $(located.field)?.focus?.(); return; }
+    state.settings = await saveTenantSettings(input);
+    for (const id of LOCATION_FIELDS) state.loadedPoints[id] = input.routePlanning[id] ? { ...input.routePlanning[id] } : null;
+    state.baseline = JSON.stringify(input);
+    notice('Company settings saved.');
+    state.saving = false;
+    if (dirty()) status('Unsaved changes', 'is-dirty'); else status('Saved');
+  }
   catch (error) { status(`Failed to save: ${error.message}. Retry Save Changes.`, 'is-error'); notice('Changes were not confirmed in the cloud.', true); }
   finally { state.saving = false; $('saveSettings').disabled = !dirty(); }
 }
 function bind() {
   $('settingsNav').addEventListener('click', event => { const button = event.target.closest('[data-section]'); if (button) go(button.dataset.section); });
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => go(button.dataset.go)));
-  $('settingsForm').addEventListener('input', updateSave); $('settingsForm').addEventListener('change', event => { if (event.target.id === 'capacityMode') updateCapacity(); updateSave(); });
+  $('settingsForm').addEventListener('input', event => { if (LOCATION_FIELDS.includes(event.target.id)) onLocationInput(event.target.id); updateSave(); }); $('settingsForm').addEventListener('change', event => { if (event.target.id === 'capacityMode') updateCapacity(); updateSave(); });
   $('settingsForm').addEventListener('submit', save); $('retryLoad').addEventListener('click', load);
   $('vehicleSave').addEventListener('click', async () => {
     const button = $('vehicleSave');

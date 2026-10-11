@@ -52,7 +52,7 @@ test('Settings shows planned vs actual in Route Planning Defaults, loaded when t
   const section = html.split('id="section-routePlanning"')[1].split('</section>')[0];
   assert.match(section, /<h3>Planned vs actual<\/h3>/);
   assert.match(section, /id="planInsights"/);
-  assert.match(page, /if \(section === 'routePlanning'\) loadPlanInsights\(\);/);
+  assert.match(page, /if \(section === 'routePlanning'\) \{ loadPlanInsights\(\);/);
   assert.match(page, /fetch\('\/\.netlify\/functions\/plan-insights'/);
   assert.doesNotMatch(page.slice(page.indexOf('function renderPlanInsights')), /innerHTML/, 'rendered with textContent only');
   const fn = readFileSync(new URL('../netlify/functions/plan-insights.js', import.meta.url), 'utf8');

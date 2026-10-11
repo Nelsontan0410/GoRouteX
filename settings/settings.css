@@ -3,3 +3,8 @@
 
 #driverAccountStatus.is-error{color:var(--danger)}
 #driverAccountForm input:disabled{background:#eef2f4;color:var(--muted)}
+
+.location-status { display: block; margin-top: 4px; font-weight: 600; }
+.location-status.is-verified { color: #15803d; }
+.location-status.is-warning { color: #b45309; }
+.location-status.is-error { color: #b91c1c; }
