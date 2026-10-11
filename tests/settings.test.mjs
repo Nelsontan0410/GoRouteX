@@ -141,3 +141,17 @@ test('route planning defaults include the seven-day Customer Delivery Schedule w
   assert.equal(normalizeSettings(broken).routePlanning.defaultDeliverySchedule.monday.windows[0].start, '09:00', 'stored invalid data falls back to the default');
   assert.equal(normalizeSettings({}).routePlanning.defaultDeliverySchedule.friday.breaks[0].start, '12:00', 'old settings without a schedule get the default');
 });
+
+test('default start and end coordinates survive save, reload and an unrelated settings change', async () => {
+  const settings = defaultSettings();
+  settings.routePlanning.defaultStart = { address: '48 Toh Guan Road East, Singapore 608586', label: 'Warehouse', latLng: { lat: 1.3329, lng: 103.7436 } };
+  settings.routePlanning.defaultEnd = { address: 'Old depot', label: 'Old depot', latLng: null };
+  await saveTenantSettings(settings);
+  const reloaded = await getTenantSettings();
+  assert.deepEqual(reloaded.routePlanning.defaultStart.latLng, { lat: 1.3329, lng: 103.7436 });
+  assert.equal(reloaded.routePlanning.defaultEnd.latLng, null);
+  await saveTenantSettings({ ...reloaded, drivers: { ...reloaded.drivers, maxStops: 12 } });
+  const again = await getTenantSettings();
+  assert.equal(again.drivers.maxStops, 12);
+  assert.deepEqual(again.routePlanning.defaultStart.latLng, { lat: 1.3329, lng: 103.7436 });
+});

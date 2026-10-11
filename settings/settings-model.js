@@ -3,9 +3,24 @@ const DeliveryConstraints = globalThis.GoRouteXDeliveryConstraints;
 export const CAPACITY_UNITS = Object.freeze({ off: null, weight: 'kg', pallet: 'pallet', carton: 'carton' });
 const isTime = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 const validInt = (value, min, max) => value !== null && value !== undefined && value !== '' && Number.isInteger(Number(value)) && Number(value) >= min && Number(value) <= max;
-const cleanPoint = value => {
+// Coordinates are plain numbers only: null, '', booleans and strings are not coordinates.
+const isCoordinate = (value, limit) => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
+export function cleanLatLng(value) {
+  if (!value || typeof value !== 'object') return null;
+  return isCoordinate(value.lat, 90) && isCoordinate(value.lng, 180) ? { lat: value.lat, lng: value.lng } : null;
+}
+// Stored data only: an older record may hold decimal strings such as "1.3329". Never used for form input.
+const DECIMAL = /^-?\d{1,3}(\.\d+)?$/;
+export function migrateLegacyLatLng(value) {
+  if (!value || typeof value !== 'object') return null;
+  const parse = (part) => (typeof part === 'string' && DECIMAL.test(part.trim()) ? Number(part.trim()) : part);
+  return cleanLatLng({ lat: parse(value.lat), lng: parse(value.lng) });
+}
+const cleanPoint = (value, fromStore = false) => {
   const address = String(value?.address || '').trim().slice(0, 240);
-  return address ? { address, label: String(value?.label || address).trim().slice(0, 120), latLng: null } : null;
+  if (!address) return null;
+  const latLng = fromStore ? migrateLegacyLatLng(value?.latLng) : cleanLatLng(value?.latLng);
+  return { address, label: String(value?.label || address).trim().slice(0, 120), latLng };
 };
 export function defaultSettings() {
   return {
@@ -17,7 +32,9 @@ export function defaultSettings() {
     driverApp: { liveTracking: true, pod: { recipientRequired: false, photoRequired: false, signatureRequired: false } }
   };
 }
-export function normalizeSettings(raw = {}, contactRequired = false) {
+// options.fromStore: the data was read from Firestore or the cache (allows the legacy coordinate migration).
+export function normalizeSettings(raw = {}, contactRequired = false, options = {}) {
+  const fromStore = options.fromStore === true;
   const base = defaultSettings();
   const d = raw.drivers || {}, r = raw.routePlanning || {}, c = raw.capacityPlanning || {}, a = raw.driverApp || {};
   const mode = Object.hasOwn(CAPACITY_UNITS, c.mode) ? c.mode : 'off';
@@ -45,8 +62,8 @@ export function normalizeSettings(raw = {}, contactRequired = false) {
       maxDurationMinutes: validInt(r.maxDurationMinutes, 30, 1440) ? Number(r.maxDurationMinutes) : base.routePlanning.maxDurationMinutes,
       numberOfRoutes: validInt(r.numberOfRoutes, 1, 50) ? Number(r.numberOfRoutes) : base.routePlanning.numberOfRoutes,
       planningTime: isTime(r.planningTime) ? r.planningTime : base.routePlanning.planningTime,
-      defaultStart: cleanPoint(r.defaultStart),
-      defaultEnd: cleanPoint(r.defaultEnd),
+      defaultStart: cleanPoint(r.defaultStart, fromStore),
+      defaultEnd: cleanPoint(r.defaultEnd, fromStore),
       // Customer Delivery Schedule default: customers in default mode resolve this at planning time.
       defaultDeliverySchedule: r.defaultDeliverySchedule && DeliveryConstraints.validateSchedule(r.defaultDeliverySchedule).valid
         ? DeliveryConstraints.cloneSchedule(r.defaultDeliverySchedule)
