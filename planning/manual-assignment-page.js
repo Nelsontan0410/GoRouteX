@@ -7,6 +7,13 @@
  * All duplicate declarations are retained in original order: trailing compatibility wrappers win.
  * Existing updateRouteLines preview calls and Retrieve All session sync are intentionally preserved.
  */
+// "Planner: …" line: shown while testing the Plan Engine, or whenever it was not used for a real reason.
+function plannerStatusLine() {
+        let testSwitchOn = false;
+        try { testSwitchOn = window.localStorage?.getItem('goroutexPlanner') === 'on'; } catch (_) { testSwitchOn = false; }
+        return window.GoRouteXPlannerStatus?.line({ testSwitchOn }) || '';
+    }
+
 async function handleGoToManualAssignPage() {
         if (!currentLocationOrigin) { 
             messageBarPg2.textContent = "Location not set. Please wait or enable location services.";
@@ -17,6 +24,8 @@ async function handleGoToManualAssignPage() {
                 return;
             }
         // Use customer IDs instead of addresses to preserve identity
+        const manualPlanId = window.GoRouteXPlannerStatus?.begin();
+        window.GoRouteXPlannerStatus?.finish(manualPlanId, { optimizer: 'manual' });
         unassignedStops = Array.from(selectedCustomers); 
         resetManualRouteSlots();
 
@@ -35,8 +44,8 @@ async function handleGoToManualAssignPage() {
         
         hasShownOptimizationSuggestion = true;
         messageBarPg2.textContent = window._autoPlanManualMode
-            ? 'Automatic planning for today is used up. Drag the stops into routes yourself, then click Confirm Route.'
-            : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
+            ? ['Automatic planning for today is used up. Drag the stops into routes yourself, then click Confirm Route.', plannerStatusLine()].filter(Boolean).join(' ')
+            : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || '', plannerStatusLine()].filter(Boolean).join(' ');
         updateRouteLines();
         updateConfirmRouteButtonState();
     }
@@ -337,30 +346,37 @@ async function handleGoToManualAssignPageLegacy() {
         }
         // Every entry into Review & Assign uses one automatic plan (server-counted, including re-entries).
         // With none left today, the stops are listed unassigned and the planner arranges them by hand.
+        const Status = window.GoRouteXPlannerStatus;
+        const planId = Status.begin();
         const autoPlan = await startAutoPlanSession();
+        if (!Status.isCurrent(planId)) { await refundAutoPlanSession(autoPlan.sessionId); return; }
         window._autoPlanManualMode = autoPlan.mode === 'manual';
         window._autoPlanRecord = null;
         if (autoPlan.mode === 'manual') {
+            Status.finish(planId, { optimizer: 'manual', roadRouting: typeof osrmRoutingWanted === 'function' && osrmRoutingWanted() ? 'osrm' : 'google', reason: 'automatic planning for today is used up' });
             window._autoPlanRecord = { source: 'manual', routes: [], unassigned: Array.from(selectedCustomers), at: new Date().toISOString() };
             unassignedStops = Array.from(selectedCustomers);
             resetManualRouteSlots();
             openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
         } else try {
             window._autoPlanSessionId = autoPlan.sessionId;
-            await generateOptimizedActiveRoutesFromSelection(selectedStops, 8);
+            await generateOptimizedActiveRoutesFromSelection(selectedStops, 8, { planId });
             buildManualRouteSlotsFromActiveRoutes(window._activeRoutes);
             if (routeArrangementIsDirectionReturn()) recordDirectionDebug('SUCCESS', 'Direction order applied; opening manual preview');
             // Customers the planner could not fit stay unassigned for the planner to handle.
             unassignedStops = Array.isArray(window._plannerUnassignedIds) ? [...window._plannerUnassignedIds] : [];
             // Remember the automatic plan to measure later how much the planner changed it (plan-edits.js).
             window._autoPlanRecord = {
-                source: window._plannerUsedEngine ? 'plan-engine' : 'google',
+                source: window._plannerUsedEngine ? 'plan-engine' : (Status.current()?.optimizer || 'google'),
                 routes: (window._activeRoutes || []).map((route) => [...(route.stopIds || [])]),
                 unassigned: [...unassignedStops],
                 at: new Date().toISOString()
             };
         } catch (error) {
+            // A newer entry replaced this plan while it was running: leave everything to the newer one.
+            if (error?.name === 'StalePlanError' || !Status.isCurrent(planId)) return;
             if (routeArrangementIsDirectionReturn()) {
+                Status.fail(planId, error?.message || 'direction order failed');
                 messageBarPg2.textContent = `Direction plan was not applied: ${error.message || 'Unable to order these stops.'}`;
                 const errorDetail = String(error?.message || error?.status || error?.code || error || 'Unknown error');
                 recordDirectionDebug('FAILED', `${error?.name || 'Error'}: ${errorDetail}`);
@@ -384,8 +400,10 @@ async function handleGoToManualAssignPageLegacy() {
                 validatePackedActiveRoutes(window._activeRoutes, 8);
                 buildManualRouteSlotsFromActiveRoutes(window._activeRoutes);
                 unassignedStops = [];
+                Status.finish(planId, { optimizer: 'local-clustering', roadRouting: typeof osrmRoutingWanted === 'function' && osrmRoutingWanted() ? 'osrm' : 'google', reason: error?.message || 'automatic planning failed' });
             } else {
                 console.warn('GoRouteXRouteEngine is not loaded.');
+                Status.finish(planId, { optimizer: 'none', reason: error?.message || 'automatic planning failed' });
                 unassignedStops = Array.from(selectedCustomers);
                 resetManualRouteSlots();
                 await refundAutoPlanSession(autoPlan.sessionId);
@@ -417,8 +435,8 @@ async function handleGoToManualAssignPageLegacy() {
 
         hasShownOptimizationSuggestion = true;
         messageBarPg2.textContent = window._autoPlanManualMode
-            ? 'Automatic planning for today is used up. Drag the stops into routes yourself, then click Confirm Route.'
-            : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || ''].filter(Boolean).join(' ');
+            ? ['Automatic planning for today is used up. Drag the stops into routes yourself, then click Confirm Route.', plannerStatusLine()].filter(Boolean).join(' ')
+            : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || '', plannerStatusLine()].filter(Boolean).join(' ');
         updateRouteLines();
         updateConfirmRouteButtonState();
     }
@@ -507,6 +525,14 @@ function renderDraggableListLegacy(listElement, itemsArray, listType, routeIndex
                     <span class="unassigned-stop-text">${escapeHtml(stopLabel)}</span>
                     <button type="button" class="manual-stop-add-btn" data-customer-id="${escapeHtml(customerId)}">Add</button>
                 `;
+                // Why the planner left this stop out (keyed by stop ID; text only).
+                const unassignedReason = window.GoRouteXPlannerStatus?.reasonFor(customerId);
+                if (unassignedReason) {
+                    const reasonLine = document.createElement('small');
+                    reasonLine.className = 'unassigned-reason';
+                    reasonLine.textContent = unassignedReason;
+                    div.querySelector('.unassigned-stop-text')?.appendChild(reasonLine);
+                }
                 listFragment.appendChild(div);
             });
             listElement.appendChild(listFragment);

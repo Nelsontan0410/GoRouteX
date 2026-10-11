@@ -1177,6 +1177,7 @@
 <script src="planner-problem.js"></script>
 <script src="settings/settings-geocode.js"></script>
 <script src="planning/plan-engine-client.js"></script>
+<script src="planning/planner-status.js"></script>
 <script src="planning/plan-edits.js"></script>
 <script src="route-storage.js"></script>
   <script src="orders/route-planning-preferences.js"></script>
@@ -8112,9 +8113,19 @@
         }
     }
 
-    async function generateOptimizedActiveRoutesFromSelection(selectedStops, maxPerRoute = 8) {
+    // A newer Review & Assign entry replaced this plan: its results must not be applied.
+    function assertCurrentPlan(planId) {
+        if (!window.GoRouteXPlannerStatus.isCurrent(planId)) throw Object.assign(new Error('A newer plan replaced this one.'), { name: 'StalePlanError' });
+    }
+
+    async function generateOptimizedActiveRoutesFromSelection(selectedStops, maxPerRoute = 8, options = {}) {
+        const Status = window.GoRouteXPlannerStatus;
+        const planId = options.planId || Status.begin();
+        const roadRouting = typeof osrmRoutingWanted === 'function' && osrmRoutingWanted() ? 'osrm' : 'google';
         if (routeArrangementIsDirectionReturn()) {
-            return generateDirectionOrderedActiveRoutes(selectedStops, maxPerRoute);
+            const directionRoutes = await generateDirectionOrderedActiveRoutes(selectedStops, maxPerRoute);
+            Status.finish(planId, { optimizer: 'direction-return', roadRouting });
+            return directionRoutes;
         }
         await ensurePlanningDirectionsService();
 
@@ -8128,13 +8139,12 @@
 
         // Plan Engine (VRPTW): routes, order and number of routes decided together. Falls back to the
         // Google ordering below when it is off, not applicable (e.g. outside Singapore) or unavailable.
-        window._plannerUnassignedIds = [];
-        window._plannerUsedEngine = false;
         // Old address-only start/end locations get their coordinates first (once; saved in this browser).
         if (isPlanEngineEnabled()) await ensureRouteLocationCoordinates().catch(() => null);
+        assertCurrentPlan(planId);
         const engine = await planWithPlanEngine(safeStops, destinationId, window._autoPlanSessionId);
+        assertCurrentPlan(planId);
         if (!engine.fallback) {
-            window._plannerUsedEngine = true;
             window._activeRoutes = assignRouteColors(engine.routes.map((route, index) => ({
                 id: index + 1,
                 index,
@@ -8146,7 +8156,14 @@
                 color: getRouteColor(index)
             })));
             window._testRoutes = window._activeRoutes;
-            window._plannerUnassignedIds = engine.unassigned.map((item) => item.id);
+            // Every stop was unservable before solving (e.g. all closed that day): the service was not asked.
+            const solved = engine.solved !== false;
+            Status.finish(planId, {
+                optimizer: solved ? 'plan-engine' : 'none',
+                roadRouting,
+                reason: solved ? '' : 'No selected stop can be served on this date',
+                unassigned: engine.unassigned
+            });
             const names = engine.unassigned.map((item) => `${getCustomerById(item.id)?.Name || item.id} (${item.message})`);
             window._timeWindowPlanningNotice = names.length
                 ? `${names.length} stop(s) could not be placed and are left unassigned: ${names.join('; ')}`
@@ -8179,6 +8196,7 @@
             optimizeWaypoints: true,
             travelMode: 'DRIVING'
         });
+        assertCurrentPlan(planId);
 
         const waypointOrder = result?.routes?.[0]?.waypoint_order;
         const optimizedStops = Array.isArray(waypointOrder) && waypointOrder.length === safeStops.length
@@ -8197,6 +8215,7 @@
         window._testRoutes = window._activeRoutes;
         console.log('OPTIMIZED ROUTES:', window._activeRoutes);
         validatePackedActiveRoutes(window._activeRoutes, maxPerRoute);
+        Status.finish(planId, { optimizer: 'google', roadRouting, reason: engine.fallback });
         // Shadow mode: score the Plan Engine against this plan in the background (nothing is shown).
         if (engine.fallback === 'disabled' && typeof runPlanEngineShadow === 'function') runPlanEngineShadow(safeStops, destinationId, window._autoPlanSessionId, window._activeRoutes);
         return window._activeRoutes;

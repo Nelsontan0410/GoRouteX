@@ -125,7 +125,7 @@ async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
         if (prepared.unsupported) return { fallback: prepared.unsupported, code: prepared.code || 'unsupported' };
         const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
         if (!built.problem.jobs.length) {
-            return { routes: [], unassigned: built.preUnassigned };
+            return { routes: [], unassigned: built.preUnassigned, solved: false };
         }
         const result = await callPlanRoutes({ action: 'solve', sessionId, problem: built.problem });
         if (!result.ok) return { fallback: result.code || 'planner-failed' };
