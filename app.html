@@ -1416,7 +1416,11 @@
         syncSessionToCloud();
         if (notice) {
             notice.hidden = false;
-            notice.textContent = selection.orderIds.length + ' selected orders are ready across ' + selection.stopIds.length + ' saved stops. Review the stops, then continue to route assignment.';
+            // One-glance check before planning: where the day starts and ends, then one click to plan.
+            const known = typeof routeOriginMode !== 'undefined';
+            const startText = known && routeOriginMode === 'custom' && customOriginAddress ? (customOriginLabel || customOriginAddress) : 'your current location';
+            const endText = known && routeEndMode === 'custom' && customEndAddress ? (customEndLabel || customEndAddress) : 'Same as Start';
+            notice.textContent = selection.orderIds.length + ' selected orders are ready across ' + selection.stopIds.length + ' saved stops. Start: ' + startText + ' · End: ' + endText + '. Check Route settings if needed, then click Review & Assign.';
         }
     }
 

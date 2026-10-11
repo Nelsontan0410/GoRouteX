@@ -32,7 +32,7 @@ export async function getTenantSettings() {
     settingsRoot.doc('operationsV1').get({ source: 'server' }),
     settingsRoot.doc('orderHub').get({ source: 'server' })
   ]);
-  const settings = normalizeSettings(operations.exists ? operations.data() : {}, orderHub.exists && orderHub.data()?.contactRequired === true, { fromStore: true });
+  const settings = normalizeSettings(operations.exists ? operations.data() : {}, !orderHub.exists || orderHub.data()?.contactRequired !== false, { fromStore: true });
   remember(settings);
   return settings;
 }

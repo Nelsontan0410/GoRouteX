@@ -28,7 +28,7 @@ export function defaultSettings() {
     drivers: { maxStops: 20, workingStart: '08:00', workingEnd: '17:00', breakMinutes: 60, overrides: {} },
     routePlanning: { serviceMinutes: 15, maxDurationMinutes: 480, numberOfRoutes: 1, planningTime: '09:00', defaultStart: null, defaultEnd: null, defaultDeliverySchedule: DeliveryConstraints.defaultSchedule() },
     capacityPlanning: { enabled: false, mode: 'off', unit: null },
-    orders: { contactRequired: false },
+    orders: { contactRequired: true },
     driverApp: { liveTracking: true, pod: { recipientRequired: false, photoRequired: false, signatureRequired: false } }
   };
 }
