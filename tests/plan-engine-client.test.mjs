@@ -9,7 +9,7 @@ const app = read('app.html');
 function client({ enabled = true, fetchImpl, plan = 'proplan' } = {}) {
   const ctx = ({
     window: { localStorage: { getItem: (k) => (k === 'goroutexPlanner' && enabled ? 'on' : null) }, GoRouteXSettings: { getCachedSettings: () => ({ drivers: { workingStart: '08:00', workingEnd: '17:00', breakMinutes: 60, maxStops: 20 }, routePlanning: { maxDurationMinutes: 480 } }) } },
-    AbortController, setTimeout, clearTimeout, console,
+    AbortController, setTimeout, clearTimeout, console, performance,
     fetch: fetchImpl || (async () => { throw new Error('no fetch'); }),
     currentLocationOrigin: 'origin',
     fixedDestinationAddress: '__dispatch_base__',
