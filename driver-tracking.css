@@ -527,3 +527,4 @@ a {
 [hidden]{display:none!important}.driver-stop-detail{margin-top:12px;padding:12px;background:#f3f6fa;border-radius:10px;line-height:1.4}.driver-stop-detail p{margin:5px 0 0;color:#536479;overflow-wrap:anywhere}
 
 .tracking-hero .tracking-status-chip.is-stopped{background:#e5eaf0;color:#273d55}
+.driver-navigate-all{display:grid;gap:10px;background:#fff;border:1px solid #dce3ec;border-radius:16px;padding:18px;margin-bottom:12px}.driver-navigate-all h3{margin:0;font-size:1rem}.driver-navigate-all small{color:#536479}.driver-navigate-parts{display:grid;gap:8px}.driver-navigate-parts a{display:flex;align-items:center;justify-content:center;text-decoration:none}
