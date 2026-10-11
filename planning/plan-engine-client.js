@@ -82,12 +82,16 @@ function stopDemand(stopId) {
 /** The planner input from the current selection, or { unsupported } when it cannot be used. */
 function buildPlanEngineInput(selectedStops, destinationId, capacityVehicles = null) {
         const origin = toLatLngPoint(getLocationInput(currentLocationOrigin));
-        const end = destinationId ? toLatLngPoint(getLocationInput(destinationId)) : null;
+        if (!origin) return { unsupported: 'The start location has no verified coordinates.', code: 'start-unresolved' };
+        // The start is used as the end only when the user chose Same as Start; a custom end must resolve itself.
+        const sameAsStart = !destinationId || destinationId === fixedDestinationAddress;
+        const end = sameAsStart ? origin : toLatLngPoint(getLocationInput(destinationId));
+        if (!end) return { unsupported: 'The end location has no verified coordinates.', code: 'end-unresolved' };
         const settings = window.GoRouteXSettings?.getCachedSettings?.() || {};
         const input = {
             startDate: getRouteStartDateTime(),
             origin,
-            end: end || origin,
+            end,
             availableDrivers: 0,
             driverRules: settings.drivers || {},
             maxDurationMinutes: settings.routePlanning?.maxDurationMinutes,
@@ -118,7 +122,7 @@ async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
         if (!isPlanEngineEnabled()) return { fallback: 'disabled' };
         if (!sessionId) return { fallback: 'no-session' };
         const prepared = buildPlanEngineInput(selectedStops, destinationId, await loadCapacityVehicles());
-        if (prepared.unsupported) return { fallback: prepared.unsupported };
+        if (prepared.unsupported) return { fallback: prepared.unsupported, code: prepared.code || 'unsupported' };
         const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
         if (!built.problem.jobs.length) {
             return { routes: [], unassigned: built.preUnassigned };

@@ -17,6 +17,7 @@ function load({ enabled = false } = {}) {
   ctx.currentLocationOrigin = 'origin';
   ctx.getRouteStartDateTime = () => new Date(2026, 9, 5, 9, 0);
   ctx.getLocationInput = () => ({ lat: 1.33, lng: 103.74 });
+  ctx.fixedDestinationAddress = '__dispatch_base__';
   ctx.getPackedRouteStopId = (s) => s.id;
   ctx.GoRouteXSettings = { getCachedSettings: () => ({ drivers: { workingEnd: '17:00', breakMinutes: 60, maxStops: 20 } }) };
   vm.runInContext(read('delivery-constraints.js'), ctx);
