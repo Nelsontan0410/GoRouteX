@@ -14,7 +14,7 @@ test('a driver sees Route 1, 2, 3 of one dispatched plan in driving order, newes
 
 test('dispatch copies the route number to the driver; Dispatch offers one driver for all routes', () => {
   const fn = readFileSync(new URL('../netlify/functions/dispatch.js', import.meta.url), 'utf8');
-  assert.match(fn, /const delivery = \{ id: dispatchId, routeId, routeName: `Route \$\{routeId\}`,/);
+  assert.match(fn, /const delivery = \{ id: dispatchId, routeId, routeName: routeId === DayRoute\.DAY_ROUTE_ID \? 'All stops' : `Route \$\{routeId\}`, originLatLng: plan\.originLatLng \|\| null, endLatLng,/);
   const html = readFileSync(new URL('../dispatch.html', import.meta.url), 'utf8');
   assert.match(html, /id="dispatchAllDriver"/);
   const board = readFileSync(new URL('../dispatch/dispatch-board.js', import.meta.url), 'utf8');

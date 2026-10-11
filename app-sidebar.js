@@ -11,7 +11,7 @@
  */
 (function (global) {
   const PRIMARY = [
-    { key: 'dashboard', label: 'Dashboard', href: 'app.html#page-history-dashboard', page: 'page-history-dashboard' },
+    { key: 'dashboard', label: 'PlanEngine', href: 'app.html#page-history-dashboard', page: 'page-history-dashboard' },
     { key: 'order-hub', label: 'Order Hub', href: 'order-hub.html' },
     { key: 'dispatch', label: 'Dispatch', href: 'dispatch.html' }
   ];

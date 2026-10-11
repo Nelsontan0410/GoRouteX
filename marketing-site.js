@@ -8,9 +8,9 @@
     const basic = product.getPlanLimits('basic');
     document.querySelectorAll('[data-basic-limit]').forEach(element => { element.textContent = basic[element.dataset.basicLimit]; });
     const copy = {
-      basic: { label:'Free to start', price:'Free', annual:'No subscription needed', description:'A free starting point for everyday route planning. Your saved stops and routes stay on this device.', cta:'Start free', href:'login.html?mode=signup&next=app.html' },
-      goplan: { label:'Cloud-backed planning', price:'Loading price…', annual:'Monthly billing', description:'More daily planning capacity, with cloud sync to keep your work available across devices.', cta:'View GoPlan', href:'login.html?mode=signup&next=app.html%3Fpage%3Daccount' },
-      proplan: { label:'More daily capacity', price:'Loading price…', annual:'Monthly or annual billing', description:'Higher saved-stop and daily-route limits for a busier operation.', cta:'View ProPlan', href:'login.html?mode=signup&next=app.html%3Fpage%3Daccount' }
+      basic: { label:'Free to start', price:'Free', annual:'No subscription needed', description:'A free starting point for everyday route planning. Your saved stops and routes stay on this device.', cta:'Start free', href:'login.html?mode=signup&next=order-hub.html' },
+      goplan: { label:'Cloud-backed planning', price:'Loading price…', annual:'Monthly billing', description:'More daily planning capacity, with cloud sync to keep your work available across devices.', cta:'View GoPlan', href:'login.html?mode=signup&next=order-hub.html%3Fpage%3Daccount' },
+      proplan: { label:'More daily capacity', price:'Loading price…', annual:'Monthly or annual billing', description:'Higher saved-stop and daily-route limits for a busier operation.', cta:'View ProPlan', href:'login.html?mode=signup&next=order-hub.html%3Fpage%3Daccount' }
     };
     if (cards) {
       cards.innerHTML = product.PLAN_ORDER.map(key => {
