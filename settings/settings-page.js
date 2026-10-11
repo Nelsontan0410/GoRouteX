@@ -95,7 +95,7 @@ function renderLocationStatus(id) {
   if (error) { text = error; kind = 'is-error'; }
   else if (!address) text = id === 'defaultEnd' ? 'Routes return to the Start Location.' : '';
   else if (verified && verified.address === address) {
-    const how = verified.quality === 'place' ? ' (selected from the list)' : verified.quality === 'address' ? ' (address matched)' : '';
+    const how = verified.quality === 'place' ? ' (selected from the list)' : verified.quality === 'address' ? ' (address matched)' : verified.quality === 'pin' ? ' (pin placed on the map)' : '';
     const outside = window.GoRouteXPlannerProblem?.inSingapore && !window.GoRouteXPlannerProblem.inSingapore(verified.latLng);
     text = `Location verified${how} · GPS coordinates available${outside ? ' · Outside Singapore: plans from here use the standard planner' : ''}`;
     kind = outside ? 'is-warning' : 'is-verified';
@@ -106,6 +106,35 @@ function renderLocationStatus(id) {
   }
   el.textContent = text;
   el.className = `location-status ${kind}`.trim();
+  showLocationMap(id);
+}
+// Small map under the address: the pin shows the saved position and can be dragged to the exact entrance.
+const locationMaps = {};
+function showLocationMap(id) {
+  const box = $(id + 'Map'), maps = window.google?.maps, verified = state.verified[id];
+  if (!box) return;
+  if (!maps?.Map || !verified || verified.address !== $(id).value.trim()) { box.hidden = true; return; }
+  box.hidden = false;
+  let entry = locationMaps[id];
+  if (!entry) {
+    const map = new maps.Map(box, { center: verified.latLng, zoom: 16, mapTypeControl: false, streetViewControl: false, fullscreenControl: false });
+    const marker = new maps.Marker({ map, position: verified.latLng, draggable: true, title: 'Drag to the exact entrance' });
+    marker.addListener('dragend', () => {
+      const latLng = window.GoRouteXGeocode?.cleanLatLng(marker.getPosition());
+      const address = $(id).value.trim();
+      if (!latLng || !address) return;
+      state.verified[id] = { address, latLng, quality: 'pin' };
+      state.locationErrors[id] = '';
+      renderLocationStatus(id);
+      updateSave();
+    });
+    entry = locationMaps[id] = { map, marker };
+  }
+  const current = entry.marker.getPosition?.();
+  if (!current || current.lat() !== verified.latLng.lat || current.lng() !== verified.latLng.lng) {
+    entry.marker.setPosition(verified.latLng);
+    entry.map.setCenter(verified.latLng);
+  }
 }
 function onLocationInput(id) {
   // Any change to the text drops coordinates that belong to a different address.
@@ -137,6 +166,7 @@ async function attachAddressSuggestions() {
         updateSave();
       });
     }
+    LOCATION_FIELDS.forEach(renderLocationStatus); // maps are ready now: show the saved pins
   } catch (error) {
     suggestionsAttached = false; // retried the next time the section opens
     for (const id of LOCATION_FIELDS) if (!state.locationErrors[id]) {

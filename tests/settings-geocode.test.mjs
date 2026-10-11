@@ -108,3 +108,15 @@ test('Settings page: save uses one snapshot, edits during the save stay unsaved,
   assert.match(page, /state\.verified\[id\]\.address !== \$\(id\)\.value\.trim\(\)\) state\.verified\[id\] = null/);
   assert.doesNotMatch(page, /latLng: null \}/);
 });
+
+test('Settings shows a map pin for a verified start/end; dragging it sets the coordinates for that address', () => {
+  const page = readFileSync(new URL('../settings/settings-page.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../settings.html', import.meta.url), 'utf8');
+  assert.match(html, /id="defaultStartMap" class="location-map wide" hidden/);
+  assert.match(html, /id="defaultEndMap" class="location-map wide" hidden/);
+  const fn = page.slice(page.indexOf('function showLocationMap('), page.indexOf('function onLocationInput('));
+  assert.match(fn, /verified\.address !== \$\(id\)\.value\.trim\(\)\) \{ box\.hidden = true; return; \}/, 'no pin for an unverified or edited address');
+  assert.match(fn, /draggable: true/);
+  assert.match(fn, /state\.verified\[id\] = \{ address, latLng, quality: 'pin' \};/);
+  assert.match(page, /verified\.quality === 'pin' \? ' \(pin placed on the map\)'/);
+});
