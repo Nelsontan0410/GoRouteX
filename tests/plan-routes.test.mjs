@@ -87,3 +87,10 @@ test('validation keeps single-dimension capacity and loads', () => {
   problem.jobs[0].delivery = [1, 2];
   assert.match(sanitizePlannerProblem(problem).error, /one amount/);
 });
+
+test('validation keeps a stop priority of 0-100 and rejects anything else', () => {
+  const ok = built(); ok.jobs[0].priority = 54;
+  assert.equal(sanitizePlannerProblem(ok).problem.jobs[0].priority, 54);
+  const bad = built(); bad.jobs[0].priority = 101;
+  assert.match(sanitizePlannerProblem(bad).error, /priority is out of range/);
+});

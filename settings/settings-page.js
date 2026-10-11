@@ -57,7 +57,7 @@ function go(section) {
   for (const name of sections) $('section-' + name).hidden = name !== section;
   for (const button of $('settingsNav').querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.section === section ? 'page' : 'false');
   history.replaceState(null, '', '#' + section);
-  if (section === 'routePlanning') { loadPlanInsights(); attachAddressSuggestions(); }
+  if (section === 'routePlanning') { loadPlanInsights(); prepareLocationMaps(); }
 }
 function setValue(id, value) { $(id).value = value ?? ''; }
 function setChecked(id, value) { $(id).checked = value === true; }
@@ -95,14 +95,14 @@ function renderLocationStatus(id) {
   if (error) { text = error; kind = 'is-error'; }
   else if (!address) text = id === 'defaultEnd' ? 'Routes return to the Start Location.' : '';
   else if (verified && verified.address === address) {
-    const how = verified.quality === 'place' ? ' (selected from the list)' : verified.quality === 'address' ? ' (address matched)' : verified.quality === 'pin' ? ' (pin placed on the map)' : '';
+    const how = verified.quality === 'place' ? ' (selected from the list)' : verified.quality === 'address' ? ' (found on the map)' : verified.quality === 'pin' ? ' (pin placed on the map)' : '';
     const outside = window.GoRouteXPlannerProblem?.inSingapore && !window.GoRouteXPlannerProblem.inSingapore(verified.latLng);
     text = `Location verified${how} · GPS coordinates available${outside ? ' · Outside Singapore: plans from here use the standard planner' : ''}`;
     kind = outside ? 'is-warning' : 'is-verified';
   } else if (state.loadedPoints[id]?.address === address) {
-    text = 'Location not verified. Pick the address from the suggestions so the route planner can use its map position.'; kind = 'is-warning';
+    text = 'Location not verified. Click Find on map and choose the place so the route planner can use its map position.'; kind = 'is-warning';
   } else {
-    text = 'Location not verified. Select the address from the suggestions; Save will also try to check it.'; kind = 'is-warning';
+    text = 'Location not verified. Click Find on map and choose the place; Save will also try to check it.'; kind = 'is-warning';
   }
   el.textContent = text;
   el.className = `location-status ${kind}`.trim();
@@ -142,37 +142,50 @@ function onLocationInput(id) {
   state.locationErrors[id] = '';
   renderLocationStatus(id);
 }
-let suggestionsAttached = false;
-async function attachAddressSuggestions() {
+// Maps (for the pins) load when Route Planning opens; addresses are found with the geocoder, not Places.
+let mapsRequested = false;
+async function prepareLocationMaps() {
   const geo = window.GoRouteXGeocode;
-  if (suggestionsAttached || !geo) return;
-  suggestionsAttached = true;
+  if (mapsRequested || !geo) return;
+  mapsRequested = true;
   try {
-    const maps = await geo.loadMapsApi();
-    for (const id of LOCATION_FIELDS) {
-      const input = $(id);
-      const autocomplete = new maps.places.Autocomplete(input, { fields: ['formatted_address', 'geometry', 'name'] });
-      autocomplete.addListener('place_changed', () => {
-        const picked = geo.fromPlace(autocomplete.getPlace(), input.value);
-        if (!picked) {
-          state.verified[id] = null;
-          state.locationErrors[id] = 'That suggestion has no map position. Pick another suggestion.';
-        } else {
-          input.value = picked.address;
-          state.verified[id] = { address: picked.address, latLng: picked.latLng, quality: 'place' };
-          state.locationErrors[id] = '';
-        }
-        renderLocationStatus(id);
-        updateSave();
-      });
-    }
+    await geo.loadMapsApi();
     LOCATION_FIELDS.forEach(renderLocationStatus); // maps are ready now: show the saved pins
   } catch (error) {
-    suggestionsAttached = false; // retried the next time the section opens
-    for (const id of LOCATION_FIELDS) if (!state.locationErrors[id]) {
+    mapsRequested = false; // retried the next time the section opens
+    for (const id of LOCATION_FIELDS) {
       const el = $(id + 'Status');
-      if (el && $(id).value.trim() && !(state.verified[id]?.address === $(id).value.trim())) { el.textContent = `Address suggestions are unavailable: ${error.message}`; el.className = 'location-status is-warning'; }
+      if (el && !state.locationErrors[id]) { el.textContent = `The map is unavailable: ${error.message}`; el.className = 'location-status is-warning'; }
     }
+  }
+}
+function chooseLocation(id, match) {
+  $(id).value = match.address;
+  state.verified[id] = { address: match.address, latLng: { ...match.latLng }, quality: 'address' };
+  state.locationErrors[id] = '';
+  $(id + 'Results').replaceChildren();
+  renderLocationStatus(id);
+  updateSave();
+}
+// "Find on map": the matches are listed for the user to choose; the chosen one gets a pin that can be dragged.
+async function findLocation(id) {
+  const geo = window.GoRouteXGeocode, button = $(id + 'Find'), list = $(id + 'Results');
+  const query = $(id).value.trim();
+  if (!geo || !query) { state.locationErrors[id] = query ? 'The address search is unavailable. Reload the page.' : 'Type an address first.'; renderLocationStatus(id); return; }
+  button.disabled = true;
+  list.replaceChildren(Object.assign(document.createElement('p'), { textContent: 'Searching…' }));
+  const found = await geo.searchAddress(query);
+  button.disabled = false;
+  list.replaceChildren();
+  if ($(id).value.trim() !== query) return; // the text changed while searching
+  if (!found.ok) { state.locationErrors[id] = found.reason; renderLocationStatus(id); return; }
+  if (found.results.length === 1) { chooseLocation(id, found.results[0]); return; }
+  list.append(Object.assign(document.createElement('p'), { textContent: 'Choose the right place:' }));
+  for (const match of found.results) {
+    const option = Object.assign(document.createElement('button'), { type: 'button', className: 'secondary', textContent: match.address + (match.approximate ? ' (area only)' : '') });
+    option.setAttribute('role', 'listitem');
+    option.addEventListener('click', () => chooseLocation(id, match));
+    list.append(option);
   }
 }
 // New or edited addresses must have coordinates before saving. An unchanged older address (saved before
@@ -375,7 +388,12 @@ async function save(event) {
 function bind() {
   $('settingsNav').addEventListener('click', event => { const button = event.target.closest('[data-section]'); if (button) go(button.dataset.section); });
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => go(button.dataset.go)));
-  $('settingsForm').addEventListener('input', event => { if (LOCATION_FIELDS.includes(event.target.id)) onLocationInput(event.target.id); updateSave(); }); $('settingsForm').addEventListener('change', event => { if (event.target.id === 'capacityMode') updateCapacity(); updateSave(); });
+  $('settingsForm').addEventListener('input', event => { if (LOCATION_FIELDS.includes(event.target.id)) onLocationInput(event.target.id); updateSave(); });
+  for (const id of LOCATION_FIELDS) {
+    $(id + 'Find')?.addEventListener('click', () => findLocation(id));
+    // Enter in the address box searches instead of submitting the whole form.
+    $(id)?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); findLocation(id); } });
+  } $('settingsForm').addEventListener('change', event => { if (event.target.id === 'capacityMode') updateCapacity(); updateSave(); });
   $('settingsForm').addEventListener('submit', save); $('retryLoad').addEventListener('click', load);
   $('vehicleSave').addEventListener('click', async () => {
     const button = $('vehicleSave');

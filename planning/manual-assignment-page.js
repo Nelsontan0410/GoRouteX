@@ -10,7 +10,7 @@
 // "Planner: …" line: shown while testing the Plan Engine, or whenever it was not used for a real reason.
 function plannerStatusLine() {
         let testSwitchOn = false;
-        try { testSwitchOn = window.localStorage?.getItem('goroutexPlanner') === 'on'; } catch (_) { testSwitchOn = false; }
+        try { testSwitchOn = ['on', 'only'].includes(window.localStorage?.getItem('goroutexPlanner')); } catch (_) { testSwitchOn = false; }
         return window.GoRouteXPlannerStatus?.line({ testSwitchOn }) || '';
     }
 

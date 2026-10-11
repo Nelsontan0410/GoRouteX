@@ -75,6 +75,18 @@
       .filter(([start, end]) => end >= start);
   }
 
+  /**
+   * 0-100: how little of the working day a stop can be served in. The solver keeps higher-priority stops first
+   * when not everything fits, and the hint also helps it find plans it would otherwise miss (a far stop that
+   * must be served early, e.g. Tuas closing at 13:00, was dropped without it although all stops fitted).
+   */
+  function windowPriority(windows, shiftStart, shiftEnd) {
+    const shift = shiftEnd - shiftStart;
+    if (!(shift > 0)) return 0;
+    const open = windows.reduce((sum, [start, end]) => sum + Math.max(0, Math.min(end, shiftEnd) - Math.max(start, shiftStart)), 0);
+    return Math.max(0, Math.min(100, Math.round(100 * (1 - open / shift))));
+  }
+
   function unservableReason(stop, day) {
     const intervals = C().allowedIntervals(stop.schedule, day);
     if (!intervals.length) return { reason: 'closed', message: `Closed on ${C().DAY_LABELS[day] || day}.` };
@@ -121,6 +133,8 @@
       const jobId = jobs.length + 1;
       jobIds.set(jobId, stop.id);
       const job = { id: jobId, location: point(stop), service: Math.round(stop.serviceMinutes * 60), time_windows: windows };
+      const priority = windowPriority(windows, startSec, endSec);
+      if (priority > 0) job.priority = priority;
       if (capacities.length) job.delivery = [Math.ceil(finite(stop.demand) && stop.demand > 0 ? stop.demand : 0)];
       jobs.push(job);
     });
@@ -206,6 +220,7 @@
     unsupportedReason,
     buildProblem,
     mapSolution,
+    windowPriority,
     splitIntoRoutes
   };
 })(typeof window !== 'undefined' ? window : globalThis);
