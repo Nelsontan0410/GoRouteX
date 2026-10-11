@@ -45,13 +45,26 @@
         isActive: () => !document.hidden && !boardNode.hidden,
         getContext: () => global.GoRouteXDispatch.contextFromPlan(loadedPlan),
         canPrintRoute: () => global.RoutePlannerProduct?.canUseFeature?.('kpiPrintSummary', global.RoutePlannerProduct.getCurrentPlan(global.currentUserProfile || {})) !== false,
-        printRoute
+        printPlan
       });
     }
     global.GoRouteXDispatch.refresh();
   }
 
+  // The plan just confirmed in Route Planning is handed over in this tab (planning-persistence.js), so
+  // Dispatch does not read it back from the cloud first.
+  function handedOverPlan(planId) {
+    try {
+      const uid = auth?.getCurrentUser?.()?.uid;
+      const raw = uid && global.sessionStorage.getItem(`grxDispatchHandoff:${uid}`);
+      const handoff = raw ? JSON.parse(raw) : null;
+      return handoff && String(handoff.id) === String(planId) && Array.isArray(handoff.plan?.plannedRoutes) ? handoff.plan : null;
+    } catch { return null; }
+  }
+
   async function readPlan(planId) {
+    const handed = handedOverPlan(planId);
+    if (handed) { mark('dispatchPlanHandoff'); return { success: true, plan: handed, source: 'handoff' }; }
     const result = await global.RoutePlannerStorage.loadPlan(planId, { allowMigration: false });
     if (!result.success || result.plan || result.storageMode !== 'indexeddb') return result;
     // Some older Basic plans were saved to cloud before device-only storage.
@@ -111,28 +124,39 @@
     }
   }
 
-  function printRoute(routeId, driverName, planDate, startTime) {
+  // A4 schedule list for the whole day: start, every stop in driving order with its ETA, end.
+  function printPlan(list, driverName, planDate) {
     if (global.RoutePlannerProduct?.canUseFeature?.('kpiPrintSummary', global.RoutePlannerProduct.getCurrentPlan(global.currentUserProfile || {})) === false) return;
-    const route = (loadedPlan?.plannedRoutes || []).find(item => String(item.id) === String(routeId));
-    if (!route) return showState('Plan no longer available.', true, true);
     const popup = global.open('', '_blank', 'width=900,height=760');
     if (!popup) { global.alert('Allow pop-ups to print the schedule list.'); return; }
     popup.document.open();
-    popup.document.write('<!doctype html><html><head><title>GoRouteX Schedule List</title><style>body{font:14px Arial,sans-serif;color:#183047;margin:28px}h1{margin-bottom:6px}p{color:#536479}table{width:100%;border-collapse:collapse;margin-top:22px}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #dce5eb}th{background:#f3f8fa}small{display:block;color:#536479}button{padding:9px 16px}@media print{button{display:none}}</style></head><body><h1>GoRouteX Schedule List</h1><p id="meta"></p><table><thead><tr><th>#</th><th>Customer / Orders</th><th>Address / Contact</th><th>ETA</th><th>Completed</th><th>Notes</th></tr></thead><tbody id="rows"></tbody></table><p><button onclick="window.print()">Print</button></p></body></html>');
+    popup.document.write('<!doctype html><html><head><meta charset="utf-8"><title>GoRouteX Schedule List</title><style>'
+      + '@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}body{font:11px/1.35 Arial,sans-serif;color:#183047;margin:0}'
+      + 'h1{font-size:18px;margin:0 0 4px}.meta{color:#536479;margin:0 0 4px}.total{font-size:14px;font-weight:700;margin:6px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{text-align:left;vertical-align:top;padding:5px 6px;border-bottom:1px solid #dce5eb;overflow-wrap:anywhere}'
+      + 'th{background:#f3f8fa}thead{display:table-header-group}tr{break-inside:avoid}tr.endpoint td{background:#f8fafc;font-weight:700}'
+      + 'col.n{width:6%}col.r{width:10%}col.c{width:24%}col.a{width:34%}col.e{width:10%}col.s{width:16%}'
+      + '.actions{margin-top:12px}button{padding:8px 16px}@media screen{body{margin:20px}}@media print{.actions{display:none}}'
+      + '</style></head><body><h1>GoRouteX Schedule List</h1><p class="meta" id="meta"></p><p class="total" id="total"></p>'
+      + '<table><colgroup><col class="n"><col class="r"><col class="c"><col class="a"><col class="e"><col class="s"></colgroup>'
+      + '<thead><tr><th>#</th><th>Route</th><th>Customer / Orders</th><th>Address / Contact</th><th>ETA</th><th>Completed / Sign</th></tr></thead>'
+      + '<tbody id="rows"></tbody></table><p class="actions"><button onclick="window.print()">Print</button></p></body></html>');
     popup.document.close();
-    popup.document.getElementById('meta').textContent = `Route ${routeId} · ${planDate || 'Date unavailable'} · Start ${startTime || '—'} · Driver ${driverName || 'Unassigned'}`;
-    const rows = popup.document.getElementById('rows');
-    global.GoRouteXDispatch.routeStops(route).forEach((stop, index) => {
-      const row = popup.document.createElement('tr');
-      const timing = global.GoRouteXDispatch.lookupTiming(route, stop);
-      const name = String(stop.customerName || stop.Name || stop.stopName || stop.name || 'Stop');
-      const orders = Array.isArray(stop.orderNumbers) ? stop.orderNumbers.join(' / ') : '';
-      const address = String(stop.deliveryAddress || stop.address || stop.Address || '—');
-      const contact = [stop.contactName, stop.contactPhone || stop.phone || stop['Hp No']].filter(Boolean).join(' · ');
-      const values = [String(index + 1), orders ? `${name}\nOrders: ${orders}` : name, contact ? `${address}\n${contact}` : address, String(timing?.arrivalTimeStr || '—'), '', ''];
-      values.forEach(value => { const cell = popup.document.createElement('td'); cell.textContent = value; cell.style.whiteSpace = 'pre-line'; row.append(cell); });
+    const doc = popup.document;
+    doc.getElementById('meta').textContent = `${planDate || 'Date unavailable'} · Driver ${driverName || 'Unassigned'} · ${new Set(list.rows.map(row => row.route)).size} route(s)`;
+    doc.getElementById('total').textContent = `Total stops: ${list.totalStops} (start and end not counted)`;
+    const rows = doc.getElementById('rows');
+    const addRow = (values, className = '') => {
+      const row = doc.createElement('tr');
+      if (className) row.className = className;
+      values.forEach(value => { const cell = doc.createElement('td'); cell.textContent = value; cell.style.whiteSpace = 'pre-line'; row.append(cell); });
       rows.append(row);
-    });
+    };
+    addRow(['Start', '', list.start.name, '', `Departs ${list.start.time}`, ''], 'endpoint');
+    for (const stop of list.rows) {
+      addRow([String(stop.number), stop.route, stop.orders ? `${stop.name}\nOrders: ${stop.orders}` : stop.name, stop.contact ? `${stop.address}\n${stop.contact}` : stop.address, stop.eta, '']);
+    }
+    if (list.end) addRow(['End', '', list.end.name, '', `Arrives ${list.end.time}`, ''], 'endpoint');
     popup.focus();
   }
 
@@ -204,6 +228,7 @@
       global.location.replace('driver.html');
       return;
     }
+    global.GoRouteXDispatch?.prefetchDrivers?.();
     let identity;
     const slowProfileTimer = global.setTimeout(() => {
       if (authGeneration === generation && accountBusy) showState('Account information is taking longer than expected. The request is still running.');

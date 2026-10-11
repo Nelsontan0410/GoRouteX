@@ -372,6 +372,12 @@ async function saveCurrentRouteToHistory(options = {}) {
             }
 
             historyEntry.id = saveResult.id ? String(saveResult.id) : String(historyEntry.id);
+            // Hand the saved plan to Dispatch in this tab so it opens without reading the plan back.
+            try {
+                const handoffUid = window.FirebaseApp?.auth?.getCurrentUser?.()?.uid;
+                const handoff = JSON.stringify({ id: historyEntry.id, plan: historyEntry });
+                if (handoffUid && handoff.length < 2000000) sessionStorage.setItem(`grxDispatchHandoff:${handoffUid}`, handoff);
+            } catch (_) { /* Dispatch reads the plan from storage instead */ }
             routeHistory = [historyEntry, ...routeHistory.filter(r => {
                 const routeId = String(r.id);
                 return routeId !== String(historyEntry.id) && routeId !== originalHistoryId;
