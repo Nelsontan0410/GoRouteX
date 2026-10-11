@@ -35,7 +35,7 @@ test('the primary sidebar lists only Dashboard, Order Hub and Dispatch, keeps th
   const html = renderSidebar('order-hub');
   const nav = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
   const labels = [...nav.matchAll(/>([^<]+)<\/a>/g)].map((m) => m[1]).filter((label) => label !== 'Driver Page');
-  assert.deepEqual(labels, ['Dashboard', 'Order Hub', 'Dispatch']);
+  assert.deepEqual(labels, ['PlanEngine', 'Order Hub', 'Dispatch']);
   assert.doesNotMatch(html, /Plan a route|Saved stops/);
   assert.match(html, /class="operations-brand"[^>]*>GoRoute<span>X<\/span>/);
   for (const piece of ['id="sidebarDisplayName"', 'id="sidebarCurrentPlan"', '>Account</a>', '>Settings</a>', '>Logout</button>']) assert.ok(html.includes(piece), piece);
@@ -99,4 +99,14 @@ test('sidebar colours are pinned so app.html matches Order Hub and Dispatch desp
   assert.match(css, /\[data-app-sidebar\] \.operations-nav a,[\s\S]*?color: #192b40 !important;/);
   assert.match(css, /\[data-app-sidebar\] a\[aria-current="page"\]:visited,[\s\S]*?color: #2456c4 !important;/);
   assert.match(css, /\.skip-link \{\s*position: absolute;\s*left: -9999px;/);
+});
+
+test('marketing page, then login, then Order Hub; Dashboard is called PlanEngine', () => {
+  const config = readFileSync(new URL('../firebase-config.js', import.meta.url), 'utf8');
+  assert.match(config, /function sanitizeNextTarget\(nextTarget\) \{\n    const fallbackTarget = 'order-hub\.html';/);
+  assert.match(readFileSync(new URL('../login.html', import.meta.url), 'utf8'), /return 'order-hub\.html';\n    \}\n\n    \/\/ Tab switching/);
+  for (const file of ['index.html', 'marketing-site.js', 'go-routex-access.js']) {
+    assert.doesNotMatch(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), /next=app\.html/, file);
+  }
+  assert.match(readFileSync(new URL('../app.html', import.meta.url), 'utf8'), /<span class="mobile-tab-text">PlanEngine<\/span>/);
 });

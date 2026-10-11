@@ -505,8 +505,9 @@ function buildSanitizedDriverTrackingSearch(searchParams) {
     return sanitizedParams.toString();
 }
 
+// After sign-in the day starts in Order Hub (decided 2026-10-11): marketing page, login, then Order Hub.
 function sanitizeNextTarget(nextTarget) {
-    const fallbackTarget = 'app.html';
+    const fallbackTarget = 'order-hub.html';
     if (!nextTarget || typeof nextTarget !== 'string') return fallbackTarget;
 
     const trimmedTarget = nextTarget.trim();

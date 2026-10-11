@@ -34,7 +34,7 @@
       bestFor: 'Testing daily planning, route visibility, and WhatsApp-friendly operations before rollout.',
       featured: false,
       ctaLabel: 'Start Free Trial',
-      ctaHref: 'login.html?mode=signup&next=app.html',
+      ctaHref: 'login.html?mode=signup&next=order-hub.html',
       supportLabel: 'Founder-led onboarding included',
       limits: {
         customers: 40,
