@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { simulateRoute, improveSolution } from '../services/planner/improve.mjs';
+import { simulateRoute, improveSolution, solveWithRetries } from '../services/planner/improve.mjs';
 
 // Locations: 0 depot, 1..3 customers. Symmetric 10-minute legs except where noted.
 const M = (n, fill = 600) => Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 0 : fill)));
@@ -75,4 +75,33 @@ test('the second pass never overloads a vehicle', () => {
   const v = { ...vehicle(1), capacity: [100] };
   assert.equal(simulateRoute(v, [1, 2], ctxOf(jobs, M(3))), null);
   assert.ok(simulateRoute(v, [1], ctxOf(jobs, M(3))));
+});
+
+test('a stop VROOM left out is inserted when it fits somewhere in the day', () => {
+  const jobs = [job(1, 1, [[32400, 60000]]), job(2, 2, [[32400, 60000]])];
+  const problem = { jobs, vehicles: [vehicle(1, { max_tasks: 30, costs: { fixed: 0 } })], matrices: { car: { durations: M(3) } } };
+  const solution = { code: 0, summary: { cost: 1200 }, unassigned: [{ id: 2 }],
+    routes: [{ vehicle: 1, steps: [{ type: 'start', arrival: 32400 }, { type: 'job', id: 1, arrival: 33000, waiting_time: 0, service: 600 }, { type: 'end', arrival: 34200 }] }] };
+  const out = improveSolution(problem, solution);
+  assert.deepEqual(out.unassigned, []);
+  assert.deepEqual(out.routes[0].steps.filter((s) => s.type === 'job').map((s) => s.id).sort(), [1, 2]);
+  const full = { ...problem, vehicles: [vehicle(1, { max_tasks: 30, costs: { fixed: 0 }, time_window: [32400, 34300] })] };
+  assert.deepEqual(improveSolution(full, solution).unassigned, [{ id: 2 }], 'no room: stays unassigned');
+});
+
+test('when stops are left out, solving again with them at top priority is kept only if it serves more', async () => {
+  const runs = [];
+  const left = { code: 0, summary: { cost: 100 }, unassigned: [{ id: 13 }], routes: [] };
+  const all = { code: 0, summary: { cost: 150 }, unassigned: [], routes: [] };
+  const run = async (input, seconds) => { runs.push({ priority: input.jobs.find((j) => j.id === 13)?.priority, seconds }); return runs.length === 1 ? left : all; };
+  const input = { jobs: [{ id: 1 }, { id: 13 }] };
+  const out = await solveWithRetries(input, run, { improve: (_, s) => s, retrySeconds: 2 });
+  assert.deepEqual(out.unassigned, []);
+  assert.equal(out.retriedForUnassigned, 1);
+  assert.deepEqual(runs, [{ priority: undefined, seconds: undefined }, { priority: 100, seconds: 2 }]);
+  const worse = await solveWithRetries(input, async () => left, { improve: (_, s) => s });
+  assert.equal(worse.retriedForUnassigned, undefined, 'no gain: the first answer is kept');
+  let calls = 0;
+  await solveWithRetries(input, async () => { calls++; return all; }, { improve: (_, s) => s });
+  assert.equal(calls, 1, 'nothing left out: no retry');
 });
