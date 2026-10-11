@@ -44,7 +44,7 @@ test('standalone Dispatch receives the persisted plan ID and avoids Planning dep
   assert.match(bootstrap, /auth\.isDriverAccount\(user\)/);
   assert.match(bootstrap, /location\.replace\('driver\.html'\)/);
   assert.match(readFileSync(new URL('../_redirects', import.meta.url), 'utf8'), /\/driver\.html \/driver-tracking\.html 200/);
-  assert.match(bootstrap, /function printPlan\(list, driverName, planDate\)/);
+  assert.match(bootstrap, /function printPlan\(list, driverName, planDate, vehicle\)/);
 });
 
 test('direct plan entry waits for account access, loads only the selected plan, and reuses the board', async () => {

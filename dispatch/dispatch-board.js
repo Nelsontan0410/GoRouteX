@@ -249,7 +249,8 @@
     return { planId: String(plan.id), routes: (plan.plannedRoutes || []).filter(route => route && Array.isArray(route.customerStops)),
       planVersion: plan.planVersion, snapshotSchemaVersion: plan.snapshotSchemaVersion,
       date: plan.date || plan.planningDate, startTime: plan.startTime || plan.routeStartTime,
-      origin: plan.originName || plan.origin, end: plan.endLocationLabel || plan.end };
+      origin: plan.originName || plan.origin, end: plan.endLocationLabel || plan.end,
+      vehicle: plan.vehicleDriver || plan.plannedRoutes?.find(route => route?.vehicleDriver)?.vehicleDriver || '' };
   }
 
   function currentContext() {
@@ -413,7 +414,7 @@
       const firstRoute = routeKey(context.routes[0]);
       const dispatched = state.dispatched.find(item => item.dispatchPlanId === context.planId && String(item.routeId) === firstRoute);
       const driverName = dispatched?.driverName || state.drivers.find(driver => driver.uid === selectedDriver(firstRoute))?.name || 'Unassigned';
-      state.options.printPlan(scheduleList(context), driverName, context.date);
+      state.options.printPlan(scheduleList(context), driverName, context.date, context.vehicle);
     });
     $('dispatchRefreshBtn')?.addEventListener('click', () => refresh(true));
     state.authUid = global.FirebaseApp?.auth?.getCurrentUser?.()?.uid || null;

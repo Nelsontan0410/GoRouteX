@@ -124,39 +124,45 @@
     }
   }
 
-  // A4 schedule list for the whole day: start, every stop in driving order with its ETA, end.
-  function printPlan(list, driverName, planDate) {
+  // A4 schedule list for the whole day: one title row with date, total stops, driver and vehicle; then
+  // start, every stop in driving order with its ETA, end.
+  function printPlan(list, driverName, planDate, vehicle) {
     if (global.RoutePlannerProduct?.canUseFeature?.('kpiPrintSummary', global.RoutePlannerProduct.getCurrentPlan(global.currentUserProfile || {})) === false) return;
     const popup = global.open('', '_blank', 'width=900,height=760');
     if (!popup) { global.alert('Allow pop-ups to print the schedule list.'); return; }
     popup.document.open();
     popup.document.write('<!doctype html><html><head><meta charset="utf-8"><title>GoRouteX Schedule List</title><style>'
       + '@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}body{font:11px/1.35 Arial,sans-serif;color:#183047;margin:0}'
-      + 'h1{font-size:18px;margin:0 0 4px}.meta{color:#536479;margin:0 0 4px}.total{font-size:14px;font-weight:700;margin:6px 0 10px}'
+      + '.head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin:0 0 10px}h1{font-size:18px;margin:0}'
+      + '.meta{font-size:12px;font-weight:600;color:#183047}'
       + 'table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{text-align:left;vertical-align:top;padding:5px 6px;border-bottom:1px solid #dce5eb;overflow-wrap:anywhere}'
       + 'th{background:#f3f8fa}thead{display:table-header-group}tr{break-inside:avoid}tr.endpoint td{background:#f8fafc;font-weight:700}'
-      + 'col.n{width:6%}col.r{width:10%}col.c{width:24%}col.a{width:34%}col.e{width:10%}col.s{width:16%}'
+      + 'col.c{width:34%}col.a{width:34%}col.e{width:11%}col.s{width:21%}td.eta{white-space:nowrap}'
       + '.actions{margin-top:12px}button{padding:8px 16px}@media screen{body{margin:20px}}@media print{.actions{display:none}}'
-      + '</style></head><body><h1>GoRouteX Schedule List</h1><p class="meta" id="meta"></p><p class="total" id="total"></p>'
-      + '<table><colgroup><col class="n"><col class="r"><col class="c"><col class="a"><col class="e"><col class="s"></colgroup>'
-      + '<thead><tr><th>#</th><th>Route</th><th>Customer / Orders</th><th>Address / Contact</th><th>ETA</th><th>Completed / Sign</th></tr></thead>'
+      + '</style></head><body><div class="head"><h1>GoRouteX Schedule List</h1><span class="meta" id="meta"></span></div>'
+      + '<table><colgroup><col class="c"><col class="a"><col class="e"><col class="s"></colgroup>'
+      + '<thead><tr><th>Customer / Orders</th><th>Address / Contact</th><th>ETA</th><th>Completed / Sign</th></tr></thead>'
       + '<tbody id="rows"></tbody></table><p class="actions"><button onclick="window.print()">Print</button></p></body></html>');
     popup.document.close();
     const doc = popup.document;
-    doc.getElementById('meta').textContent = `${planDate || 'Date unavailable'} · Driver ${driverName || 'Unassigned'} · ${new Set(list.rows.map(row => row.route)).size} route(s)`;
-    doc.getElementById('total').textContent = `Total stops: ${list.totalStops} (start and end not counted)`;
+    doc.getElementById('meta').textContent = [
+      `Date: ${planDate || '—'}`,
+      `Total stops: ${list.totalStops}`,
+      `Driver: ${driverName || 'Unassigned'}`,
+      `Vehicle: ${vehicle || '—'}`
+    ].join(' ; ');
     const rows = doc.getElementById('rows');
     const addRow = (values, className = '') => {
       const row = doc.createElement('tr');
       if (className) row.className = className;
-      values.forEach(value => { const cell = doc.createElement('td'); cell.textContent = value; cell.style.whiteSpace = 'pre-line'; row.append(cell); });
+      values.forEach((value, index) => { const cell = doc.createElement('td'); cell.textContent = value; cell.style.whiteSpace = 'pre-line'; if (index === 2) cell.className = 'eta'; row.append(cell); });
       rows.append(row);
     };
-    addRow(['Start', '', list.start.name, '', `Departs ${list.start.time}`, ''], 'endpoint');
+    addRow([`Start: ${list.start.name}`, '', `Departs ${list.start.time}`, ''], 'endpoint');
     for (const stop of list.rows) {
-      addRow([String(stop.number), stop.route, stop.orders ? `${stop.name}\nOrders: ${stop.orders}` : stop.name, stop.contact ? `${stop.address}\n${stop.contact}` : stop.address, stop.eta, '']);
+      addRow([stop.orders ? `${stop.name}\nOrders: ${stop.orders}` : stop.name, stop.contact ? `${stop.address}\n${stop.contact}` : stop.address, stop.eta, '']);
     }
-    if (list.end) addRow(['End', '', list.end.name, '', `Arrives ${list.end.time}`, ''], 'endpoint');
+    if (list.end) addRow([`End: ${list.end.name}`, '', `Arrives ${list.end.time}`, ''], 'endpoint');
     popup.focus();
   }
 
