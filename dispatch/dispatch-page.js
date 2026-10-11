@@ -12,9 +12,18 @@
   }
   const mark = name => { try { performance.mark(`grx:${name}`); } catch {} };
 
-  function showState(message, error = false, offerPlan = false) {
+  function showState(message, error = false, offerPlan = false, offerRetry = false) {
     stateNode.textContent = message;
     stateNode.classList.toggle('is-error', error);
+    if (offerRetry) {
+      stateNode.append(' ');
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'action-button-secondary';
+      retry.textContent = 'Retry';
+      retry.addEventListener('click', () => { const user = auth?.getCurrentUser?.(); if (user) restorePlan(user); });
+      stateNode.append(retry);
+    }
     if (offerPlan) {
       stateNode.append(' ');
       const link = document.createElement('a');
@@ -68,7 +77,12 @@
     try {
       let result;
       if (explicit) {
-        result = await withDeadline(readPlan(explicit));
+        // One automatic retry: the first read on a fresh page can stall while the connection is set up.
+        result = await withDeadline(readPlan(explicit)).catch((error) => {
+          if (error?.code !== 'timeout' || request !== generation) throw error;
+          showState('Still loading the plan, retrying…');
+          return withDeadline(readPlan(explicit));
+        });
         if (request !== generation) return;
         if (!result.success) throw Error(result.error || 'Unable to load Dispatch.');
         if (!result.plan) { showState('Plan no longer available.', true, true); return; }
@@ -93,7 +107,7 @@
       mark('dispatchPlanLoaded');
       openBoard();
     } catch (error) {
-      if (request === generation) showState(`Unable to load Dispatch. ${error.message || ''}`, true, true);
+      if (request === generation) showState(`Unable to load Dispatch. ${error.message || ''}`, true, true, true);
     }
   }
 

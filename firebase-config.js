@@ -115,14 +115,15 @@ function initializeFirebase() {
         db = db || firebase.firestore();
 
         // Safari (desktop + iOS) can hang Firestore reads when IndexedDB persistence
-        // is enabled (esp. with multi-tab sync), so skip persistence there and use
-        // auto-detected long polling to survive Safari's WebChannel/streaming quirks.
+        // is enabled (esp. with multi-tab sync), so skip persistence there. Auto-detected long
+        // polling still picked the streaming channel, which Safari broke ('Write/channel' 404/400,
+        // 'transport errored') and reads then waited past Dispatch's 20 s limit: force long polling.
         const _ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
         const _isSafariEngine = /^((?!chrome|chromium|crios|fxios|edg|android).)*safari/i.test(_ua)
             || /iPad|iPhone|iPod/.test(_ua);
         try {
             if (_isSafariEngine) {
-                db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+                db.settings({ experimentalForceLongPolling: true, merge: true });
             }
         } catch (e) {
             console.warn("Firestore settings skipped:", e?.message || e);
