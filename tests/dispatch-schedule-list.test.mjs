@@ -44,3 +44,23 @@ test('print is A4, one table for the whole plan, one button in the toolbar', () 
   assert.match(read('dispatch.html'), /id="dispatchPrintAllBtn"/);
   assert.doesNotMatch(read('dispatch/dispatch-board.js'), /state\.options\.printRoute\(/);
 });
+
+test('the schedule list can be shared to a WhatsApp group with the same content', () => {
+  const list = { start: { name: 'Warehouse', time: '9:00 AM' }, end: { name: 'Warehouse', time: '5:50 PM' }, totalStops: 2,
+    rows: [{ number: 1, name: 'Tuas', orders: 'DO-1', address: '61a Tuas Nexus Drive', contact: 'Ah Ming · 9124 5558', eta: '9:34 AM' }, { number: 2, name: 'Mandai', orders: '', address: '34 Mandai Estate', contact: '', eta: '10:33 AM' }] };
+  const text = board().scheduleText(list, { date: '2026-10-12', driver: 'Ho Chee Kwan', vehicle: 'YQ3896B' });
+  assert.equal(text, [
+    'GoRouteX Schedule List',
+    'Date: 2026-10-12 ; Total stops: 2 ; Driver: Ho Chee Kwan ; Vehicle: YQ3896B',
+    '',
+    'Start: Warehouse · departs 9:00 AM',
+    '1. Tuas (Orders: DO-1)',
+    '   61a Tuas Nexus Drive · Ah Ming · 9124 5558 · ETA 9:34 AM',
+    '2. Mandai',
+    '   34 Mandai Estate · ETA 10:33 AM',
+    'End: Warehouse · arrives 5:50 PM'
+  ].join('\n'));
+  const page = read('dispatch/dispatch-page.js');
+  assert.match(page, /<button id="shareWhatsApp">Share to WhatsApp group<\/button>/);
+  assert.match(page, /popup\.open\(`https:\/\/wa\.me\/\?text=\$\{encodeURIComponent\(message\)\}`/);
+});

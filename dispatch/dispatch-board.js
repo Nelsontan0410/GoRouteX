@@ -130,6 +130,17 @@
     const total = seconds || Number(route.estimatedDurationSeconds || 0);
     return total ? `${Math.floor(total / 3600)}h ${Math.round(total % 3600 / 60)}m` : '—';
   }
+  // The schedule list as a WhatsApp message (same content as the printed list).
+  function scheduleText(list, { date = '', driver = '', vehicle = '' } = {}) {
+    const lines = ['GoRouteX Schedule List', `Date: ${date || '—'} ; Total stops: ${list.totalStops} ; Driver: ${driver || 'Unassigned'} ; Vehicle: ${vehicle || '—'}`, '', `Start: ${list.start.name} · departs ${list.start.time}`];
+    for (const stop of list.rows) {
+      lines.push(`${stop.number}. ${stop.name}${stop.orders ? ` (Orders: ${stop.orders})` : ''}`);
+      lines.push(`   ${stop.address}${stop.contact ? ` · ${stop.contact}` : ''} · ETA ${stop.eta}`);
+    }
+    if (list.end) lines.push(`End: ${list.end.name} · arrives ${list.end.time}`);
+    return lines.join('\n');
+  }
+
   function formatSeconds(seconds) {
     const total = Number(seconds);
     return total > 0 ? `${Math.floor(total / 3600)}h ${Math.round(total % 3600 / 60)}m` : '—';
@@ -448,5 +459,5 @@
       if (!document.hidden && isViewActive() && state.dispatched.length) pollStatus();
     }, 30000);
   }
-  global.GoRouteXDispatch = { init, refresh, render, reset, suspend, selectRoute, contextFromPlan, routeStops, lookupTiming, prefetchDrivers, scheduleList };
+  global.GoRouteXDispatch = { init, refresh, render, reset, suspend, selectRoute, contextFromPlan, routeStops, lookupTiming, prefetchDrivers, scheduleList, scheduleText };
 })(window);

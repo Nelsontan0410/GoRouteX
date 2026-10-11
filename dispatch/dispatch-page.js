@@ -142,7 +142,7 @@
       + '</style></head><body><div class="head"><h1>GoRouteX Schedule List</h1><span class="meta" id="meta"></span></div>'
       + '<table><colgroup><col class="c"><col class="a"><col class="e"><col class="s"></colgroup>'
       + '<thead><tr><th>Customer / Orders</th><th>Address / Contact</th><th>ETA</th><th>Completed / Sign</th></tr></thead>'
-      + '<tbody id="rows"></tbody></table><p class="actions"><button onclick="window.print()">Print</button></p></body></html>');
+      + '<tbody id="rows"></tbody></table><p class="actions"><button onclick="window.print()">Print</button> <button id="shareWhatsApp">Share to WhatsApp group</button></p></body></html>');
     popup.document.close();
     const doc = popup.document;
     doc.getElementById('meta').textContent = [
@@ -163,6 +163,13 @@
       addRow([stop.orders ? `${stop.name}\nOrders: ${stop.orders}` : stop.name, stop.contact ? `${stop.address}\n${stop.contact}` : stop.address, stop.eta, '']);
     }
     if (list.end) addRow([`End: ${list.end.name}`, '', `Arrives ${list.end.time}`, ''], 'endpoint');
+    // WhatsApp cannot open a group directly: it opens with the message and the user picks the group. The text
+    // is also copied in case a very long message is cut by the link.
+    const message = global.GoRouteXDispatch.scheduleText(list, { date: planDate, driver: driverName, vehicle });
+    doc.getElementById('shareWhatsApp').addEventListener('click', () => {
+      try { popup.navigator.clipboard?.writeText(message); } catch { /* copying is optional */ }
+      popup.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+    });
     popup.focus();
   }
 
