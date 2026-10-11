@@ -133,3 +133,16 @@ test('sequential: unassigned stops say whether the day ran out or the daily stop
   assert.equal(b.reason, 'no-feasible-route');
   assert.match(b.message, /remaining working time/);
 });
+
+test('stops with narrow delivery hours get a higher priority, so the solver keeps them (Tuas closing at 13:00)', () => {
+  const tuas = C.defaultSchedule(); tuas.monday = { open: true, windows: [{ start: '09:00', end: '13:00' }], breaks: [] };
+  const built = P.buildProblem(input([stop('normal'), stop('tuas', { schedule: tuas })]));
+  const [normal, narrow] = built.problem.jobs;
+  assert.ok(narrow.priority > normal.priority, `${narrow.priority} > ${normal.priority}`);
+  assert.equal(narrow.priority, 54, '09:00-12:40 service starts open for 220 of 480 minutes');
+  assert.equal(P.windowPriority([[0, 100]], 0, 100), 0);
+  assert.equal(P.windowPriority([], 0, 100), 100);
+  assert.equal(P.windowPriority([[0, 100]], 50, 50), 0, 'no shift, no priority');
+  const allDay = C.defaultSchedule(); allDay.monday = { open: true, windows: [{ start: '00:00', end: '23:59' }], breaks: [] };
+  assert.equal('priority' in P.buildProblem(input([stop('any', { schedule: allDay })])).problem.jobs[0], false, 'always open: no priority field');
+});

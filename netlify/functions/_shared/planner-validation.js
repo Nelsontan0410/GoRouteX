@@ -50,7 +50,8 @@ export function sanitizePlannerProblem(raw) {
         location: location(job.location, `Stop ${index + 1}`),
         service: int(job.service, 0, PLANNER_LIMITS.maxServiceSeconds, `Stop ${index + 1} service`),
         time_windows: windows(job.time_windows, `Stop ${index + 1}`),
-        ...(job.delivery !== undefined ? { delivery: amount(job.delivery, `Stop ${index + 1} load`) } : {})
+        ...(job.delivery !== undefined ? { delivery: amount(job.delivery, `Stop ${index + 1} load`) } : {}),
+        ...(job.priority !== undefined ? { priority: int(job.priority, 0, 100, `Stop ${index + 1} priority`) } : {})
       };
     });
     const cleanVehicles = vehicles.map((vehicle, index) => {
