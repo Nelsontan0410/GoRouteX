@@ -370,6 +370,22 @@ function deliveryWindowCheckGap(etaResult) {
         return '';
     }
 
+// The day running past the driver's working end only warns; it never blocks Confirm.
+function workingEndWarning() {
+        const workingEnd = String(window.GoRouteXSettings?.getCachedSettings?.()?.drivers?.workingEnd || '');
+        const match = /^(\d{1,2}):(\d{2})/.exec(workingEnd);
+        const routes = (AppState.plannedRoutes || []).filter(Boolean);
+        const times = routes[routes.length - 1]?.detailedStopTimes || [];
+        const last = times[times.length - 1];
+        const finish = new Date(last?.departureTime || last?.arrivalTime || NaN);
+        if (!match || Number.isNaN(finish.getTime())) return '';
+        const limit = Number(match[1]) * 60 + Number(match[2]);
+        const finishMinutes = finish.getHours() * 60 + finish.getMinutes();
+        if (finishMinutes <= limit) return '';
+        const hhmm = `${String(finish.getHours()).padStart(2, '0')}:${String(finish.getMinutes()).padStart(2, '0')}`;
+        return `The last stop ends around ${hhmm}, after the working end (${workingEnd}). The plan was still saved.`;
+    }
+
 async function enforceDeliveryWindows(etaResult) {
         AppState.timeWindowOverride = null;
         const gap = deliveryWindowCheckGap(etaResult);
@@ -434,6 +450,8 @@ async function handleProceedToOptimizeRoutes(options = {}) {
             return { success: false, blocked: 'delivery-windows' };
         }
         step('etaAndWindowCheck');
+        const lateWarning = workingEndWarning();
+        if (lateWarning) showToast(lateWarning, 'warning', 9000);
         const dynamicSaveResult = await savePlannedRoutes(dynamicBuildState.plannedRoutes, options);
         step('save');
         console.info('[Confirm Route timing, ms]', confirmTiming);
