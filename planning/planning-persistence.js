@@ -105,7 +105,29 @@ function buildPlanEngineRecord(plannedRoutes) {
             .filter(Boolean)
             .map((route) => (Array.isArray(route.customerStops) ? route.customerStops : []).map((stop) => String(stop?.id || stop?.uniqueId || '')).filter(Boolean));
         const edits = window.GoRouteXPlanEdits ? window.GoRouteXPlanEdits.comparePlans(record.routes, finalRoutes) : null;
-        return { source: record.source, plannedAt: record.at, automaticRoutes: record.routes, unassignedByPlanner: record.unassigned, edits };
+        // Firestore cannot store a list inside a list, so each automatic route is an object.
+        const automaticRoutes = (record.routes || []).map((stopIds, index) => ({ route: index + 1, stopIds: [...(stopIds || [])] }));
+        return { source: record.source, plannedAt: record.at, automaticRoutes, unassignedByPlanner: record.unassigned, edits };
+    }
+
+// Path of the first list directly inside a list (Firestore rejects those), or '' when there is none.
+function findNestedArrayPath(value, path = 'plan', insideArray = false, seen = new Set()) {
+        if (Array.isArray(value)) {
+            if (insideArray) return path;
+            for (let i = 0; i < value.length; i++) {
+                const found = findNestedArrayPath(value[i], `${path}[${i}]`, true, seen);
+                if (found) return found;
+            }
+            return '';
+        }
+        if (!value || typeof value !== 'object' || seen.has(value)) return '';
+        if (typeof value.toDate === 'function' || value instanceof Date) return '';
+        seen.add(value);
+        for (const [key, item] of Object.entries(value)) {
+            const found = findNestedArrayPath(item, `${path}.${key}`, false, seen);
+            if (found) return found;
+        }
+        return '';
     }
 
 // Selection saves are serialized so an older full-overwrite write can never land after a newer one.
@@ -333,6 +355,8 @@ async function saveCurrentRouteToHistory(options = {}) {
         };
 
         const originalHistoryId = String(historyEntry.id);
+        const nestedPath = findNestedArrayPath(historyEntry);
+        if (nestedPath) console.error('Route plan has a list inside a list; the cloud save will be refused:', nestedPath);
 
         try {
             const saveResult = window.RoutePlannerStorage

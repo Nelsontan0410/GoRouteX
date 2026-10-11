@@ -23,5 +23,17 @@ test('the saved plan carries the automatic plan and the edit counts', () => {
   assert.match(entry, /window\._autoPlanRecord = \{ source: 'manual'/);
   const persistence = read('planning/planning-persistence.js');
   assert.match(persistence, /planEngine: buildPlanEngineRecord\(driverPlannedRoutes\),/);
-  assert.match(persistence, /return \{ source: record\.source, plannedAt: record\.at, automaticRoutes: record\.routes, unassignedByPlanner: record\.unassigned, edits \};/);
+  assert.match(persistence, /return \{ source: record\.source, plannedAt: record\.at, automaticRoutes, unassignedByPlanner: record\.unassigned, edits \};/);
+});
+
+test('the saved plan never holds a list inside a list (Firestore refuses it)', () => {
+  const src = readFileSync(new URL('../planning/planning-persistence.js', import.meta.url), 'utf8');
+  const ctx = vm.createContext({});
+  vm.runInContext(src.slice(src.indexOf('function buildPlanEngineRecord('), src.indexOf('// Selection saves are serialized')) + '\nthis.build = buildPlanEngineRecord; this.find = findNestedArrayPath;', ctx);
+  ctx.window = ctx;
+  ctx._autoPlanRecord = { source: 'plan-engine', at: 'now', routes: [['a', 'b'], ['c']], unassigned: ['d'] };
+  const record = ctx.build([{ customerStops: [{ id: 'a' }, { id: 'b' }] }, { customerStops: [{ id: 'c' }] }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(record.automaticRoutes)), [{ route: 1, stopIds: ['a', 'b'] }, { route: 2, stopIds: ['c'] }]);
+  assert.equal(ctx.find({ planEngine: record, plannedRoutes: [{ stops: [{ id: 1 }] }] }), '');
+  assert.equal(ctx.find({ planEngine: { automaticRoutes: [['a']] } }), 'plan.planEngine.automaticRoutes[0]');
 });
