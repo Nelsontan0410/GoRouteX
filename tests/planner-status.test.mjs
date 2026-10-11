@@ -93,7 +93,7 @@ test('Review & Assign: one plan id per entry; a replaced entry refunds and stops
   const entry = page.slice(page.indexOf('async function handleGoToManualAssignPageLegacy('), page.indexOf('function populateManualAssignmentListsLegacy('));
   assert.ok(entry.indexOf('const planId = Status.begin();') < entry.indexOf('await startAutoPlanSession()'));
   assert.match(entry, /if \(!Status\.isCurrent\(planId\)\) \{ await refundAutoPlanSession\(autoPlan\.sessionId\); return; \}/);
-  assert.match(entry, /generateOptimizedActiveRoutesFromSelection\(selectedStops, 8, \{ planId \}\)/);
+  assert.match(entry, /generateOptimizedActiveRoutesFromSelection\(selectedStops, MAX_WAYPOINTS_PER_ROUTE, \{ planId \}\)/);
   assert.match(entry, /if \(error\?\.name === 'StalePlanError' \|\| !Status\.isCurrent\(planId\)\) return;/);
   assert.match(entry, /optimizer: 'local-clustering'/);
   assert.match(entry, /optimizer: 'manual'/);

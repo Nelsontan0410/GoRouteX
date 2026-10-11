@@ -35,7 +35,7 @@ test('shadow mode sends the plan actually used as job-ID routes, only while the 
   await tick();
   assert.equal(sent.length, 1);
   assert.equal(sent[0].action, 'shadow');
-  assert.deepEqual(sent[0].baselineRoutes, [[2, 1], [3]]);
+  assert.deepEqual(sent[0].baselineRoutes, [[2, 1, 3]], 'one driver: Route 1 then Route 2 as one tour');
   assert.equal(sent[0].problem.jobs.length, 3);
   const on = load({ enabled: true });
   on.ctx.shadow(stops, 'end', 'session-aaa1', [{ stopIds: ['a'] }]);
@@ -82,4 +82,9 @@ test('shadow runs only on the existing-planner path; calibration after a success
   assert.match(save.slice(0, 300), /sendPlanEngineCalibration\(AppState\.plannedRoutes, getRouteStartDateTime\(\), historyEntry\.planEngine\)/);
   const rules = read('firestore.rules');
   assert.doesNotMatch(rules, /planEngineShadow|planEngineCalibration/, 'server-only collections');
+});
+
+test('one driver: the plan used is sent as one continuous tour for scoring', () => {
+  const src = readFileSync(new URL('../planning/plan-engine-client.js', import.meta.url), 'utf8');
+  assert.match(src, /const baselineRoutes = built\.mode === 'sequential' \? \[perRoute\.flat\(\)\] : perRoute;/);
 });

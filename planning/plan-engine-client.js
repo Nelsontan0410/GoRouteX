@@ -234,7 +234,9 @@ function runPlanEngineShadow(selectedStops, destinationId, sessionId, activeRout
             const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
             if (!built.problem.jobs.length) return;
             const jobIdOf = new Map([...built.jobIds.entries()].map(([jobId, stopId]) => [String(stopId), jobId]));
-            const baselineRoutes = (activeRoutes || []).map((route) => (route.stopIds || []).map((id) => jobIdOf.get(String(id))).filter(Boolean));
+            const perRoute = (activeRoutes || []).map((route) => (route.stopIds || []).map((id) => jobIdOf.get(String(id))).filter(Boolean));
+            // One driver runs the routes in turn, so the plan used is scored as one continuous tour.
+            const baselineRoutes = built.mode === 'sequential' ? [perRoute.flat()] : perRoute;
             callPlanRoutes({ action: 'shadow', sessionId, problem: built.problem, baselineRoutes, baselineUnassigned: unassignedCount, baselineSource: 'google' }, 25000).catch(() => {});
         } catch (error) {
             console.info('Plan Engine shadow skipped:', error?.message || error);

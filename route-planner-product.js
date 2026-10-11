@@ -12,7 +12,7 @@
         maxSavedStops: 50,
         // Daily automatic plans (entries into Review & Assign). Name kept for stored data compatibility.
         maxSavedRoutesPerDay: 2,
-        maxStopsPerRoute: 8,
+        maxStopsPerRoute: 10,
         maxSelectableStops: 16
       },
       dashboardSummary: 'Useful daily route planning with device-only storage.',
@@ -30,7 +30,7 @@
       limits: {
         maxSavedStops: 500,
         maxSavedRoutesPerDay: 10,
-        maxStopsPerRoute: 8,
+        maxStopsPerRoute: 10,
         maxSelectableStops: 25
       },
       dashboardSummary: 'Cloud-backed planning with more daily route capacity and continuity across devices.',
@@ -49,7 +49,7 @@
       limits: {
         maxSavedStops: 1500,
         maxSavedRoutesPerDay: 50,
-        maxStopsPerRoute: 8,
+        maxStopsPerRoute: 10,
         maxSelectableStops: 100
       },
       dashboardSummary: 'Operational planning with cloud sync, imports, and stronger review tools.',

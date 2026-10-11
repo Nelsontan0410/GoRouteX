@@ -138,7 +138,8 @@
 
   /**
    * Reorder stops inside each packed route when Google's order breaks a delivery window.
-   * routes: [{ stops: [...] }], one vehicle each, all leaving at the planning start time.
+   * routes: [{ stops: [...] }] in driving sequence for one driver: route N starts where and when route N-1
+   * ended (its last stop, no return to the start); only the last route drives on to the end location.
    * options: { origin, end, startDate: Date, legs, resolveStop(stop) -> { id, location, serviceMinutes, schedule } }
    * Returns { routes, changedRouteIndexes, remainingViolations }. Routes without a violation keep Google's order.
    */
@@ -152,14 +153,17 @@
     const model = calibrate(options.legs);
     const end = point(options.end);
     const day = C().dayKeyFromDate(options.startDate);
-    // Each route is its own vehicle and leaves at the planning start time.
-    const startMinutes = options.startDate.getHours() * 60 + options.startDate.getMinutes();
+    let startMinutes = options.startDate.getHours() * 60 + options.startDate.getMinutes();
+    let routeOrigin = origin;
     const nextRoutes = routes.map((route, routeIndex) => {
       const resolved = (route.stops || []).map((stop) => ({ stop, info: options.resolveStop(stop) }));
       // Stops without coordinates cannot be simulated; keep the route as Google ordered it.
-      if (resolved.some(({ info }) => !info || !point(info.location))) return route;
+      if (resolved.some(({ info }) => !info || !point(info.location))) { routeOrigin = null; return route; }
+      // After a route that could not be simulated, the next start point is unknown: keep Google's order.
+      if (!routeOrigin) return route;
       const items = resolved.map(({ stop, info }) => ({ ...info, location: point(info.location), original: stop }));
-      const context = { origin, end, startMinutes, day, model };
+      const isLast = routeIndex === routes.length - 1;
+      const context = { origin: routeOrigin, end: isLast ? end : null, startMinutes, day, model };
       const current = simulate(items, context);
       let finalItems = items;
       let finalResult = current;
@@ -172,6 +176,8 @@
         }
       }
       finalResult.violations.forEach((violation) => remainingViolations.push({ routeIndex, ...violation }));
+      startMinutes = finalResult.endMinutes;
+      routeOrigin = finalItems.length ? finalItems[finalItems.length - 1].location : routeOrigin;
       if (finalItems === items) return route;
       const stops = finalItems.map((item) => item.original);
       return { ...route, stops, stopIds: stops.map((stop) => options.stopId ? options.stopId(stop) : stop.id).filter(Boolean), timeWindowOrdered: true };

@@ -361,7 +361,7 @@ async function handleGoToManualAssignPageLegacy() {
             openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
         } else try {
             window._autoPlanSessionId = autoPlan.sessionId;
-            await generateOptimizedActiveRoutesFromSelection(selectedStops, 8, { planId });
+            await generateOptimizedActiveRoutesFromSelection(selectedStops, MAX_WAYPOINTS_PER_ROUTE, { planId });
             buildManualRouteSlotsFromActiveRoutes(window._activeRoutes);
             if (routeArrangementIsDirectionReturn()) recordDirectionDebug('SUCCESS', 'Direction order applied; opening manual preview');
             // Customers the planner could not fit stay unassigned for the planner to handle.
@@ -403,12 +403,12 @@ async function handleGoToManualAssignPageLegacy() {
             } else if (window.GoRouteXRouteEngine) {
                 console.warn('Global route optimization failed. Falling back to route engine grouping.', error);
                 window.GoRouteXRouteEngine.setSelectedStops(selectedStops);
-                window.GoRouteXRouteEngine.generateRoutes(8);
+                window.GoRouteXRouteEngine.generateRoutes(MAX_WAYPOINTS_PER_ROUTE);
                 const fallbackPlan = window.GoRouteXRouteEngine.getRoutePlan().routes || [];
                 const fallbackStops = fallbackPlan.flatMap((route) => Array.isArray(route?.stops) ? route.stops : []);
-                window._activeRoutes = assignRouteColors(splitOptimizedStopsIntoPackedRoutes(fallbackStops, 8));
+                window._activeRoutes = assignRouteColors(splitOptimizedStopsIntoPackedRoutes(fallbackStops, MAX_WAYPOINTS_PER_ROUTE));
                 window._testRoutes = window._activeRoutes;
-                validatePackedActiveRoutes(window._activeRoutes, 8);
+                validatePackedActiveRoutes(window._activeRoutes, MAX_WAYPOINTS_PER_ROUTE);
                 buildManualRouteSlotsFromActiveRoutes(window._activeRoutes);
                 unassignedStops = [];
                 Status.finish(planId, { optimizer: 'local-clustering', roadRouting: typeof osrmRoutingWanted === 'function' && osrmRoutingWanted() ? 'osrm' : 'google', reason: error?.message || 'automatic planning failed' });

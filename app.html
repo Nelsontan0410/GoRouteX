@@ -1493,7 +1493,7 @@
     let customerEntryByAddressCacheSize = 0;
 
 
-    const MAX_WAYPOINTS_PER_ROUTE = 8;
+    const MAX_WAYPOINTS_PER_ROUTE = 10; // stops per route (one driver runs Route 1, 2, 3 in turn)
     const MAX_SELECTED_STOPS = 16;  
     const DEFAULT_ROUTE_START_TIME = '09:00';
     const PREFERRED_PLANNING_TIME_STORAGE_KEY = 'preferredPlanningTime';
@@ -1948,7 +1948,7 @@
         limits: {
           maxSavedStops: 50,
           maxSavedRoutesPerDay: 1,
-          maxStopsPerRoute: 8,
+          maxStopsPerRoute: 10,
           maxSelectableStops: 16
         }
       },
@@ -1959,7 +1959,7 @@
         limits: {
           maxSavedStops: 500,
           maxSavedRoutesPerDay: 10,
-          maxStopsPerRoute: 8,
+          maxStopsPerRoute: 10,
           maxSelectableStops: 25
         }
       },
@@ -1970,7 +1970,7 @@
         limits: {
           maxSavedStops: 1500,
           maxSavedRoutesPerDay: 50,
-          maxStopsPerRoute: 8,
+          maxStopsPerRoute: 10,
           maxSelectableStops: 100
         }
       }
@@ -2864,7 +2864,7 @@
       const productDisplayLimits = productToolkit?.getPlanDisplayLimits
         ? productToolkit.getPlanDisplayLimits(productPlan)
         : {
-            stopsPerRoute: '8 stops/route',
+            stopsPerRoute: '10 stops/route',
             storageMode: 'Device-only storage'
           };
       accountUsageCardsDiv.innerHTML = `${cards}
@@ -3112,7 +3112,7 @@
         : {
             savedStops: '50 saved stops',
             savedRoutesPerDay: '1 saved route/day',
-            stopsPerRoute: '8 stops/route',
+            stopsPerRoute: '10 stops/route',
             storageMode: 'Device-only storage'
           };
       const expiryText = formatPlanDate(getPlanExpiryValue(window.currentUserProfile || {})) || '--';
@@ -7883,7 +7883,7 @@
         return stop.id || stop.uniqueId || stop.customerId || stop.stopId || '';
     }
 
-    function splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxStopsPerRoute = 8) {
+    function splitOptimizedStopsIntoPackedRoutes(optimizedStops, maxStopsPerRoute = MAX_WAYPOINTS_PER_ROUTE) {
         const safeMax = Number.isFinite(Number(maxStopsPerRoute)) && Number(maxStopsPerRoute) > 0
             ? Math.floor(Number(maxStopsPerRoute))
             : 8;
@@ -7908,7 +7908,7 @@
         return routes;
     }
 
-    function validatePackedActiveRoutes(routes, maxStopsPerRoute = 8) {
+    function validatePackedActiveRoutes(routes, maxStopsPerRoute = MAX_WAYPOINTS_PER_ROUTE) {
         const safeRoutes = Array.isArray(routes) ? routes : [];
         console.table(safeRoutes.map(r => ({
             route: r.label,
@@ -8017,7 +8017,7 @@
         return directionsService;
     }
 
-    async function generateDirectionOrderedActiveRoutes(selectedStops, maxPerRoute = 8) {
+    async function generateDirectionOrderedActiveRoutes(selectedStops, maxPerRoute = MAX_WAYPOINTS_PER_ROUTE) {
         directionDebugEntries = [];
         recordDirectionDebug('START', `Stops: ${selectedStops?.length || 0}; directions service: ${!!directionsService}; engine: ${typeof RouteEngine}`);
         await ensurePlanningDirectionsService();
@@ -8118,7 +8118,7 @@
         if (!window.GoRouteXPlannerStatus.isCurrent(planId)) throw Object.assign(new Error('A newer plan replaced this one.'), { name: 'StalePlanError' });
     }
 
-    async function generateOptimizedActiveRoutesFromSelection(selectedStops, maxPerRoute = 8, options = {}) {
+    async function generateOptimizedActiveRoutesFromSelection(selectedStops, maxPerRoute = MAX_WAYPOINTS_PER_ROUTE, options = {}) {
         const Status = window.GoRouteXPlannerStatus;
         const planId = options.planId || Status.begin();
         const roadRouting = typeof osrmRoutingWanted === 'function' && osrmRoutingWanted() ? 'osrm' : 'google';
@@ -10161,8 +10161,12 @@
               continue;
           }
 
-          // Each route is a separate vehicle with its own driver; all leave at the planning start time.
-          currentTime = getRouteStartDateTime();
+          if (routeIdx > 0) {
+              const prevRoute = AppState.plannedRoutes[routeIdx - 1];
+              if (prevRoute && prevRoute.directionsResult && prevRoute.finalEtaAtLastStop instanceof Date) {
+                  currentTime = new Date(prevRoute.finalEtaAtLastStop.getTime());
+              }
+          }
 
           routeData.detailedStopTimes = [];
           routeData.finalEtaAtLastStop = null;
@@ -10171,8 +10175,9 @@
           fullScheduleHtml += `<div class="route-header">Route ${routeData.id}</div>`;
           const routeLegs = routeData.directionsResult.routes[0].legs;
           const stopsForThisRoute = routeData.optimizedStops;
-          // Routes run in parallel, so no route continues into the next one.
-          const hasFollowingRoute = false;
+          const hasFollowingRoute = AppState.plannedRoutes
+              .slice(routeIdx + 1)
+              .some(r => r && r.directionsResult && r.directionsResult.routes && r.directionsResult.routes.length > 0);
 
           const departureTimeFormatted = formatTime12Hour(currentTime);
           const startStopName = getStopDisplayName(stopsForThisRoute[0]);

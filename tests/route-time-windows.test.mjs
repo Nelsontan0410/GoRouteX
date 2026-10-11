@@ -36,6 +36,7 @@ test("when Google's order breaks a window, the route is reordered so the custome
   assert.deepEqual([...result.routes[0].stops.map((s) => s.id)], ['early', 'far']);
   assert.deepEqual([...result.changedRouteIndexes], [0]);
   assert.equal(result.remainingViolations.length, 0);
+  const original = T.simulate;
   assert.equal(result.routes[0].timeWindowOrdered, true);
 });
 
@@ -64,13 +65,14 @@ test('waiting for opening and the lunch break is part of the simulated duration'
   assert.ok(atLunch.endMinutes >= C.toMinutes('13:20'), 'served after the break, 20 minutes of service');
 });
 
-test('routes run in parallel: every route leaves at the planning start time', () => {
+test('later routes start when the previous route ends', () => {
   const late = C.defaultSchedule();
   late.monday = { open: true, windows: [{ start: '09:00', end: '09:30' }], breaks: [] };
   const r1 = stop('r1', near(0.05, 0), C.defaultSchedule(), 60);
   const r2 = stop('r2', near(0.001, 0), late, 15);
   const result = T.applyToPackedRoutes([{ stops: [{ id: 'r1' }] }, { stops: [{ id: 'r2' }] }], { origin: depot, end: depot, startDate: monday9, legs, resolveStop: (s) => ({ r1, r2 })[s.id] });
-  assert.equal(result.remainingViolations.length, 0, 'route 2 does not wait for route 1');
+  assert.equal(result.remainingViolations.length, 1, 'route 2 starts after route 1 and misses its window');
+  assert.equal(result.remainingViolations[0].routeIndex, 1);
 });
 
 test('routes larger than 8 stops are improved with local search', () => {
@@ -79,6 +81,7 @@ test('routes larger than 8 stops are improved with local search', () => {
   const order = [...stops].reverse().reverse(); // Google-like nearest-first order puts it last
   const result = T.applyToPackedRoutes([{ stops: order.map((s) => ({ id: s.id })) }], { origin: depot, end: depot, startDate: monday9, legs, resolveStop: (s) => stops.find((x) => x.id === s.id) });
   assert.equal(result.remainingViolations.length, 0);
+  const original = T.simulate;
   assert.ok(result.routes[0].stops.findIndex((s) => s.id === 's9') < 4, 'the morning-only customer moves early');
 });
 
@@ -87,4 +90,40 @@ test('without a usable start location or time nothing is reordered', () => {
   const result = T.applyToPackedRoutes(routes, { origin: null, startDate: monday9, legs, resolveStop: () => stop('a', near(0.01, 0)) });
   assert.equal(result.routes, routes);
   assert.match(result.skipped, /unavailable/);
+});
+
+test('one driver: Route 2 starts at Route 1’s last stop (no return), and only the last route drives to the end', () => {
+  const far = near(0.1, 0.1);
+  const r1 = [{ id: 'a', location: near(0.01, 0) }, { id: 'b', location: far }];
+  const r2 = [{ id: 'c', location: near(0.1, 0.11) }];
+  const info = new Map([...r1, ...r2].map((s) => [s.id, stop(s.id, s.location)]));
+  const result = T.applyToPackedRoutes([{ stops: r1 }, { stops: r2 }], {
+    origin: depot, end: depot, startDate: monday9, legs, resolveStop: (s) => info.get(s.id)
+  });
+  assert.equal(result.remainingViolations.length, 0);
+  const original = T.simulate;
+  const one = original(r1.map((s) => info.get(s.id)), { origin: depot, end: null, startMinutes: 540, day: 'monday', model: T.calibrate(legs) });
+  const twoChained = original(r2.map((s) => info.get(s.id)), { origin: far, end: depot, startMinutes: one.endMinutes, day: 'monday', model: T.calibrate(legs) });
+  const twoFromDepot = original(r2.map((s) => info.get(s.id)), { origin: depot, end: depot, startMinutes: one.endMinutes, day: 'monday', model: T.calibrate(legs) });
+  assert.ok(twoChained.km < twoFromDepot.km, 'starting next to the previous last stop is shorter than starting at the depot');
+  const source = readFileSync(new URL('../route-time-windows.js', import.meta.url), 'utf8');
+  assert.match(source, /const context = \{ origin: routeOrigin, end: isLast \? end : null, startMinutes, day, model \};/);
+  assert.match(source, /routeOrigin = finalItems\.length \? finalItems\[finalItems\.length - 1\]\.location : routeOrigin;/);
+});
+
+test('ETA: Route 2 continues from Route 1’s finish (after the last service), not from the planning start', () => {
+  const app = readFileSync(new URL('../app.html', import.meta.url), 'utf8');
+  const eta = app.slice(app.indexOf('const timeWindowViolations = [];'), app.indexOf('AppState.timeWindowViolations = timeWindowViolations;'));
+  assert.match(eta, /currentTime = new Date\(prevRoute\.finalEtaAtLastStop\.getTime\(\)\);/);
+  assert.doesNotMatch(eta, /currentTime = getRouteStartDateTime\(\);/);
+  assert.match(eta, /const hasFollowingRoute = AppState\.plannedRoutes\s*\.slice\(routeIdx \+ 1\)/);
+  assert.match(eta, /if \(isFinalLegInRoute && hasFollowingRoute\) \{\s*routeData\.finalEtaAtLastStop = new Date\(currentTime\.getTime\(\)\);/, 'the next route starts after the last stop’s service');
+});
+
+test('preview and final build: Route k starts at Route k-1’s last stop; only the last route goes to the end', () => {
+  for (const file of ['planning/manual-map-preview.js', 'route-engine.js']) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    assert.match(source, /: \(isLast(Dynamic)?Route \? getCurrentConfiguredEndLocationId\(\) : null\);/, `${file}: end only on the last route`);
+    assert.match(source, /getDynamicRouteStopInput\((previousRouteLastStop|originStop)\) \|\| getLocationInput\(currentLocationOrigin\)/, `${file}: chained origin`);
+  }
 });
