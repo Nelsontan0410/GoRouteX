@@ -9,3 +9,6 @@
 .location-status.is-warning { color: #b45309; }
 .location-status.is-error { color: #b91c1c; }
 .location-map { height: 220px; border-radius: 10px; border: 1px solid #cbd5e1; overflow: hidden; }
+.location-tools { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.location-results { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.location-results button { text-align: left; width: 100%; }

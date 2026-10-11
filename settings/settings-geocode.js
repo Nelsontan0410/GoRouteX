@@ -35,7 +35,7 @@
   }
 
   const REASONS = {
-    ZERO_RESULTS: 'No matching address found. Check the address or pick it from the suggestions.',
+    ZERO_RESULTS: 'No matching address found. Check the spelling or add the postal code.',
     REQUEST_DENIED: 'The map service rejected the request (key or API not allowed for this site).',
     OVER_QUERY_LIMIT: 'The map service is busy. Try again in a moment.',
     OVER_DAILY_LIMIT: 'The map service quota is used up for today.',
@@ -77,7 +77,7 @@
   let authFailed = false;
   /** Loads Maps JS (places + geocoding) once; concurrent callers share the promise; a failure can be retried. */
   function loadMapsApi(options = {}) {
-    if (root.google?.maps?.Geocoder && root.google?.maps?.places) return Promise.resolve(root.google.maps);
+    if (root.google?.maps?.Geocoder && root.google?.maps?.Map) return Promise.resolve(root.google.maps);
     if (authFailed) return Promise.reject(Object.assign(new Error(reasonFor('AUTH_FAILED')), { code: 'AUTH_FAILED' }));
     if (loading) return loading;
     const doc = options.document || root.document;
@@ -91,7 +91,8 @@
       root[CALLBACK] = () => resolve(root.google.maps);
       const script = doc.createElement('script');
       script.async = true;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&libraries=places,geocoding&loading=async&language=en&callback=${CALLBACK}`;
+      // Maps + Geocoding only. Places Autocomplete (legacy) is not available to this key.
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&libraries=geocoding&loading=async&language=en&callback=${CALLBACK}`;
       script.onerror = () => { script.remove(); reject(Object.assign(new Error(reasonFor('MAPS_UNAVAILABLE')), { code: 'MAPS_UNAVAILABLE' })); };
       doc.head.appendChild(script);
     }), options.timeoutMs || LOAD_TIMEOUT_MS, reasonFor('MAPS_UNAVAILABLE')).catch((error) => {
@@ -110,6 +111,28 @@
       const geocoder = options.geocoder || new maps.Geocoder();
       const response = await withTimeout(Promise.resolve(geocoder.geocode({ address: query, region: 'sg' })), options.timeoutMs || GEOCODE_TIMEOUT_MS, reasonFor('TIMEOUT'));
       return classifyResults(response?.results);
+    } catch (error) {
+      const code = errorCode(error);
+      return { ok: false, code, reason: reasonFor(code) };
+    }
+  }
+
+  /**
+   * Address search for the user to choose from (Settings "Find on map"): up to 5 matches, each with its
+   * position. Unlike geocodeAddress, several matches are fine here because a person picks one and sees the pin.
+   * Returns { ok:true, results:[{ address, latLng, approximate, partial }] } or { ok:false, code, reason }.
+   */
+  async function searchAddress(address, options = {}) {
+    const query = String(address || '').trim();
+    if (!query) return { ok: false, code: 'INVALID_REQUEST', reason: reasonFor('INVALID_REQUEST') };
+    try {
+      const maps = options.maps || await loadMapsApi(options);
+      const geocoder = options.geocoder || new maps.Geocoder();
+      const response = await withTimeout(Promise.resolve(geocoder.geocode({ address: query, region: 'sg' })), options.timeoutMs || GEOCODE_TIMEOUT_MS, reasonFor('TIMEOUT'));
+      const results = (response?.results || []).slice(0, 5)
+        .map((result) => ({ address: result.formatted_address || query, latLng: cleanLatLng(result.geometry?.location), approximate: result.geometry?.location_type === 'APPROXIMATE', partial: !!result.partial_match }))
+        .filter((result) => result.latLng);
+      return results.length ? { ok: true, results } : { ok: false, code: 'ZERO_RESULTS', reason: reasonFor('ZERO_RESULTS') };
     } catch (error) {
       const code = errorCode(error);
       return { ok: false, code, reason: reasonFor(code) };
@@ -146,5 +169,5 @@
     return { ok: true, matched };
   }
 
-  root.GoRouteXGeocode = { cleanLatLng, sameAddress, classifyResults, fromPlace, loadMapsApi, geocodeAddress, reasonFor, withTimeout, pointFor, verifyPoints };
+  root.GoRouteXGeocode = { cleanLatLng, sameAddress, classifyResults, fromPlace, loadMapsApi, geocodeAddress, searchAddress, reasonFor, withTimeout, pointFor, verifyPoints };
 })(typeof window !== 'undefined' ? window : globalThis);

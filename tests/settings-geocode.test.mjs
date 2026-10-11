@@ -56,7 +56,7 @@ test('the Maps loader is shared, times out, and can be retried after a failure',
   await assert.rejects(a, (error) => error.code === 'MAPS_UNAVAILABLE');
   const retry = geo.loadMapsApi({ timeoutMs: 1000 });
   assert.equal(scripts.length, 2, 'a failed load is retried');
-  ctx.google = { maps: { Geocoder: function () {}, places: {} } };
+  ctx.google = { maps: { Geocoder: function () {}, Map: function () {} } };
   ctx.__goroutexGeocodeMapsReady();
   assert.equal(await retry, ctx.google.maps);
   scripts[1].onerror?.();
@@ -119,4 +119,27 @@ test('Settings shows a map pin for a verified start/end; dragging it sets the co
   assert.match(fn, /draggable: true/);
   assert.match(fn, /state\.verified\[id\] = \{ address, latLng, quality: 'pin' \};/);
   assert.match(page, /verified\.quality === 'pin' \? ' \(pin placed on the map\)'/);
+});
+
+test('Find on map lists up to 5 matches with positions; errors become reasons', async () => {
+  const maps = { Geocoder: function () {} };
+  const many = Array.from({ length: 7 }, (_, i) => result({ formatted_address: `Place ${i}` }));
+  const found = await G.searchAddress('48 toh guan road', { maps, geocoder: { geocode: async () => ({ results: many }) } });
+  assert.equal(found.ok, true);
+  assert.equal(found.results.length, 5);
+  assert.deepEqual(plain(found.results[0]), { address: 'Place 0', latLng: { lat: 1.3329, lng: 103.7436 }, approximate: false, partial: false });
+  const none = await G.searchAddress('zzz', { maps, geocoder: { geocode: async () => ({ results: [] }) } });
+  assert.equal(none.code, 'ZERO_RESULTS');
+  const denied = await G.searchAddress('x', { maps, geocoder: { geocode: () => Promise.reject(Object.assign(new Error('REQUEST_DENIED'), { code: 'REQUEST_DENIED' })) } });
+  assert.match(denied.reason, /rejected/);
+});
+
+test('Settings no longer uses Places Autocomplete (not available to this key)', () => {
+  const page = readFileSync(new URL('../settings/settings-page.js', import.meta.url), 'utf8');
+  const geo = readFileSync(new URL('../settings/settings-geocode.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(page, /maps\.places/);
+  assert.match(geo, /libraries=geocoding&/);
+  assert.match(page, /\$\(id \+ 'Find'\)\?\.addEventListener\('click', \(\) => findLocation\(id\)\)/);
+  assert.match(page, /if \(event\.key === 'Enter'\) \{ event\.preventDefault\(\); findLocation\(id\); \}/);
+  assert.match(page, /if \(\$\(id\)\.value\.trim\(\) !== query\) return; \/\/ the text changed while searching/);
 });
