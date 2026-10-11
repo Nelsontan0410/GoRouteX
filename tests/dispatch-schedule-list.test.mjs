@@ -37,7 +37,10 @@ test('without an end location the list has no End row', () => {
 test('print is A4, one table for the whole plan, one button in the toolbar', () => {
   const page = read('dispatch/dispatch-page.js');
   assert.match(page, /@page\{size:A4 portrait;margin:12mm\}/);
-  assert.match(page, /Total stops: \$\{list\.totalStops\} \(start and end not counted\)/);
+  assert.match(page, /`Total stops: \$\{list\.totalStops\}`/);
+  assert.match(page, /`Vehicle: \$\{vehicle \|\| '—'\}`/);
+  assert.match(page, /<th>Customer \/ Orders<\/th><th>Address \/ Contact<\/th><th>ETA<\/th><th>Completed \/ Sign<\/th>/, 'no # or Route column');
+  assert.match(page, /<div class="head"><h1>GoRouteX Schedule List<\/h1><span class="meta" id="meta"><\/span><\/div>/, 'details on the title row');
   assert.match(read('dispatch.html'), /id="dispatchPrintAllBtn"/);
   assert.doesNotMatch(read('dispatch/dispatch-board.js'), /state\.options\.printRoute\(/);
 });

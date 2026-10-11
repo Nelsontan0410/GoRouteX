@@ -130,8 +130,12 @@ test('sequential: unassigned stops say whether the day ran out or the daily stop
   assert.match(a.message, /daily stop limit \(2, Settings > Drivers\)/);
   const roomy = P.buildProblem(input(stops, { driverRules: { ...rules, maxStops: 20 } }));
   const b = plain(P.mapSolution(full, roomy)).unassigned[0];
-  assert.equal(b.reason, 'no-feasible-route');
-  assert.match(b.message, /remaining working time/);
+  assert.equal(b.reason, 'no-feasible-route', 'the day ends long before 17:00: not a full day');
+  assert.match(b.message, /delivery hours could not be fitted/);
+  const late = { routes: [{ vehicle: 1, steps: [{ type: 'job', id: 1, arrival: 33000 }, { type: 'job', id: 2, arrival: 34000 }, { type: 'end', arrival: 59700 }] }], unassigned: [{ id: 3 }] };
+  const c = plain(P.mapSolution(late, roomy)).unassigned[0];
+  assert.equal(c.reason, 'day-full');
+  assert.match(c.message, /the plan already returns at 16:35 and working hours end at 17:00/);
 });
 
 test('stops with narrow delivery hours get a higher priority, so the solver keeps them (Tuas closing at 13:00)', () => {
