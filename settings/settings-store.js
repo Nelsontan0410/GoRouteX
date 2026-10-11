@@ -22,7 +22,7 @@ export function getCachedSettings() {
   if (memory.has(uid)) return memory.get(uid);
   try {
     const stored = JSON.parse(localStorage.getItem(cacheKey()) || 'null');
-    if (stored) return normalizeSettings(stored, stored.orders?.contactRequired);
+    if (stored) return normalizeSettings(stored, stored.orders?.contactRequired, { fromStore: true });
   } catch { /* Fall through to defaults. */ }
   return defaultSettings();
 }
@@ -32,7 +32,7 @@ export async function getTenantSettings() {
     settingsRoot.doc('operationsV1').get({ source: 'server' }),
     settingsRoot.doc('orderHub').get({ source: 'server' })
   ]);
-  const settings = normalizeSettings(operations.exists ? operations.data() : {}, orderHub.exists && orderHub.data()?.contactRequired === true);
+  const settings = normalizeSettings(operations.exists ? operations.data() : {}, orderHub.exists && orderHub.data()?.contactRequired === true, { fromStore: true });
   remember(settings);
   return settings;
 }

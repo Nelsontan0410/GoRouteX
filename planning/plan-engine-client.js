@@ -13,7 +13,13 @@ const PLAN_ENGINE_ENABLED = false;
 
 function isPlanEngineEnabled() {
         if (PLAN_ENGINE_ENABLED) return true;
-        try { return window.localStorage?.getItem('goroutexPlanner') === 'on'; } catch (_) { return false; }
+        try { return ['on', 'only'].includes(window.localStorage?.getItem('goroutexPlanner')); } catch (_) { return false; }
+    }
+
+// Test mode (localStorage goroutexPlanner = 'only'): the Plan Engine or nothing. A problem stops planning
+// with its reason; it never falls back to Google or to local grouping, so the engine in use is never in doubt.
+function isPlanEngineStrict() {
+        try { return window.localStorage?.getItem('goroutexPlanner') === 'only'; } catch (_) { return false; }
     }
 
 function toLatLngPoint(value) {
@@ -82,12 +88,16 @@ function stopDemand(stopId) {
 /** The planner input from the current selection, or { unsupported } when it cannot be used. */
 function buildPlanEngineInput(selectedStops, destinationId, capacityVehicles = null) {
         const origin = toLatLngPoint(getLocationInput(currentLocationOrigin));
-        const end = destinationId ? toLatLngPoint(getLocationInput(destinationId)) : null;
+        if (!origin) return { unsupported: 'The start location has no verified coordinates.', code: 'start-unresolved' };
+        // The start is used as the end only when the user chose Same as Start; a custom end must resolve itself.
+        const sameAsStart = !destinationId || destinationId === fixedDestinationAddress;
+        const end = sameAsStart ? origin : toLatLngPoint(getLocationInput(destinationId));
+        if (!end) return { unsupported: 'The end location has no verified coordinates.', code: 'end-unresolved' };
         const settings = window.GoRouteXSettings?.getCachedSettings?.() || {};
         const input = {
             startDate: getRouteStartDateTime(),
             origin,
-            end: end || origin,
+            end,
             availableDrivers: 0,
             driverRules: settings.drivers || {},
             maxDurationMinutes: settings.routePlanning?.maxDurationMinutes,
@@ -118,10 +128,10 @@ async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
         if (!isPlanEngineEnabled()) return { fallback: 'disabled' };
         if (!sessionId) return { fallback: 'no-session' };
         const prepared = buildPlanEngineInput(selectedStops, destinationId, await loadCapacityVehicles());
-        if (prepared.unsupported) return { fallback: prepared.unsupported };
+        if (prepared.unsupported) return { fallback: prepared.unsupported, code: prepared.code || 'unsupported' };
         const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
         if (!built.problem.jobs.length) {
-            return { routes: [], unassigned: built.preUnassigned };
+            return { routes: [], unassigned: built.preUnassigned, solved: false };
         }
         const result = await callPlanRoutes({ action: 'solve', sessionId, problem: built.problem });
         if (!result.ok) return { fallback: result.code || 'planner-failed' };

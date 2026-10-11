@@ -19,7 +19,7 @@ test('moves between routes, reorders, removals and additions are counted', () =>
 
 test('the saved plan carries the automatic plan and the edit counts', () => {
   const entry = read('planning/manual-assignment-page.js');
-  assert.match(entry, /window\._autoPlanRecord = \{\s*source: window\._plannerUsedEngine \? 'plan-engine' : 'google',/);
+  assert.match(entry, /window\._autoPlanRecord = \{\s*source: window\._plannerUsedEngine \? 'plan-engine' : \(Status\.current\(\)\?\.optimizer \|\| 'google'\),/);
   assert.match(entry, /window\._autoPlanRecord = \{ source: 'manual'/);
   const persistence = read('planning/planning-persistence.js');
   assert.match(persistence, /planEngine: buildPlanEngineRecord\(driverPlannedRoutes\),/);

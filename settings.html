@@ -14,6 +14,8 @@
   <script defer src="account-context.js"></script>
   <script defer src="delivery-constraints.js"></script>
   <script defer src="delivery-schedule-editor.js"></script>
+  <script defer src="planner-problem.js"></script>
+  <script defer src="settings/settings-geocode.js"></script>
   <script defer type="module" src="settings/settings-page.js"></script>
 </head>
 <body>
@@ -103,8 +105,10 @@
           <label>Maximum Route Duration <span class="unit">minutes</span><input id="maxDurationMinutes" type="number" min="30" max="1440" step="1" required><small>A planning policy for future route checks.</small></label>
           <label>Default Number of Routes<input id="numberOfRoutes" type="number" min="1" max="50" step="1" required><small>A starting value, never a fixed route count.</small></label>
           <label>Default Planning Time<input id="planningTime" type="time" required><small>Order delivery time and your current plan take priority.</small></label>
-          <label class="wide">Default Start Address<input id="defaultStart" maxlength="240" placeholder="Warehouse or depot address"><small>Used only when this browser has no valid last-used Start Location.</small></label>
-          <label class="wide">Default End Address<input id="defaultEnd" maxlength="240" placeholder="Leave blank to return to Start"><small>Used only when this browser has no valid last-used End Location.</small></label>
+          <label class="wide">Default Start Address<input id="defaultStart" maxlength="240" autocomplete="off" placeholder="Warehouse or depot address"><small>Pick the address from the suggestions so routes have an exact map position. Used only when this browser has no valid last-used Start Location.</small><small id="defaultStartStatus" class="location-status" aria-live="polite"></small></label>
+          <label class="wide">Default End Address<input id="defaultEnd" maxlength="240" autocomplete="off" placeholder="Leave blank to return to Start"><small>Pick the address from the suggestions. Used only when this browser has no valid last-used End Location.</small><small id="defaultEndStatus" class="location-status" aria-live="polite"></small></label>
+          <div id="defaultStartMap" class="location-map wide" hidden aria-label="Default Start Location on the map"></div>
+          <div id="defaultEndMap" class="location-map wide" hidden aria-label="Default End Location on the map"></div>
         </div>
         <div class="subsection-heading"><h3>Planned vs actual</h3><p>How close delivered routes came to the plan, from your drivers' arrival and completion times. Use it to tune service times.</p></div>
         <div id="planInsights" class="settings-info" aria-live="polite"><p>Open this section to load planned vs actual.</p></div>

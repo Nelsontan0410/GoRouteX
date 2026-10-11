@@ -3200,3 +3200,6 @@
       display: none !important;
     }
 
+
+/* Why the planner left a stop unassigned (planner-status.js). */
+.unassigned-reason { display: block; font-size: 12px; color: #b45309; margin-top: 2px; }
