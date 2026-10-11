@@ -1399,6 +1399,8 @@
         }
         const selectedDateTime = String(selection.planningDateTime || '');
         if (selectedDateTime && planningDateInput) {
+            // Orders decide the planning day: plan the day they were imported for.
+            window.GRX_ORDER_PLANNING_DATE = selectedDateTime.split('T')[0];
             planningDateInput.value = selectedDateTime;
             updatePlanningDateAccess();
             if (planningDateInput.value !== selectedDateTime) {
@@ -3736,7 +3738,7 @@
             showToast('Choose a planning date before confirming this route.', 'warning', 3600);
             return false;
         }
-        if (selectedDate < todayKey) {
+        if (selectedDate < todayKey && selectedDate !== window.GRX_ORDER_PLANNING_DATE) {
             setPlanningDateStatus('Selected date is in the past. Choose today or a future date before saving.', true);
             showToast('Planning date cannot be in the past.', 'warning', 3600);
             return false;

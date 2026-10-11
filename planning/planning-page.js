@@ -43,7 +43,8 @@ function updatePlanningDateAccess() {
             if (currentDate > tomorrowKey) currentDate = tomorrowKey;
             setPlanningDateStatus('GoPlan allows today or tomorrow.', false);
         } else {
-            if (currentDate < todayKey) currentDate = todayKey;
+            // A date chosen from the orders (their delivery date) is kept even when it is already past.
+            if (currentDate < todayKey && currentDate !== window.GRX_ORDER_PLANNING_DATE) currentDate = todayKey;
             setPlanningDateStatus('ProPlan allows full date selection.', false);
         }
 
@@ -70,7 +71,7 @@ function handlePlanningDateChange() {
         } else if (planKey === 'goplan' && (nextDate < todayKey || nextDate > tomorrowKey)) {
             nextDate = nextDate < todayKey ? todayKey : tomorrowKey;
             setPlanningDateStatus('GoPlan allows today or tomorrow only.', true);
-        } else if (nextDate < todayKey) {
+        } else if (nextDate < todayKey && nextDate !== window.GRX_ORDER_PLANNING_DATE) {
             setPlanningDateStatus('Selected date is in the past. Choose today or a future date before saving.', true);
         } else {
             setPlanningDateStatus(planKey === 'goplan' ? 'GoPlan allows today or tomorrow.' : 'ProPlan allows full date selection.', false);
