@@ -5,8 +5,10 @@
 //   2. least total route time: travel + waiting + driver break + service (+ fixed cost per used route)
 //   3. least travel time
 // A driver break may be taken while waiting for a customer. Moves: best order inside each route
-// (exhaustive up to 8 stops) and moving a stop to another route. The result is used only when it is
-// strictly better and fully feasible; otherwise VROOM's solution is returned unchanged.
+// (exhaustive up to 8 stops; for longer routes, moving one stop elsewhere in the route), moving a stop to
+// another route, and inserting stops VROOM left unassigned wherever they fit (VROOM's heuristics can miss
+// a feasible full plan, e.g. one driver's whole day). The result is used only when it serves more stops or
+// is strictly better, and is fully feasible; otherwise VROOM's solution is returned unchanged.
 
 const EXHAUSTIVE_LIMIT = 8;
 
@@ -109,6 +111,52 @@ function bestOrder(vehicle, jobIds, ctx) {
   return best;
 }
 
+// Longer routes: move one stop to another position in the same route while that helps (or-opt).
+function relocateWithinRoute(vehicle, entry, ctx, deadline) {
+  let current = entry;
+  let improved = true;
+  while (improved && Date.now() < deadline) {
+    improved = false;
+    const order = current.order;
+    for (let from = 0; from < order.length && !improved; from++) {
+      for (let to = 0; to < order.length && !improved; to++) {
+        if (from === to) continue;
+        const next = order.slice();
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        const sim = simulateRoute(vehicle, next, ctx);
+        if (!sim) continue;
+        const score = routeScore(vehicle, sim, next.length);
+        if (better(score, current.score)) { current = { ...current, order: next, sim, score }; improved = true; }
+      }
+    }
+  }
+  return current;
+}
+
+// Puts each unassigned stop at the cheapest feasible position of any route. Returns the stops still left.
+function insertUnassigned(plan, jobIds, vehicles, ctx, deadline) {
+  const left = [];
+  for (const jobId of jobIds) {
+    let best = null;
+    for (let r = 0; r < plan.length && Date.now() < deadline; r++) {
+      const vehicle = vehicles.get(plan[r].vehicleId);
+      if (plan[r].order.length >= vehicle.max_tasks) continue;
+      for (let pos = 0; pos <= plan[r].order.length; pos++) {
+        const order = [...plan[r].order.slice(0, pos), jobId, ...plan[r].order.slice(pos)];
+        const sim = simulateRoute(vehicle, order, ctx);
+        if (!sim) continue;
+        const score = routeScore(vehicle, sim, order.length);
+        const delta = { cost: score.cost - plan[r].score.cost, travel: score.travel - plan[r].score.travel };
+        if (!best || better(delta, best.delta)) best = { r, order, sim, score, delta };
+      }
+    }
+    if (best) plan[best.r] = { ...plan[best.r], order: best.order, sim: best.sim, score: best.score };
+    else left.push(jobId);
+  }
+  return left;
+}
+
 const total = (plan) => plan.reduce((acc, r) => ({ cost: acc.cost + r.score.cost, travel: acc.travel + r.score.travel }), { cost: 0, travel: 0 });
 const better = (a, b) => a.cost < b.cost || (a.cost === b.cost && a.travel < b.travel);
 
@@ -127,11 +175,20 @@ export function improveSolution(problem, solution, { timeBudgetMs = 1500 } = {})
     baseline.push({ vehicleId: vehicle.id, order: jobIds, sim, score: routeScore(vehicle, sim, jobIds.length) });
   }
 
-  // 1. Best order inside each route.
+  // 1. Best order inside each route (longer routes: move single stops within the route).
   let plan = baseline.map((r) => {
-    const best = bestOrder(vehicles.get(r.vehicleId), r.order, ctx);
+    const vehicle = vehicles.get(r.vehicleId);
+    if (r.order.length > EXHAUSTIVE_LIMIT) return relocateWithinRoute(vehicle, r, ctx, deadline);
+    const best = bestOrder(vehicle, r.order, ctx);
     return best && better(best.score, r.score) ? { ...r, ...best } : r;
   });
+  const unassignedBefore = (solution.unassigned || []).map((job) => job.id).filter((id) => ctx.jobs.has(id));
+  let unassigned = insertUnassigned(plan, unassignedBefore, vehicles, ctx, deadline);
+  // A tidier order can free time for a stop that did not fit yet.
+  if (unassigned.length) {
+    plan = plan.map((r) => (r.order.length > 1 ? relocateWithinRoute(vehicles.get(r.vehicleId), r, ctx, deadline) : r));
+    unassigned = insertUnassigned(plan, unassigned, vehicles, ctx, deadline);
+  }
 
   // 2. Move single stops between routes while it helps (first improvement), within the time budget.
   let improved = true;
@@ -160,7 +217,8 @@ export function improveSolution(problem, solution, { timeBudgetMs = 1500 } = {})
     }
   }
 
-  if (!better(total(plan), total(baseline))) return solution;
+  const servesMore = unassigned.length < unassignedBefore.length;
+  if (!servesMore && !better(total(plan), total(baseline))) return solution;
   const routes = plan.filter((r) => r.order.length).map((r) => ({
     vehicle: r.vehicleId,
     cost: r.score.cost,
@@ -173,7 +231,8 @@ export function improveSolution(problem, solution, { timeBudgetMs = 1500 } = {})
   return {
     ...solution,
     routes,
-    summary: { ...(solution.summary || {}), cost: summaryOf('cost'), routes: routes.length, duration: summaryOf('duration'), waiting_time: summaryOf('waiting_time'), service: summaryOf('service') },
+    unassigned: (solution.unassigned || []).filter((job) => unassigned.includes(job.id)),
+    summary: { ...(solution.summary || {}), cost: summaryOf('cost'), routes: routes.length, unassigned: unassigned.length, duration: summaryOf('duration'), waiting_time: summaryOf('waiting_time'), service: summaryOf('service') },
     improvedBy: 'goroutex'
   };
 }
@@ -219,4 +278,26 @@ export function evaluateSolution(problem, solution) {
   const routes = (solution?.routes || []).slice().sort((a, b) => a.vehicle - b.vehicle)
     .map((route) => route.steps.filter((s) => s.type === 'job').map((s) => s.id));
   return { ...evaluateAssignment(problem, routes), unassigned: (solution?.unassigned || []).length };
+}
+
+/**
+ * VROOM's heuristics can leave a stop out although every stop fits (seen on one driver's day: Tuas, which
+ * must be served before 13:00, and later Mandai). When stops are left out, solve again with those stops at
+ * the highest priority, and keep whichever answer serves more stops (then the cheaper one).
+ * run(input, seconds?) -> VROOM solution; improve(input, solution) -> solution.
+ */
+export async function solveWithRetries(input, run, { rounds = 2, retrySeconds = 2, improve = improveSolution } = {}) {
+  const count = (solution) => (solution?.unassigned || []).length;
+  let best = improve(input, await run(input));
+  for (let round = 0; round < rounds && best?.code === 0 && count(best) > 0; round++) {
+    const left = new Set(best.unassigned.map((job) => job.id));
+    const boosted = { ...input, jobs: input.jobs.map((job) => (left.has(job.id) ? { ...job, priority: 100 } : job)) };
+    const candidate = improve(boosted, await run(boosted, retrySeconds));
+    if (candidate?.code !== 0) break;
+    const fewer = count(candidate) < count(best);
+    const cheaper = count(candidate) === count(best) && (candidate.summary?.cost ?? Infinity) < (best.summary?.cost ?? Infinity);
+    if (!fewer && !cheaper) break;
+    best = { ...candidate, retriedForUnassigned: round + 1 };
+  }
+  return best;
 }

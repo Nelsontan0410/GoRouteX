@@ -17,7 +17,7 @@ function stateContext() {
 }
 function flow() {
  const events=[];const calls={profile:0,stops:0,orders:0,routing:0,eta:0,writes:0,history:0};
- const c=vm.createContext({window:{},AppState:{plannedRoutes:[]},performance:{mark(){},measure(){}},messageBarPg2:{},
+ const c=vm.createContext({window:{},AppState:{plannedRoutes:[]},performance:{mark(){},measure(){},now:()=>0},messageBarPg2:{},
  RouteEngine:{async buildPlannedRoutes(){events.push('build');calls.routing++;return {plannedRoutes:[{id:1,directionsResult:{}}]}}},
  RouteSafety:{async validateRoutes(){events.push('safety')}},
  ensureManualRouteCheckCurrent:async()=>events.push('manual-check'),

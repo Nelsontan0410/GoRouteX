@@ -11,7 +11,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
 import OSRMModule from '@project-osrm/osrm';
-import { improveSolution, evaluateAssignment, evaluateSolution } from './improve.mjs';
+import { improveSolution, evaluateAssignment, evaluateSolution, solveWithRetries } from './improve.mjs';
 
 const OSRM = OSRMModule.default || OSRMModule;
 const KEY = process.env.PLANNER_KEY || '';
@@ -96,12 +96,20 @@ export function runVroom(input, seconds = SOLVE_SECONDS) {
   });
 }
 
+const RETRY_ROUNDS = Number(process.env.PLANNER_RETRY_ROUNDS || 2);
+const RETRY_SECONDS = Number(process.env.PLANNER_RETRY_SECONDS || 2);
+
+export function solveInput(input) {
+  return solveWithRetries(input, runVroom, {
+    rounds: RETRY_ROUNDS,
+    retrySeconds: RETRY_SECONDS,
+    improve: process.env.PLANNER_IMPROVE === '0' ? (_, solution) => solution : improveSolution
+  });
+}
+
 export async function solve(problem) {
-  const input = await withMatrix(problem);
-  const solution = await runVroom(input);
-  // VROOM does not count waiting time; re-optimise with GoRouteX's objective (see improve.mjs).
-  if (process.env.PLANNER_IMPROVE === '0') return solution;
-  return improveSolution(input, solution);
+  // VROOM does not count waiting time; improve.mjs re-optimises with GoRouteX's objective.
+  return solveInput(await withMatrix(problem));
 }
 
 const server = http.createServer(async (req, res) => {
@@ -113,7 +121,7 @@ const server = http.createServer(async (req, res) => {
       // Shadow mode: solve, and score the plan GoRouteX actually used, on the same matrix and rules.
       const body = await readBody(req);
       const input = await withMatrix(body.problem);
-      const solution = improveSolution(input, await runVroom(input));
+      const solution = await solveInput(input);
       return send(res, 200, { engine: evaluateSolution(input, solution), baseline: { ...evaluateAssignment(input, body.baselineRoutes || []), unassigned: body.baselineUnassigned || 0 } });
     }
     if (req.method === 'POST' && req.url === '/legs') {

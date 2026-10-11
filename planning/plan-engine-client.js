@@ -133,7 +133,9 @@ async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
         if (!built.problem.jobs.length) {
             return { routes: [], unassigned: built.preUnassigned, solved: false };
         }
+        const solveStartedAt = performance.now();
         const result = await callPlanRoutes({ action: 'solve', sessionId, problem: built.problem });
+        console.info('[Plan Engine] solve round trip, ms:', Math.round(performance.now() - solveStartedAt), result.ok ? '' : result.code);
         if (!result.ok) return { fallback: result.code || 'planner-failed' };
         const mapped = window.GoRouteXPlannerProblem.mapSolution(result.payload.solution, built);
         const byId = new Map(selectedStops.map((stop) => [getPackedRouteStopId(stop), stop]));

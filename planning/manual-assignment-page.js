@@ -310,6 +310,40 @@ function refreshManualAssignmentUi() {
         updateConfirmRouteButtonState();
     }
 
+// Shown the moment Review & Assign is clicked: planning can take a few seconds (allowance check, the
+// planning service, road lines) and the page must not look frozen meanwhile.
+function showPlanningOverlay(stopCount) {
+        let overlay = document.getElementById('planningOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'planningOverlay';
+            overlay.className = 'planning-overlay';
+            overlay.setAttribute('role', 'status');
+            overlay.setAttribute('aria-live', 'polite');
+            const card = document.createElement('div');
+            card.className = 'planning-overlay-card';
+            const spinner = document.createElement('div');
+            spinner.className = 'planning-spinner';
+            spinner.setAttribute('aria-hidden', 'true');
+            card.append(spinner, document.createElement('strong'), document.createElement('p'));
+            overlay.append(card);
+            document.body.append(overlay);
+        }
+        overlay.querySelector('strong').textContent = `Planning ${stopCount} stop${stopCount === 1 ? '' : 's'}…`;
+        overlay.querySelector('p').textContent = 'Getting ready…';
+        overlay.hidden = false;
+    }
+
+function setPlanningOverlayStep(text) {
+        const step = document.querySelector('#planningOverlay p');
+        if (step) step.textContent = text;
+    }
+
+function hidePlanningOverlay() {
+        const overlay = document.getElementById('planningOverlay');
+        if (overlay) overlay.hidden = true;
+    }
+
 async function handleGoToManualAssignPageLegacy() {
         if (!hasRolePermission('routes.manage')) {
             promptForRoleRestriction({
@@ -328,6 +362,10 @@ async function handleGoToManualAssignPageLegacy() {
         if (!ensureOriginReadyForPlanning()) return;
         if (!routeArrangementIsDirectionReturn() && !ensureEndLocationReadyForPlanning()) return;
 
+        const timing = { startedAt: performance.now(), steps: {} };
+        const stepDone = (name, since) => { timing.steps[name] = Math.round(performance.now() - since); };
+        showPlanningOverlay(selectedCustomers.size);
+        try {
         let selectedStops = getSelectedStopObjects();
         if (selectedStops.some((stop) => stop.isPlaceholder)) {
             messageBarPg2.textContent = 'Loading selected stop details before route planning...';
@@ -349,7 +387,10 @@ async function handleGoToManualAssignPageLegacy() {
         const Status = window.GoRouteXPlannerStatus;
         const planId = Status.begin();
         let strictFailure = '';
+        setPlanningOverlayStep('Checking today’s automatic plans…');
+        let since = performance.now();
         const autoPlan = await startAutoPlanSession();
+        stepDone('allowance', since);
         if (!Status.isCurrent(planId)) { await refundAutoPlanSession(autoPlan.sessionId); return; }
         window._autoPlanManualMode = autoPlan.mode === 'manual';
         window._autoPlanRecord = null;
@@ -361,7 +402,10 @@ async function handleGoToManualAssignPageLegacy() {
             openRouteLimitReachedModal(getUsageStatus('activeRoutes'));
         } else try {
             window._autoPlanSessionId = autoPlan.sessionId;
+            setPlanningOverlayStep('Arranging stops around delivery hours, breaks and working time…');
+            since = performance.now();
             await generateOptimizedActiveRoutesFromSelection(selectedStops, MAX_WAYPOINTS_PER_ROUTE, { planId });
+            stepDone('planning', since);
             buildManualRouteSlotsFromActiveRoutes(window._activeRoutes);
             if (routeArrangementIsDirectionReturn()) recordDirectionDebug('SUCCESS', 'Direction order applied; opening manual preview');
             // Customers the planner could not fit stay unassigned for the planner to handle.
@@ -429,7 +473,10 @@ async function handleGoToManualAssignPageLegacy() {
             }
         });
 
+        setPlanningOverlayStep('Opening the map…');
+        since = performance.now();
         await showPage('page-manual-assign');
+        stepDone('openPage', since);
         updateRouteOriginControls();
         populateManualAssignmentLists();
         addSimpleMarkersForMasterList(unassignedStops.concat(getAssignedStopIds()));
@@ -452,6 +499,11 @@ async function handleGoToManualAssignPageLegacy() {
             : ['Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.', window._timeWindowPlanningNotice || '', plannerStatusLine()].filter(Boolean).join(' ');
         updateRouteLines();
         updateConfirmRouteButtonState();
+        } finally {
+            hidePlanningOverlay();
+            timing.steps.total = Math.round(performance.now() - timing.startedAt);
+            console.info('[Review & Assign timing, ms]', timing.steps);
+        }
     }
 
 function populateManualAssignmentListsLegacy() {

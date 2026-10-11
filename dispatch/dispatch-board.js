@@ -86,6 +86,38 @@
     const seen = new Set(order);
     return [...order, ...source.filter(stop => !seen.has(stop))];
   }
+  // The whole day as one list for the printed schedule: start, every delivery stop in driving order
+  // (Route 1, then Route 2, ...), end. totalStops counts delivery stops only.
+  function scheduleList(context) {
+    const routes = context?.routes || [];
+    const rows = [];
+    for (const route of routes) {
+      for (const stop of routeStops(route)) {
+        const timing = lookupTiming(route, stop);
+        rows.push({
+          number: rows.length + 1,
+          route: `Route ${routeKey(route)}`,
+          name: text(stop.customerName || stop.Name || stop.stopName || stop.name) || 'Stop',
+          orders: Array.isArray(stop.orderNumbers) ? stop.orderNumbers.join(' / ') : '',
+          address: text(stop.deliveryAddress || stop.address || stop.Address) || '—',
+          contact: [stop.contactName, stop.contactPhone || stop.phone || stop['Hp No']].filter(Boolean).join(' · '),
+          eta: text(timing?.arrivalTimeStr) || '—'
+        });
+      }
+    }
+    const first = routes[0]?.detailedStopTimes?.[0];
+    const lastRoute = routes[routes.length - 1];
+    const lastTimes = Array.isArray(lastRoute?.detailedStopTimes) ? lastRoute.detailedStopTimes : [];
+    const deliveryIds = new Set(lastRoute ? routeStops(lastRoute).map(stop => text(stop.savedStopId || stop.id || stop.uniqueId)) : []);
+    const endTiming = lastTimes.length && !deliveryIds.has(text(lastTimes[lastTimes.length - 1]?.stopId)) ? lastTimes[lastTimes.length - 1] : null;
+    return {
+      start: { name: text(context?.origin) || 'Start', time: text(first?.departureTimeStr) || text(context?.startTime) || '—' },
+      rows,
+      end: endTiming ? { name: text(context?.end) || 'End', time: text(endTiming.arrivalTimeStr) || '—' } : null,
+      totalStops: rows.length
+    };
+  }
+
   function duration(route) {
     const legs = route.directionsResult?.routes?.[0]?.legs || [];
     const seconds = legs.reduce((sum, leg) => sum + Number(leg.duration?.value || 0), 0);
@@ -129,6 +161,8 @@
     const saved = Boolean(context.planId);
     if (!context.routes.some(route => routeKey(route) === state.activeRouteId)) state.activeRouteId = routeKey(context.routes[0]);
     renderAllDriverSelect(context, saved);
+    const printAll = $('dispatchPrintAllBtn');
+    if (printAll) printAll.disabled = !context.routes.every(routeHasEta) || (state.options?.canPrintRoute && !state.options.canPrintRoute(context.routes[0]));
     $('dispatchAllBtn').disabled = !saved || state.loading || !state.drivers.length || context.routes.every(route => state.dispatched.some(item => item.dispatchPlanId === context.planId && String(item.routeId) === routeKey(route)));
     for (const route of context.routes) {
       const routeId = routeKey(route);
@@ -158,10 +192,6 @@
       assignment.append(label);
       card.append(assignment);
       const actions = element('div', '', 'dispatch-actions');
-      const print = element('button', 'Print schedule list', 'action-button-secondary');
-      print.type = 'button'; print.disabled = !routeHasEta(route) || (state.options?.canPrintRoute && !state.options.canPrintRoute(route));
-      print.onclick = () => state.options.printRoute(routeId, dispatch?.driverName || state.drivers.find(driver => driver.uid === selectedDriver(routeId))?.name || 'Unassigned', context.date, context.startTime);
-      actions.append(print);
       if (!dispatch) {
         const send = element('button', 'Dispatch route', 'action-button-primary');
         send.type = 'button'; send.disabled = !saved || !routeHasEta(route) || state.loading || !state.drivers.length;
@@ -276,6 +306,8 @@
     if (!context?.planId || !context.routes?.length) return;
     dispatchTiming('dispatchRouteVisible');
     dispatchTiming('dispatchOpenStart');
+    if (state.driverPrefetch && !forceDrivers) await state.driverPrefetch;
+    if (generation !== state.generation) return;
     const cached = !forceDrivers && state.driverCache?.uid === user.uid && state.driverCache.expiresAt > Date.now();
     if (cached) { counters.cacheHits++; state.drivers = state.driverCache.drivers; state.driversLoaded = true; render(); if (state.drivers.length) dispatchTiming('dispatchDriversUsable'); } else counters.cacheMisses++;
     dispatchTiming('dispatchLoadDriversStart');
@@ -349,8 +381,20 @@
 
   function reset() {
     state.generation++; state.context = null; state.loadedPlan = null; state.drivers = []; state.driversLoaded = false; state.dispatched = [];
-    state.driverCache = null; state.refreshPromise = null; state.refreshKey = ''; state.activeRouteId = null;
+    state.driverCache = null; state.driverPrefetch = null; state.refreshPromise = null; state.refreshKey = ''; state.activeRouteId = null;
     render();
+  }
+
+  // Started as soon as sign-in is known, in parallel with the account and plan reads, so the driver list is
+  // usually ready when the board opens instead of being fetched after them.
+  function prefetchDrivers() {
+    const user = global.FirebaseApp?.auth?.getCurrentUser?.();
+    if (!user || state.driverPrefetch || (state.driverCache?.uid === user.uid && state.driverCache.expiresAt > Date.now())) return;
+    const prefetch = api('drivers').then(result => {
+      if (state.driverPrefetch !== prefetch) return;
+      state.driverCache = { uid: user.uid, drivers: result.drivers || [], expiresAt: Date.now() + 30000 };
+    }).catch(() => { /* the board fetches again when it opens */ }).finally(() => { if (state.driverPrefetch === prefetch) state.driverPrefetch = null; });
+    state.driverPrefetch = prefetch;
   }
 
   function suspend() {
@@ -363,6 +407,14 @@
   function init(options) {
     state.options = options;
     $('dispatchAllBtn')?.addEventListener('click', () => dispatchRoutes(state.context?.routes || []));
+    $('dispatchPrintAllBtn')?.addEventListener('click', () => {
+      const context = state.context;
+      if (!context?.routes?.length) return;
+      const firstRoute = routeKey(context.routes[0]);
+      const dispatched = state.dispatched.find(item => item.dispatchPlanId === context.planId && String(item.routeId) === firstRoute);
+      const driverName = dispatched?.driverName || state.drivers.find(driver => driver.uid === selectedDriver(firstRoute))?.name || 'Unassigned';
+      state.options.printPlan(scheduleList(context), driverName, context.date);
+    });
     $('dispatchRefreshBtn')?.addEventListener('click', () => refresh(true));
     state.authUid = global.FirebaseApp?.auth?.getCurrentUser?.()?.uid || null;
     state.authUnsubscribe = global.FirebaseApp?.auth?.onAuthStateChange?.(user => {
@@ -378,5 +430,5 @@
       if (!document.hidden && isViewActive() && state.dispatched.length) pollStatus();
     }, 30000);
   }
-  global.GoRouteXDispatch = { init, refresh, render, reset, suspend, selectRoute, contextFromPlan, routeStops, lookupTiming };
+  global.GoRouteXDispatch = { init, refresh, render, reset, suspend, selectRoute, contextFromPlan, routeStops, lookupTiming, prefetchDrivers, scheduleList };
 })(window);

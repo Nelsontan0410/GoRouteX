@@ -408,12 +408,19 @@ async function handleProceedToOptimizeRoutes(options = {}) {
         const backgroundSave = options.backgroundSave === true;
         const validationResult = validateRouteInputs(options);
         if (!validationResult.success) return validationResult;
+        // Where Confirm spends its time, printed once per confirm (console).
+        const confirmTiming = {};
+        let stepStart = performance.now();
+        const step = (name) => { const now = performance.now(); confirmTiming[name] = Math.round(now - stepStart); stepStart = now; };
         // Confirm saves the exact route and safety result currently shown on the
         // manual map. If a debounced calculation is pending, wait for it first.
         await ensureManualRouteCheckCurrent();
         await prepareRoutePlanningUi(options);
+        step('waitForMapCheck');
         const dynamicBuildState = await RouteEngine.buildPlannedRoutes();
+        step('buildRoutes');
         await RouteSafety.validateRoutes(dynamicBuildState.plannedRoutes, { context: 'final', forceRefresh: false, reuse: true });
+        step('restrictionCheck');
         const dynamicRenderResult = renderPlannedRoutes(dynamicBuildState.plannedRoutes, dynamicBuildState, options);
         if (!dynamicRenderResult.success) return dynamicRenderResult;
         try { performance.mark('grx:etaStart'); } catch {}
@@ -426,7 +433,10 @@ async function handleProceedToOptimizeRoutes(options = {}) {
             renderConfirmRouteModalState();
             return { success: false, blocked: 'delivery-windows' };
         }
+        step('etaAndWindowCheck');
         const dynamicSaveResult = await savePlannedRoutes(dynamicBuildState.plannedRoutes, options);
+        step('save');
+        console.info('[Confirm Route timing, ms]', confirmTiming);
         if (dynamicSaveResult?.success && !dynamicSaveResult.skipped) {
             if (!dynamicSaveResult.id) {
                 if (messageBarPg2) messageBarPg2.textContent = 'Finalized route has no saved plan ID. Please retry.';

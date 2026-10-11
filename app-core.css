@@ -3203,3 +3203,13 @@
 
 /* Why the planner left a stop unassigned (planner-status.js). */
 .unassigned-reason { display: block; font-size: 12px; color: #b45309; margin-top: 2px; }
+
+/* Review & Assign: shown at once while the routes are planned (manual-assignment-page.js). */
+.planning-overlay { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.45); padding: 16px; }
+.planning-overlay[hidden] { display: none; }
+.planning-overlay-card { background: #fff; color: #0f172a; border-radius: 14px; padding: 28px 32px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25); }
+.planning-overlay-card strong { display: block; font-size: 18px; margin-top: 14px; }
+.planning-overlay-card p { margin: 8px 0 0; color: #475569; }
+.planning-spinner { width: 40px; height: 40px; margin: 0 auto; border-radius: 50%; border: 4px solid #dbeafe; border-top-color: #2563eb; animation: planning-spin 0.9s linear infinite; }
+@keyframes planning-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .planning-spinner { animation: none; } }
