@@ -1,6 +1,9 @@
 import { getFirebaseAdmin, verifyFirebaseUser, jsonResponse, readJson } from './_shared/firebase-admin.js';
 import { requireOwner } from './_shared/driver-domain.js';
 import { snapshotRouteStops } from '../../driver/route-model.js';
+import '../../dispatch/day-route.js';
+
+const DayRoute = globalThis.GoRouteXDayRoute;
 
 const clean = (value, limit = 160) => String(value ?? '').trim().slice(0, limit);
 const safeId = value => /^[a-zA-Z0-9_-]+$/.test(value);
@@ -185,7 +188,8 @@ export default async (req) => {
         const driverUid = clean(row.driverUid, 128);
         if (!routeId || !safeId(routeId) || !driverUid || !safeId(driverUid) || seen.has(routeId)) return respond({ success: false, error: 'Route assignments contain an empty or duplicate route.' }, 400);
         seen.add(routeId);
-        const route = (plan.plannedRoutes || []).find(item => String(item?.id) === routeId);
+        // 'day': the whole plan as one route for one driver (dispatch/day-route.js).
+        const route = routeId === DayRoute.DAY_ROUTE_ID ? DayRoute.mergeDayRoute(plan.plannedRoutes) : (plan.plannedRoutes || []).find(item => String(item?.id) === routeId);
         if (!route || !Array.isArray(route.customerStops) || !route.customerStops.length) return respond({ success: false, error: `Route ${routeId} has no finalized stops.` }, 400);
         if (!hasEtaForEveryStop(route)) return respond({ success: false, error: `Route ${routeId} is missing a finalized stop ETA. Replan and save it first.` }, 400);
         candidates.push({ routeId, route, driverUid, dispatchId: key(uid, planId, routeId) });
@@ -215,13 +219,19 @@ export default async (req) => {
         const refs = selected.map(item => db.collection('dispatchRoutes').doc(item.dispatchId));
         const existing = await Promise.all(refs.map(ref => tx.get(ref)));
         if (existing.some(doc => doc.exists)) throw Error('Route already dispatched. Refresh Dispatch before retrying.');
+        // A plan sent as one day must not also have routes that were dispatched one by one earlier (and vice versa).
+        const otherIds = selected.flatMap(item => item.routeId === DayRoute.DAY_ROUTE_ID ? item.route.routeIds || [] : [DayRoute.DAY_ROUTE_ID]);
+        const others = await Promise.all([...new Set(otherIds)].map(routeId => tx.get(db.collection('dispatchRoutes').doc(key(uid, planId, routeId)))));
+        if (others.some(doc => doc.exists)) throw Error('This plan was already dispatched in another way. Refresh Dispatch before retrying.');
         for (let i = 0; i < selected.length; i++) {
           const { route, routeId, driver, dispatchId } = selected[i];
           const legs = route.directionsResult?.routes?.[0]?.legs || [];
           const estimatedDistanceMeters = Number(route.estimatedDistanceMeters) || legs.reduce((sum, leg) => sum + Number(leg.distance?.value || 0), 0);
           const estimatedDurationSeconds = Number(route.estimatedDurationSeconds) || legs.reduce((sum, leg) => sum + Number(leg.duration?.value || 0), 0);
-          const snapshot = JSON.parse(JSON.stringify({ id: route.id, label: route.label, estimatedDistanceMeters, estimatedDurationSeconds, originalWaypoints: route.originalWaypoints || [], optimizedStops: route.optimizedStops || [], customerStops: route.customerStops, detailedStopTimes: route.detailedStopTimes, routeStopConfigs: route.routeStopConfigs || [], endLocationId: route.endLocationId || null }));
-          const delivery = { id: dispatchId, routeId, routeName: `Route ${routeId}`, date: plan.date || plan.planningDate || null, planningDate: plan.planningDate || plan.date || null, routeStartTime: plan.routeStartTime || plan.startTime || null, startTime: plan.startTime || plan.routeStartTime || null, originName: plan.originName || '', endLocationLabel: plan.endLocationLabel || '', assignedDriverUid: driver.uid, dispatchOwnerUid: uid, dispatchPlanId: planId, dispatchedAt: now, status: 'DISPATCHED', driverName: driver.name, vehicleDriver: '', estimatedDistanceMeters, estimatedDurationSeconds, plannedRoutes: [snapshot], orderLinkStatus: plan.orderLinkStatus || 'NONE' };
+          const snapshot = JSON.parse(JSON.stringify({ id: route.id, label: route.label, estimatedDistanceMeters, estimatedDurationSeconds, originalWaypoints: route.originalWaypoints || [], optimizedStops: route.optimizedStops || [], customerStops: route.customerStops, detailedStopTimes: route.detailedStopTimes, routeStopConfigs: route.routeStopConfigs || [], endLocationId: route.endLocationId || null, manualWaypoints: route.manualWaypoints || [], safetyWaypoints: route.safetyWaypoints || [], dayElapsedSeconds: route.dayElapsedSeconds ?? null }));
+          // Start and end positions for the driver's Google Maps navigation (driver/navigation.js).
+          const endLatLng = plan.endLocationRequired === false ? null : plan.endLocationMode === 'custom' ? plan.customEndLatLng || null : plan.originLatLng || null;
+          const delivery = { id: dispatchId, routeId, routeName: routeId === DayRoute.DAY_ROUTE_ID ? 'All stops' : `Route ${routeId}`, originLatLng: plan.originLatLng || null, endLatLng, date: plan.date || plan.planningDate || null, planningDate: plan.planningDate || plan.date || null, routeStartTime: plan.routeStartTime || plan.startTime || null, startTime: plan.startTime || plan.routeStartTime || null, originName: plan.originName || '', endLocationLabel: plan.endLocationLabel || '', assignedDriverUid: driver.uid, dispatchOwnerUid: uid, dispatchPlanId: planId, dispatchedAt: now, status: 'DISPATCHED', driverName: driver.name, vehicleDriver: '', estimatedDistanceMeters, estimatedDurationSeconds, plannedRoutes: [snapshot], orderLinkStatus: plan.orderLinkStatus || 'NONE' };
           tx.create(refs[i], { ...delivery, routeId, driverEmail: driver.email, dispatchedBy: uid });
           tx.set(db.collection('users').doc(driver.uid).collection('history').doc(dispatchId), delivery);
         }

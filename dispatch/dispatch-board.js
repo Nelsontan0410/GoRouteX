@@ -63,7 +63,7 @@
       try { localStorage.setItem(DEFAULT_DRIVER_KEY, select.value); } catch {}
       for (const route of context?.routes || []) {
         const routeId = routeKey(route);
-        if (state.dispatched.some(item => item.dispatchPlanId === context.planId && String(item.routeId) === routeId)) continue;
+        if (dispatchOf(context, route)) continue;
         try { sessionStorage.setItem(`grxDispatchDriver:${context.planId}:${routeId}`, select.value); } catch {}
       }
       render();
@@ -71,6 +71,12 @@
   }
 
   function routeKey(route) { return text(route?.id); }
+  // The dispatch record of a route; the whole-day route also matches routes dispatched one by one earlier.
+  function dispatchOf(context, route) {
+    const ids = [routeKey(route), ...(route?.routeIds || []).map(text)];
+    return state.dispatched.find(item => item.dispatchPlanId === context?.planId && ids.includes(String(item.routeId))) || null;
+  }
+  const statusRouteIds = context => [...new Set((context?.routes || []).flatMap(route => [routeKey(route), ...(route.routeIds || []).map(text)]))].join(',');
   function lookupTiming(route, stop) {
     const id = text(stop?.savedStopId || stop?.id || stop?.uniqueId);
     const timings = Array.isArray(route.detailedStopTimes) ? route.detailedStopTimes : [];
@@ -124,6 +130,10 @@
     const total = seconds || Number(route.estimatedDurationSeconds || 0);
     return total ? `${Math.floor(total / 3600)}h ${Math.round(total % 3600 / 60)}m` : '—';
   }
+  function formatSeconds(seconds) {
+    const total = Number(seconds);
+    return total > 0 ? `${Math.floor(total / 3600)}h ${Math.round(total % 3600 / 60)}m` : '—';
+  }
   function distance(route) {
     const legs = route.directionsResult?.routes?.[0]?.legs || [];
     const metres = legs.reduce((sum, leg) => sum + Number(leg.distance?.value || 0), 0);
@@ -147,6 +157,7 @@
     const context = state.context;
     routesNode.replaceChildren();
     const tabsNode = $('dispatchRouteTabs');
+    if (tabsNode) tabsNode.hidden = (state.context?.routes?.length || 0) <= 1; // one day route: no tabs
     tabsNode?.replaceChildren();
     if (!context?.routes?.length) {
       $('dispatchPlanSummary').textContent = '';
@@ -163,19 +174,19 @@
     renderAllDriverSelect(context, saved);
     const printAll = $('dispatchPrintAllBtn');
     if (printAll) printAll.disabled = !context.routes.every(routeHasEta) || (state.options?.canPrintRoute && !state.options.canPrintRoute(context.routes[0]));
-    $('dispatchAllBtn').disabled = !saved || state.loading || !state.drivers.length || context.routes.every(route => state.dispatched.some(item => item.dispatchPlanId === context.planId && String(item.routeId) === routeKey(route)));
+    $('dispatchAllBtn').disabled = !saved || state.loading || !state.drivers.length || context.routes.every(route => dispatchOf(context, route));
     for (const route of context.routes) {
       const routeId = routeKey(route);
-      const dispatch = state.dispatched.find(item => item.dispatchPlanId === context.planId && String(item.routeId) === routeId);
+      const dispatch = dispatchOf(context, route);
       const stops = routeStops(route);
       const card = element('article', '', 'dispatch-route-card');
       card.dataset.routeId = routeId;
       const head = element('div', '', 'dispatch-route-head');
-      const title = element('h3', `Route ${routeId}`);
+      const title = element('h3', route.label || `Route ${routeId}`);
       const status = element('span', dispatch?.execution?.status || (dispatch ? 'DISPATCHED' : saved ? (routeHasEta(route) ? 'READY TO DISPATCH' : 'ETA REQUIRED') : 'SAVE PLAN FIRST'), 'dispatch-status');
       status.classList.add('dispatch-status-value');
       head.append(title, status);
-      card.append(head, element('p', `${stops.length} stops · ${distance(route)} · ${duration(route)}`, 'dispatch-route-metrics'));
+      card.append(head, element('p', `${stops.length} stops · Total distance ${distance(route)} · Driving ${duration(route)} · Total time incl. service ${formatSeconds(route.dayElapsedSeconds)}`, 'dispatch-route-metrics'));
       card.append(element('p', `Planning date: ${context.date || '—'} · Start: ${context.startTime || '—'}`, 'dispatch-route-meta'));
       card.append(element('p', `From: ${context.origin || '—'} · To: ${context.end || '—'}`, 'dispatch-route-meta'));
       const assignment = element('div', '', 'dispatch-assignment');
@@ -193,10 +204,13 @@
       card.append(assignment);
       const actions = element('div', '', 'dispatch-actions');
       if (!dispatch) {
-        const send = element('button', 'Dispatch route', 'action-button-primary');
-        send.type = 'button'; send.disabled = !saved || !routeHasEta(route) || state.loading || !state.drivers.length;
-        send.onclick = () => dispatchRoutes([route]);
-        actions.append(send);
+        // A plan of several routes (older plans) can still be sent route by route; one day route uses the toolbar button.
+        if (context.routes.length > 1) {
+          const send = element('button', 'Dispatch route', 'action-button-primary');
+          send.type = 'button'; send.disabled = !saved || !routeHasEta(route) || state.loading || !state.drivers.length;
+          send.onclick = () => dispatchRoutes([route]);
+          actions.append(send);
+        }
       } else {
         const live = element('a', 'View live', 'action-button-primary');
         live.href = `driver-tracking.html?mode=operations&dispatchId=${encodeURIComponent(dispatch.id)}`;
@@ -246,7 +260,10 @@
   }
 
   function contextFromPlan(plan) {
-    return { planId: String(plan.id), routes: (plan.plannedRoutes || []).filter(route => route && Array.isArray(route.customerStops)),
+    // One driver's day: the planned 10-stop groups are dispatched as one 'All stops' route (dispatch/day-route.js).
+    const groups = (plan.plannedRoutes || []).filter(route => route && Array.isArray(route.customerStops));
+    const day = global.GoRouteXDayRoute?.mergeDayRoute(groups);
+    return { planId: String(plan.id), routes: day ? [day] : groups,
       planVersion: plan.planVersion, snapshotSchemaVersion: plan.snapshotSchemaVersion,
       date: plan.date || plan.planningDate, startTime: plan.startTime || plan.routeStartTime,
       origin: plan.originName || plan.origin, end: plan.endLocationLabel || plan.end,
@@ -323,7 +340,7 @@
       notice(state.drivers.length ? '' : 'No active drivers. Manage Drivers in Settings to add one.');
     });
     dispatchTiming('dispatchLoadStatusStart');
-    const statusTask = api('routes', null, { planId: context.planId, routeIds: context.routes.map(routeKey).join(',') }).then(result => {
+    const statusTask = api('routes', null, { planId: context.planId, routeIds: statusRouteIds(context) }).then(result => {
       if (generation !== state.generation) { counters.staleResponses++; return; }
       patchStatus(result.routes || []);
       dispatchTiming('dispatchLoadStatusEnd');
@@ -345,7 +362,7 @@
     if (!context?.planId) return notice('Save this route plan before dispatching.', true);
     const assignments = [];
     for (const route of routes) {
-      if (state.dispatched.some(item => item.dispatchPlanId === context.planId && String(item.routeId) === routeKey(route))) continue;
+      if (dispatchOf(context, route)) continue;
       const driverUid = selectedDriver(routeKey(route));
       if (!routeHasEta(route)) return notice(`Route ${routeKey(route)} is missing a finalized ETA. Replan before dispatching. No routes were changed.`, true);
       if (!driverUid) return notice(`Select a driver for Route ${routeKey(route)} before dispatching. No routes were changed.`, true);
@@ -369,7 +386,7 @@
     const context = state.context;
     if (!uid || !context?.planId) return;
     const generation = state.generation;
-    const promise = api('routes', null, { planId: context.planId, routeIds: context.routes.map(routeKey).join(',') })
+    const promise = api('routes', null, { planId: context.planId, routeIds: statusRouteIds(context) })
       .then(result => {
         if (generation !== state.generation || uid !== global.FirebaseApp?.auth?.getCurrentUser?.()?.uid || document.hidden || !isViewActive()) { counters.staleResponses++; return; }
         patchStatus(result.routes || []);
@@ -412,7 +429,7 @@
       const context = state.context;
       if (!context?.routes?.length) return;
       const firstRoute = routeKey(context.routes[0]);
-      const dispatched = state.dispatched.find(item => item.dispatchPlanId === context.planId && String(item.routeId) === firstRoute);
+      const dispatched = dispatchOf(context, context.routes[0]);
       const driverName = dispatched?.driverName || state.drivers.find(driver => driver.uid === selectedDriver(firstRoute))?.name || 'Unassigned';
       state.options.printPlan(scheduleList(context), driverName, context.date, context.vehicle);
     });
