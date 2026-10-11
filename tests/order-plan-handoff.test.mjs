@@ -44,7 +44,7 @@ test('fresh master data includes a newly saved stop in the correct account stora
       currentUserProfile: { productPlanKey: 'goplan' },
       RoutePlannerStorage: { loadStops: async value => {
         options = value;
-        return { success: true, stops: [{ id: 'new-stop', customerId: 'customer-1', name: 'Acme Site', address: '12 Main Street' }] };
+        return { success: true, stops: [{ id: 'new-stop', customerId: 'customer-1', name: 'Acme Site', address: '12 Main Street', lat: 1.3, lng: 103.8 }] };
       }}
     };
     globalThis.firebase = { firestore: () => ({
@@ -120,7 +120,7 @@ test('order handoff loads and selects stops beyond the first 100 saved stops', a
 });
 
 test('Saved Stop delivery phone links to an imported order without a separate contact record', () => {
-  const master = {stops:[{id:'site',name:'Acme',address:'12 Road',phone:'9123 4567'}]};
+  const master = {stops:[{id:'site',name:'Acme',address:'12 Road',phone:'9123 4567',lat:1.3,lng:103.8}]};
   const order = resolveOrder({customerName:'Acme',address:'12 Road',baseValidationIssues:[]}, buildMasterIndex(master), {contactRequired:true}).order;
   assert.equal(order.status,'READY');
   assert.equal(order.contactId,'saved-stop-contact:site');

@@ -84,3 +84,27 @@ test('legacy stop without customerId can join exactly one matching customer',()=
  const index=buildMasterIndex({customers:[customer],stops:[legacy],contacts:[]});
  assert.deepEqual(stopCandidates(customer.id,index).map(s=>s.id),[legacy.id]);
 });
+
+test('an order is READY only when its stop has a map position', () => {
+ const noMap = { ...rawang, lat: null, lng: null };
+ const index = buildMasterIndex({ customers: [customer], stops: [noMap], contacts: [] });
+ const row = resolveOrder(order, index, { contactRequired: false }).order;
+ assert.equal(row.status, 'NEEDS_REVIEW');
+ assert.equal(row.resolutionCode, 'STOP_NOT_ON_MAP');
+ assert.match(row.validationIssues.join(' '), /no map position/);
+ for (const bad of [{ lat: 0, lng: 0 }, { lat: '1.3', lng: '103.8' }, { lat: 95, lng: 103 }]) {
+  const r = resolveOrder(order, buildMasterIndex({ customers: [customer], stops: [{ ...rawang, ...bad }], contacts: [] }), { contactRequired: false }).order;
+  assert.equal(r.status, 'NEEDS_REVIEW', JSON.stringify(bad));
+ }
+ assert.equal(resolveOrder(order, buildMasterIndex({ customers: [customer], stops: [rawang], contacts: [] }), { contactRequired: false }).order.status, 'READY');
+});
+
+test('Contact Required is on unless the company switched it off', async () => {
+ const { readFileSync } = await import('node:fs');
+ const master = readFileSync(new URL('../orders/master-data.js', import.meta.url), 'utf8');
+ assert.match(master, /return !doc\.exists\|\|doc\.data\(\)\?\.contactRequired!==false;/);
+ const store = readFileSync(new URL('../settings/settings-store.js', import.meta.url), 'utf8');
+ assert.match(store, /!orderHub\.exists \|\| orderHub\.data\(\)\?\.contactRequired !== false/);
+ const { defaultSettings } = await import('../settings/settings-model.js');
+ assert.equal(defaultSettings().orders.contactRequired, true);
+});

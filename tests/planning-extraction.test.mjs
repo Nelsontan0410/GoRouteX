@@ -21,7 +21,7 @@ function flow() {
  RouteEngine:{async buildPlannedRoutes(){events.push('build');calls.routing++;return {plannedRoutes:[{id:1,directionsResult:{}}]}}},
  RouteSafety:{async validateRoutes(){events.push('safety')}},
  ensureManualRouteCheckCurrent:async()=>events.push('manual-check'),
- generateTimeListAndShowOnPage3Legacy(){events.push('eta');calls.eta++},
+ generateTimeListAndShowOnPage3Legacy(){events.push('eta');calls.eta++;return {timeWindowViolations:[],unverifiedRouteIds:[],rulesMissing:false};},
  currentRouteConfirmationState:{},updateConfirmRouteButtonState(){},renderConfirmRouteModalState(){}});
  vm.runInContext(persistence,c);vm.runInContext(finalization,c);
  c.validateRouteInputs=()=>{events.push('preflight');return {success:true}};
