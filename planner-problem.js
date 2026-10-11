@@ -185,19 +185,34 @@
       : vehicleRoutes;
     const assignedCount = vehicleRoutes.reduce((sum, route) => sum + route.stopIds.length, 0);
     const dailyLimitReached = built.mode === 'sequential' && assignedCount >= built.maxTasks;
+    // Sequential: when the planned day already ends within an hour of the working end, the day is full.
+    const dayEnd = built.mode === 'sequential' ? dayEndSeconds(solution) : null;
+    const shiftEnd = built.problem.vehicles[0]?.time_window?.[1];
+    const dayFull = dayEnd !== null && Number.isFinite(shiftEnd) && shiftEnd - dayEnd < 3600;
     const message = dailyLimitReached
       ? `The driver’s daily stop limit (${built.maxTasks}, Settings > Drivers) is reached.`
+      : dayFull
+        ? `The driver’s day is full: the plan already returns at ${clock(dayEnd)} and working hours end at ${clock(shiftEnd)}. Extend working hours, shorten service times, or plan this stop on another day.`
       : built.mode === 'sequential'
         ? (built.capacityUsed
           ? 'Does not fit the driver’s day: its delivery hours, the working hours or the vehicle’s capacity.'
-          : 'Does not fit the driver’s day: its delivery hours or the remaining working time.')
+          : 'Its delivery hours could not be fitted into this day’s order.')
         : (built.capacityUsed
           ? 'No route can fit this customer within its delivery hours, the drivers’ working hours and the vehicles’ capacity.'
           : 'No route can reach this customer within its delivery hours and the drivers’ working hours.');
     const unassigned = built.preUnassigned.concat((solution?.unassigned || [])
       .filter((job) => built.jobIds.has(job.id))
-      .map((job) => ({ id: built.jobIds.get(job.id), reason: dailyLimitReached ? 'daily-limit' : 'no-feasible-route', message })));
+      .map((job) => ({ id: built.jobIds.get(job.id), reason: dailyLimitReached ? 'daily-limit' : dayFull ? 'day-full' : 'no-feasible-route', message })));
     return { routes, unassigned };
+  }
+
+  /** When the single day tour ends (arrival back at the end location, or the last stop), in seconds. */
+  function dayEndSeconds(solution) {
+    const steps = solution?.routes?.[0]?.steps || [];
+    const last = steps[steps.length - 1];
+    if (!last) return null;
+    const end = Number(last.arrival) + Number(last.waiting_time || 0) + (last.type === 'job' ? Number(last.service || 0) : 0);
+    return Number.isFinite(end) ? end : null;
   }
 
   /** Cuts a visit order into routes of `size` stops (default MAX_STOPS_PER_ROUTE), keeping each stop's timing. */
