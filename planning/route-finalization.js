@@ -361,8 +361,23 @@ function openTimeWindowExceptionModal(violations) {
         });
     }
 
+// "No result" never counts as "all within delivery hours": missing arrival times or missing rules block saving.
+function deliveryWindowCheckGap(etaResult) {
+        if (!etaResult) return 'Arrival times could not be calculated, so delivery hours cannot be checked. Recalculate the routes, then confirm again.';
+        if (etaResult.rulesMissing) return 'The delivery-hour rules did not load, so delivery hours cannot be checked. Reload the page, then confirm again.';
+        const ids = etaResult.unverifiedRouteIds || [];
+        if (ids.length) return `Route ${ids.join(', ')} has no arrival times yet, so its delivery hours cannot be checked. Recalculate it, then confirm again.`;
+        return '';
+    }
+
 async function enforceDeliveryWindows(etaResult) {
         AppState.timeWindowOverride = null;
+        const gap = deliveryWindowCheckGap(etaResult);
+        if (gap) {
+            if (messageBarPg2) messageBarPg2.textContent = gap;
+            showToast(gap, 'warning', 8000);
+            return { proceed: false, reason: 'unverified' };
+        }
         const violations = etaResult?.timeWindowViolations || [];
         if (!violations.length) return { proceed: true };
         const decision = await openTimeWindowExceptionModal(violations);

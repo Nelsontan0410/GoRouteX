@@ -10328,7 +10328,11 @@
       if (anySuccessfulRoute && options.print !== false) {
           printSummaryPage3();
       }
-      return { timeWindowViolations };
+      // Routes with stops but no road result have no arrival times, so their delivery hours were not checked.
+      const unverifiedRouteIds = AppState.plannedRoutes
+          .filter((route) => route && !(route.directionsResult?.routes?.length) && ((route.customerStops || []).length || (route.optimizedStops || []).length))
+          .map((route) => route.id);
+      return { timeWindowViolations, unverifiedRouteIds, rulesMissing: !DeliveryRules };
     }
 
     function generateTimeListAndShowOnPage3(...args) {
