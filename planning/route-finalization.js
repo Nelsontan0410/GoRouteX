@@ -311,23 +311,23 @@ function renderPlannedRoutes(routes, routeBuildState = {}, options = {}) {
         return { success: false, error: 'Route planning failed' };
     }
 
-// Hard delivery windows at confirmation: a plan with stops outside customer delivery hours is not saved
-// unless the planner records an explicit override (actor + reason, stored with the plan).
-function openTimeWindowExceptionModal(violations) {
+// Review before saving: every rule the plan touches is listed once; the planner can go back or save anyway.
+// Nothing here blocks saving. Choosing "Save anyway" records who did it, when and what was listed.
+function openTimeWindowExceptionModal(violations, notes = []) {
         const modal = document.getElementById('timeWindowExceptionModal');
         if (!modal) return Promise.resolve({ action: 'adjust' });
         const rows = document.getElementById('timeWindowExceptionRows');
-        const overrideBox = document.getElementById('timeWindowOverrideBox');
+        const noteList = document.getElementById('timeWindowNotes');
+        const tableWrap = document.getElementById('timeWindowTableWrap');
         const reasonInput = document.getElementById('timeWindowOverrideReason');
-        const errorBox = document.getElementById('timeWindowOverrideError');
-        const overrideBtn = document.getElementById('timeWindowOverrideBtn');
+        const overrideBox = document.getElementById('timeWindowOverrideBox');
         rows.innerHTML = violations.map((v) => `<tr><td>Route ${escapeHtml(v.routeId)}</td><td>${escapeHtml(v.customer)}</td><td>${escapeHtml(v.eta)}</td><td>${escapeHtml(v.receiving)}</td><td>${escapeHtml(v.message)}</td></tr>`).join('');
-        overrideBox.hidden = true;
+        if (tableWrap) tableWrap.hidden = !violations.length;
+        if (noteList) noteList.innerHTML = notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('');
+        overrideBox.hidden = false;
         reasonInput.value = '';
-        errorBox.textContent = '';
-        overrideBtn.textContent = 'Save with override…';
         modal.hidden = false;
-        document.getElementById('timeWindowAdjustRoutesBtn')?.focus();
+        document.getElementById('timeWindowOverrideBtn')?.focus();
         return new Promise((resolve) => {
             const finish = (decision) => {
                 modal.hidden = true;
@@ -340,37 +340,23 @@ function openTimeWindowExceptionModal(violations) {
                 const id = event.target?.id;
                 if (event.target === modal || id === 'timeWindowAdjustRoutesBtn') finish({ action: 'adjust' });
                 else if (id === 'timeWindowChangeStartBtn') finish({ action: 'change-start' });
-                else if (id === 'timeWindowOverrideBtn') {
-                    if (overrideBox.hidden) {
-                        overrideBox.hidden = false;
-                        overrideBtn.textContent = 'Confirm override and save';
-                        reasonInput.focus();
-                        return;
-                    }
-                    const reason = reasonInput.value.trim();
-                    if (reason.length < 5) {
-                        errorBox.textContent = 'Enter a reason of at least 5 characters.';
-                        reasonInput.focus();
-                        return;
-                    }
-                    finish({ action: 'override', reason });
-                }
+                else if (id === 'timeWindowOverrideBtn') finish({ action: 'override', reason: reasonInput.value.trim() });
             };
             modal.addEventListener('click', onClick);
             document.addEventListener('keydown', onKey);
         });
     }
 
-// "No result" never counts as "all within delivery hours": missing arrival times or missing rules block saving.
+// What could not be checked is listed as a note; it never blocks saving.
 function deliveryWindowCheckGap(etaResult) {
-        if (!etaResult) return 'Arrival times could not be calculated, so delivery hours cannot be checked. Recalculate the routes, then confirm again.';
-        if (etaResult.rulesMissing) return 'The delivery-hour rules did not load, so delivery hours cannot be checked. Reload the page, then confirm again.';
+        if (!etaResult) return 'Arrival times could not be calculated, so delivery hours were not checked.';
+        if (etaResult.rulesMissing) return 'The delivery-hour rules did not load, so delivery hours were not checked.';
         const ids = etaResult.unverifiedRouteIds || [];
-        if (ids.length) return `Route ${ids.join(', ')} has no arrival times yet, so its delivery hours cannot be checked. Recalculate it, then confirm again.`;
+        if (ids.length) return `Route ${ids.join(', ')} has no arrival times yet, so its delivery hours were not checked.`;
         return '';
     }
 
-// The day running past the driver's working end only warns; it never blocks Confirm.
+// The day running past the driver's working end.
 function workingEndWarning() {
         const workingEnd = String(window.GoRouteXSettings?.getCachedSettings?.()?.drivers?.workingEnd || '');
         const match = /^(\d{1,2}):(\d{2})/.exec(workingEnd);
@@ -383,33 +369,36 @@ function workingEndWarning() {
         const finishMinutes = finish.getHours() * 60 + finish.getMinutes();
         if (finishMinutes <= limit) return '';
         const hhmm = `${String(finish.getHours()).padStart(2, '0')}:${String(finish.getMinutes()).padStart(2, '0')}`;
-        return `The last stop ends around ${hhmm}, after the working end (${workingEnd}). The plan was still saved.`;
+        return `The last stop ends around ${hhmm}, after the working end (${workingEnd}).`;
+    }
+
+function pastPlanningDateNote() {
+        const selected = typeof getSelectedPlanningDate === 'function' ? getSelectedPlanningDate() : '';
+        const today = typeof getDateKey === 'function' ? getDateKey(new Date()) : '';
+        return selected && today && selected < today ? `The planning date ${selected} is already in the past.` : '';
     }
 
 async function enforceDeliveryWindows(etaResult) {
         AppState.timeWindowOverride = null;
-        const gap = deliveryWindowCheckGap(etaResult);
-        if (gap) {
-            if (messageBarPg2) messageBarPg2.textContent = gap;
-            showToast(gap, 'warning', 8000);
-            return { proceed: false, reason: 'unverified' };
-        }
         const violations = etaResult?.timeWindowViolations || [];
-        if (!violations.length) return { proceed: true };
-        const decision = await openTimeWindowExceptionModal(violations);
+        const notes = [deliveryWindowCheckGap(etaResult), workingEndWarning(), pastPlanningDateNote()].filter(Boolean);
+        if (violations.length) notes.unshift(`${violations.length} stop(s) are outside customer delivery hours.`);
+        if (!notes.length) return { proceed: true };
+        const decision = await openTimeWindowExceptionModal(violations, notes);
         if (decision.action === 'override') {
             const user = window.FirebaseApp?.auth?.getCurrentUser?.() || null;
             AppState.timeWindowOverride = {
                 actorUid: user?.uid || null,
                 actorName: user?.displayName || user?.email || null,
-                reason: decision.reason,
+                reason: decision.reason || '',
                 at: new Date().toISOString(),
+                notes,
                 violations: violations.map((v) => ({ ...v }))
             };
-            console.info('Delivery-window override recorded', { actorUid: AppState.timeWindowOverride.actorUid, stops: violations.length });
+            console.info('Review accepted with issues', { actorUid: AppState.timeWindowOverride.actorUid, stops: violations.length, notes: notes.length });
             return { proceed: true };
         }
-        const message = `${violations.length} stop(s) are outside customer delivery hours. Change the start time, move stops between routes, or save with an override.`;
+        const message = notes.join(' ');
         if (decision.action === 'change-start') {
             await showPage('page-select-stops');
             window.openRouteSettingsPanel?.();
@@ -450,8 +439,6 @@ async function handleProceedToOptimizeRoutes(options = {}) {
             return { success: false, blocked: 'delivery-windows' };
         }
         step('etaAndWindowCheck');
-        const lateWarning = workingEndWarning();
-        if (lateWarning) showToast(lateWarning, 'warning', 9000);
         const dynamicSaveResult = await savePlannedRoutes(dynamicBuildState.plannedRoutes, options);
         step('save');
         console.info('[Confirm Route timing, ms]', confirmTiming);

@@ -99,7 +99,7 @@ test('no violations: confirmation proceeds without a dialog or override', async 
   assert.equal(ctx.AppState.timeWindowOverride, null);
 });
 
-test('violations block saving unless the planner overrides; the choice to adjust keeps the plan unsaved', async () => {
+test('going back keeps the plan unsaved; the choice to adjust keeps the plan unsaved', async () => {
   const adjust = gate({ violations: [violation], decision: { action: 'adjust' } });
   assert.equal((await adjust.run()).proceed, false);
   assert.match(adjust.ctx.messageBarPg2.textContent, /outside customer delivery hours/);

@@ -98,7 +98,7 @@ test('Review & Assign: one plan id per entry; a replaced entry refunds and stops
   assert.match(entry, /optimizer: 'local-clustering'/);
   assert.match(entry, /optimizer: 'manual'/);
   const renderer = page.slice(page.indexOf('function renderDraggableListLegacy('), page.indexOf('function renderRouteSlotsLegacy('));
-  assert.match(renderer, /reasonLine\.textContent = unassignedReason;/);
+  assert.doesNotMatch(renderer, /unassigned-reason|unassignedReason/, 'the explanation lines under unassigned stops are gone');
   assert.match(renderer, /'<em>All stops assigned!<\/em>'/);
   assert.ok(renderer.indexOf("if (itemsArray.length === 0)") < renderer.indexOf('All stops assigned!'), 'shown only when nothing is unassigned');
 });
