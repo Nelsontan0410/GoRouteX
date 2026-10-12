@@ -1108,23 +1108,24 @@
 
   <div id="timeWindowExceptionModal" hidden>
     <div class="confirm-route-dialog time-window-dialog" role="dialog" aria-modal="true" aria-labelledby="timeWindowExceptionTitle" aria-describedby="timeWindowExceptionIntro">
-      <h3 id="timeWindowExceptionTitle">Delivery hours conflict</h3>
-      <p id="timeWindowExceptionIntro">These stops cannot be served inside the customer's delivery hours with the current start time and routes. Nothing has been saved yet.</p>
-      <div class="time-window-table-wrap">
+      <h3 id="timeWindowExceptionTitle">Review before saving</h3>
+      <p id="timeWindowExceptionIntro">Nothing has been saved yet. These points need your attention. You can still save the plan as it is.</p>
+      <ul id="timeWindowNotes" class="time-window-notes"></ul>
+      <div id="timeWindowTableWrap" class="time-window-table-wrap">
         <table class="time-window-table">
           <thead><tr><th scope="col">Route</th><th scope="col">Customer</th><th scope="col">ETA</th><th scope="col">Receiving</th><th scope="col">Reason</th></tr></thead>
           <tbody id="timeWindowExceptionRows"></tbody>
         </table>
       </div>
       <div id="timeWindowOverrideBox" class="time-window-override" hidden>
-        <label for="timeWindowOverrideReason">Reason for saving outside delivery hours (recorded with your name)</label>
+        <label for="timeWindowOverrideReason">Note (optional, recorded with your name)</label>
         <textarea id="timeWindowOverrideReason" rows="2" maxlength="300" placeholder="e.g. Customer agreed by phone to receive at 18:30"></textarea>
         <p id="timeWindowOverrideError" class="time-window-error" role="alert"></p>
       </div>
       <div class="confirm-route-actions">
         <button type="button" id="timeWindowChangeStartBtn" class="action-button-secondary">Change start time</button>
         <button type="button" id="timeWindowAdjustRoutesBtn" class="action-button-secondary">Adjust routes</button>
-        <button type="button" id="timeWindowOverrideBtn" class="action-button-primary">Save with override…</button>
+        <button type="button" id="timeWindowOverrideBtn" class="action-button-primary">Save anyway</button>
       </div>
     </div>
   </div>
@@ -3738,11 +3739,7 @@
             showToast('Choose a planning date before confirming this route.', 'warning', 3600);
             return false;
         }
-        if (selectedDate < todayKey && selectedDate !== window.GRX_ORDER_PLANNING_DATE) {
-            setPlanningDateStatus('Selected date is in the past. Choose today or a future date before saving.', true);
-            showToast('Planning date cannot be in the past.', 'warning', 3600);
-            return false;
-        }
+        // A past date is listed in the review before saving; it never blocks.
         return true;
     }
 

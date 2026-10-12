@@ -10,7 +10,7 @@ function load() {
   const ctx = vm.createContext({ console });
   ctx.toasts = [];
   vm.runInContext(`
-    var AppState = {}; var messageBarPg2 = { textContent: '' };
+    var AppState = {}; var window = {}; var messageBarPg2 = { textContent: '' };
     function showToast(m) { toasts.push(m); }
     var modalOpened = 0;
     function openTimeWindowExceptionModal() { modalOpened++; return Promise.resolve({ action: 'adjust' }); }
@@ -21,7 +21,7 @@ function load() {
   return ctx;
 }
 
-test('missing arrival times or rules block confirmation instead of passing', async () => {
+test('missing arrival times or rules are listed in the review and never block saving', async () => {
   for (const [eta, pattern] of [
     [undefined, /Arrival times could not be calculated/],
     [{ timeWindowViolations: [], rulesMissing: true }, /rules did not load/],
@@ -29,19 +29,16 @@ test('missing arrival times or rules block confirmation instead of passing', asy
   ]) {
     const ctx = load();
     const result = await ctx.enforce(eta);
-    assert.equal(result.proceed, false);
+    assert.equal(ctx.state().modalOpened, 1, 'the planner sees the note');
+    assert.equal(result.proceed, false, 'going back does not save');
     assert.match(ctx.state().bar, pattern);
-    assert.equal(ctx.state().modalOpened, 0, 'no override offered for an unchecked plan');
   }
 });
 
-test('a fully checked plan without violations still proceeds; violations still open the exception choice', async () => {
+test('a fully checked plan without issues proceeds without a dialog', async () => {
   const ok = load();
   assert.equal((await ok.enforce({ timeWindowViolations: [], unverifiedRouteIds: [], rulesMissing: false })).proceed, true);
-  const late = load();
-  const result = await late.enforce({ timeWindowViolations: [{ routeId: 1, customer: 'Tuas', eta: '1:05 PM', receiving: '09:00-13:00', message: 'late' }], unverifiedRouteIds: [], rulesMissing: false });
-  assert.equal(result.proceed, false, 'Adjust does not save');
-  assert.equal(late.state().modalOpened, 1);
+  assert.equal(ok.state().modalOpened, 0);
 });
 
 test('the ETA step reports routes it could not check', () => {

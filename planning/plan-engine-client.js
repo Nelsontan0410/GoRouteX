@@ -129,15 +129,27 @@ async function planWithPlanEngine(selectedStops, destinationId, sessionId) {
         if (!sessionId) return { fallback: 'no-session' };
         const prepared = buildPlanEngineInput(selectedStops, destinationId, await loadCapacityVehicles());
         if (prepared.unsupported) return { fallback: prepared.unsupported, code: prepared.code || 'unsupported' };
-        const built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
+        let built = window.GoRouteXPlannerProblem.buildProblem(prepared.input);
         if (!built.problem.jobs.length) {
             return { routes: [], unassigned: built.preUnassigned, solved: false };
         }
         const solveStartedAt = performance.now();
-        const result = await callPlanRoutes({ action: 'solve', sessionId, problem: built.problem });
+        let result = await callPlanRoutes({ action: 'solve', sessionId, problem: built.problem });
         console.info('[Plan Engine] solve round trip, ms:', Math.round(performance.now() - solveStartedAt), result.ok ? '' : result.code);
         if (!result.ok) return { fallback: result.code || 'planner-failed' };
-        const mapped = window.GoRouteXPlannerProblem.mapSolution(result.payload.solution, built);
+        let mapped = window.GoRouteXPlannerProblem.mapSolution(result.payload.solution, built);
+        // No stop is left out: one that cannot meet its delivery hours is planned anyway (windows relaxed for
+        // that stop only) and listed at Confirm Route.
+        const relaxed = new Set();
+        for (let round = 0; round < 3 && built.mode === 'sequential'; round++) {
+            const left = mapped.unassigned.map((item) => item.id).filter((id) => !relaxed.has(id) && prepared.input.stops.some((stop) => stop.id === id));
+            if (!left.length) break;
+            left.forEach((id) => relaxed.add(id));
+            built = window.GoRouteXPlannerProblem.buildProblem({ ...prepared.input, relaxedStopIds: [...relaxed] });
+            result = await callPlanRoutes({ action: 'solve', sessionId, problem: built.problem });
+            if (!result.ok) return { fallback: result.code || 'planner-failed' };
+            mapped = window.GoRouteXPlannerProblem.mapSolution(result.payload.solution, built);
+        }
         const byId = new Map(selectedStops.map((stop) => [getPackedRouteStopId(stop), stop]));
         return {
             routes: mapped.routes.map((route) => ({ stops: route.stopIds.map((id) => byId.get(id)).filter(Boolean), plannedStops: route.stops })),

@@ -590,14 +590,6 @@ function renderDraggableListLegacy(listElement, itemsArray, listType, routeIndex
                     <span class="unassigned-stop-text">${escapeHtml(stopLabel)}</span>
                     <button type="button" class="manual-stop-add-btn" data-customer-id="${escapeHtml(customerId)}">Add</button>
                 `;
-                // Why the planner left this stop out (keyed by stop ID; text only).
-                const unassignedReason = window.GoRouteXPlannerStatus?.reasonFor(customerId);
-                if (unassignedReason) {
-                    const reasonLine = document.createElement('small');
-                    reasonLine.className = 'unassigned-reason';
-                    reasonLine.textContent = unassignedReason;
-                    div.querySelector('.unassigned-stop-text')?.appendChild(reasonLine);
-                }
                 listFragment.appendChild(div);
             });
             listElement.appendChild(listFragment);

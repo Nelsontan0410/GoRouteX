@@ -3465,3 +3465,5 @@
 .time-window-override textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
 .time-window-error { margin: 0; color: #b42318; font-size: 0.85rem; }
 .time-window-error:empty { display: none; }
+.time-window-notes { margin: 0 0 12px; padding-left: 20px; color: #7a2e0e; font-size: 0.92rem; }
+.time-window-notes:empty { display: none; }

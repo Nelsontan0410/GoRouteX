@@ -109,11 +109,17 @@
     const workEnd = seconds(rules.workingEnd);
     // All vehicles leave at the planning start time; they must be back by the end of the working day
     // (or after the maximum route duration when the plan starts after working hours).
-    const endSec = workEnd !== null && workEnd > startSec ? Math.min(workEnd, startSec + maxDuration) : startSec + maxDuration;
     const sequential = isSequential(input);
+    // Sequential (one driver, one day): no stop is left out for lack of time. The planner orders by delivery
+    // windows and the shortest time and distance; whatever then breaks a rule is listed when the plan is
+    // confirmed. The working end therefore does not cut the day short (a long day is only a warning).
+    const endSec = workEnd !== null && workEnd > startSec ? Math.min(workEnd, startSec + maxDuration) : startSec + maxDuration;
+    // The day the solver may use: the working end for several drivers, a long day for one driver.
+    const vehicleEnd = sequential ? Math.max(endSec, startSec + 18 * 3600) : endSec;
+    const relaxedIds = new Set(sequential ? (input.relaxedStopIds || []) : []);
     // Sequential: the driver's daily stop limit caps the whole day. Parallel: the per-route limit caps each vehicle.
     const perVehicleLimit = sequential ? LIMITS.maxStops : MAX_STOPS_PER_ROUTE;
-    const maxTasks = Math.min(perVehicleLimit, Number(rules.maxStops) > 0 ? Number(rules.maxStops) : perVehicleLimit);
+    const maxTasks = sequential ? perVehicleLimit : Math.min(perVehicleLimit, Number(rules.maxStops) > 0 ? Number(rules.maxStops) : perVehicleLimit);
     const breakSec = Math.max(0, Math.round((Number(rules.breakMinutes) || 0) * 60));
     const [breakFrom, breakTo] = DRIVER_BREAK_WINDOW.map(seconds);
     const breakFits = breakSec > 0 && breakTo > startSec && breakFrom < endSec;
@@ -125,7 +131,13 @@
     const jobIds = new Map();
     const preUnassigned = [];
     input.stops.forEach((stop) => {
-      const windows = jobWindows(stop, day);
+      let windows = jobWindows(stop, day);
+      let relaxed = false;
+      if (sequential && (relaxedIds.has(stop.id) || !windows.length)) {
+        // Closed that day, or no window fits: serve it where it is cheapest and flag it at confirmation.
+        windows = [[startSec, vehicleEnd]];
+        relaxed = true;
+      }
       if (!windows.length) {
         preUnassigned.push({ id: stop.id, ...unservableReason(stop, day) });
         return;
@@ -133,7 +145,7 @@
       const jobId = jobs.length + 1;
       jobIds.set(jobId, stop.id);
       const job = { id: jobId, location: point(stop), service: Math.round(stop.serviceMinutes * 60), time_windows: windows };
-      const priority = windowPriority(windows, startSec, endSec);
+      const priority = relaxed ? 0 : windowPriority(windows, startSec, endSec);
       if (priority > 0) job.priority = priority;
       if (capacities.length) job.delivery = [Math.ceil(finite(stop.demand) && stop.demand > 0 ? stop.demand : 0)];
       jobs.push(job);
@@ -144,7 +156,7 @@
       profile: 'car',
       start: point(input.origin),
       ...(input.end ? { end: point(input.end) } : {}),
-      time_window: [startSec, endSec],
+      time_window: [startSec, vehicleEnd],
       max_tasks: maxTasks,
       costs: { fixed: sequential ? 0 : Math.max(0, Math.round(Number(input.routeFixedCost) || DEFAULT_ROUTE_FIXED_COST)) },
       ...(capacities.length ? { capacity: [Math.floor(capacities[index])] } : {}),

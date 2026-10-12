@@ -23,13 +23,25 @@ test('service must start AND finish inside an allowed period, so windows end ser
   assert.deepEqual(plain(built.problem.jobs[0].location), [103.8, 1.301]);
 });
 
-test('closed days and services longer than any period never reach the solver; they are reported', () => {
+test('closed days and services longer than any period: parallel reports them, one driver plans them anyway', () => {
   const saturday = new Date(2026, 9, 10, 9, 0);
-  const closed = P.buildProblem(input([stop('a')], { startDate: saturday }));
+  const closed = P.buildProblem(input([stop('a')], { startDate: saturday, mode: 'parallel' }));
   assert.equal(closed.problem.jobs.length, 0);
   assert.deepEqual(plain(closed.preUnassigned), [{ id: 'a', reason: 'closed', message: 'Closed on Saturday.' }]);
-  const long = P.buildProblem(input([stop('a', { serviceMinutes: 400 })]));
+  const long = P.buildProblem(input([stop('a', { serviceMinutes: 400 })], { mode: 'parallel' }));
   assert.equal(long.preUnassigned[0].reason, 'service-too-long');
+  // One driver: nothing is left out. The stop gets the whole day as its window and is flagged at confirmation.
+  const day = P.buildProblem(input([stop('a')], { startDate: saturday }));
+  assert.equal(day.preUnassigned.length, 0);
+  assert.equal(day.problem.jobs.length, 1);
+  assert.deepEqual(plain(day.problem.jobs[0].time_windows), [[32400, 32400 + 18 * 3600]]);
+});
+
+test('one driver: a stop the solver left out is planned on a retry with its own windows relaxed', () => {
+  const built = P.buildProblem(input([stop('a'), stop('b')], { relaxedStopIds: ['b'] }));
+  assert.deepEqual(plain(built.problem.jobs[0].time_windows), [[32400, 42000], [46800, 63600]], 'others keep their hours');
+  assert.deepEqual(plain(built.problem.jobs[1].time_windows), [[32400, 32400 + 18 * 3600]]);
+  assert.equal('priority' in built.problem.jobs[1], false);
 });
 
 test('parallel mode (several drivers): all leave at the start time, 10 stops max, fixed cost, company driver rules', () => {
@@ -50,7 +62,7 @@ test('parallel mode (several drivers): all leave at the start time, 10 stops max
 
 test('a plan starting after working hours still gets the maximum route duration', () => {
   const evening = new Date(2026, 9, 5, 18, 0);
-  const v = P.buildProblem(input([stop('a')], { startDate: evening })).problem.vehicles[0];
+  const v = P.buildProblem(input([stop('a')], { startDate: evening, mode: 'parallel' })).problem.vehicles[0];
   assert.deepEqual(plain(v.time_window), [64800, 64800 + 480 * 60]);
   assert.equal('breaks' in v, false, 'no break band left');
 });
@@ -98,11 +110,11 @@ test('sequential (one driver): one vehicle for the whole day, no fixed cost, dai
   assert.equal(built.mode, 'sequential');
   assert.equal(built.problem.vehicles.length, 1);
   const v = built.problem.vehicles[0];
-  assert.equal(v.max_tasks, 30, 'the driver daily limit, not 10');
+  assert.equal(v.max_tasks, P.LIMITS.maxStops, 'no stop is left out for a daily limit');
+  assert.deepEqual(plain(v.time_window), [32400, 32400 + 18 * 3600], 'a long day, the working end only warns');
   assert.equal(v.costs.fixed, 0);
   assert.deepEqual(plain(v.capacity), [800]);
   assert.deepEqual(plain(v.end), [103.74, 1.33], 'the day ends at the configured end');
-  assert.equal(P.buildProblem(input(stops, { driverRules: { ...rules, maxStops: 0 } })).problem.vehicles[0].max_tasks, P.LIMITS.maxStops);
 });
 
 test('sequential: the visit order is cut into routes of 10 in order, keeping each stop timing', () => {
@@ -121,21 +133,13 @@ test('sequential: the visit order is cut into routes of 10 in order, keeping eac
   assert.deepEqual(plain(P.splitIntoRoutes([])), []);
 });
 
-test('sequential: unassigned stops say whether the day ran out or the daily stop limit was reached', () => {
+test('sequential: a stop that is still unassigned says the stop limit was reached or no place was found', () => {
   const stops = Array.from({ length: 3 }, (_, i) => stop(`s${i}`));
-  const limited = P.buildProblem(input(stops, { driverRules: { ...rules, maxStops: 2 } }));
-  const full = { routes: [{ vehicle: 1, steps: [{ type: 'job', id: 1, arrival: 33000 }, { type: 'job', id: 2, arrival: 34000 }] }], unassigned: [{ id: 3 }] };
-  const a = plain(P.mapSolution(full, limited)).unassigned[0];
-  assert.equal(a.reason, 'daily-limit');
-  assert.match(a.message, /daily stop limit \(2, Settings > Drivers\)/);
-  const roomy = P.buildProblem(input(stops, { driverRules: { ...rules, maxStops: 20 } }));
-  const b = plain(P.mapSolution(full, roomy)).unassigned[0];
-  assert.equal(b.reason, 'no-feasible-route', 'the day ends long before 17:00: not a full day');
-  assert.match(b.message, /delivery hours could not be fitted/);
-  const late = { routes: [{ vehicle: 1, steps: [{ type: 'job', id: 1, arrival: 33000 }, { type: 'job', id: 2, arrival: 34000 }, { type: 'end', arrival: 59700 }] }], unassigned: [{ id: 3 }] };
-  const c = plain(P.mapSolution(late, roomy)).unassigned[0];
-  assert.equal(c.reason, 'day-full');
-  assert.match(c.message, /the plan already returns at 16:35 and working hours end at 17:00/);
+  const roomy = P.buildProblem(input(stops));
+  const left = { routes: [{ vehicle: 1, steps: [{ type: 'job', id: 1, arrival: 33000 }, { type: 'job', id: 2, arrival: 34000 }] }], unassigned: [{ id: 3 }] };
+  const a = plain(P.mapSolution(left, roomy)).unassigned[0];
+  assert.equal(a.reason, 'no-feasible-route');
+  assert.match(a.message, /delivery hours could not be fitted/);
 });
 
 test('stops with narrow delivery hours get a higher priority, so the solver keeps them (Tuas closing at 13:00)', () => {
