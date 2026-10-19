@@ -282,8 +282,9 @@
   </div>
 
   <div id="page-select-stops" class="page mobile-core-page">
-    <div class="stop-selector-header workspace-intro-header">
+    <div class="stop-selector-header workspace-intro-header ui-planner-head">
       <div class="workspace-intro-title">
+        <span class="ui-eyebrow">Route planner</span>
         <h2>Stops Selection</h2>
         <p class="workspace-intro-description">Select the stops for this route, review your selection, and continue to assignment.</p>
       </div>
@@ -292,6 +293,11 @@
         <button type="button" id="openRouteSettingsBtn" class="action-button-secondary" aria-haspopup="dialog" aria-controls="routeSettingsPanel" style="width:auto; margin-bottom:0;">Route settings</button>
       </div>
     </div>
+    <ol class="ui-stepper" aria-label="Planning steps">
+      <li class="is-current" aria-current="step"><span>1</span>Select stops</li>
+      <li><span>2</span>Review &amp; assign</li>
+      <li><span>3</span>Confirm</li>
+    </ol>
     <div id="orderPlanNotice" class="order-plan-notice" role="status" hidden></div>
     <div id="routeSettingsPanel" class="route-settings-overlay" role="dialog" aria-modal="true" aria-labelledby="routeSettingsPanelTitle" hidden>
       <div class="route-settings-overlay-card">
@@ -349,13 +355,22 @@
     </div>
       </div>
     </div>
-    <div class="stop-selector-container">
+    <div class="ss-tabs" role="tablist" aria-label="Show stops">
+      <button type="button" role="tab" data-ss-tab="available" aria-selected="true">Available</button>
+      <button type="button" role="tab" data-ss-tab="selected" aria-selected="false">Selected (<span id="ssSelectedCount">0</span>)</button>
+    </div>
+    <div class="stop-selector-container" data-ss-view="available">
       <div class="stop-selector-left">
         <div class="search-stop-panel-header">
           <label for="searchCustomerInput">Search Stops</label>
           <button id="selectionAddCustomerBtn" class="action-button-secondary" type="button">Add Stop</button>
         </div>
         <input type="text" id="searchCustomerInput" placeholder="Search name, address, or phone" />
+        <div class="ss-chips" role="group" aria-label="Filter stops">
+          <button type="button" data-phone-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-phone-filter="phone" aria-pressed="false">Has phone</button>
+          <button type="button" data-phone-filter="nophone" aria-pressed="false">No phone</button>
+        </div>
         <div id="customerList">
           <div id="stopsContainer">
             <div id="stopsSpacer"></div>
@@ -368,7 +383,10 @@
         <div id="selectedListDisplay"><em>No stops selected yet.</em></div>
       </div>
     </div>
-    <button id="goToManualAssignBtn">Review & Assign Selected Stops</button>
+    <div class="ss-footer">
+      <button type="button" class="ss-summary" id="ssSummaryBtn" aria-label="View selected stops"><span id="ssSummaryText">0 stops selected</span><small>Tap to view or edit</small></button>
+      <button id="goToManualAssignBtn">Review & Assign Selected Stops</button>
+    </div>
   </div>
 
   <div id="page-manual-assign" class="page mobile-deep-page">
@@ -7446,13 +7464,19 @@
         appLog(`Restored ${selectedCustomers.size} selected customers from ${selectedAddresses.size} stored addresses`);
     }
 
+    // Phone filter chips on Stops Selection: 'all' | 'phone' | 'nophone'.
+    let stopPhoneFilter = 'all';
     function getFilteredCustomerEntries(searchTerm = '') {
         const keyword = String(searchTerm || '').trim().toLowerCase();
-        if (!keyword) {
+        const hasPhone = (entry) => String(entry['Hp No'] || '').trim() !== '';
+        const byPhone = stopPhoneFilter === 'phone' ? hasPhone : stopPhoneFilter === 'nophone' ? (entry) => !hasPhone(entry) : null;
+        if (!keyword && !byPhone) {
             return allCustomerEntries;
         }
 
         return allCustomerEntries.filter((entry) => {
+            if (byPhone && !byPhone(entry)) return false;
+            if (!keyword) return true;
             const haystack = `${entry.Name || ''} ${entry.Address || ''} ${entry['Hp No'] || ''}`.toLowerCase();
             return haystack.includes(keyword);
         });
@@ -7471,6 +7495,10 @@
         if (selectedStopsBadgeEl) {
             selectedStopsBadgeEl.textContent = `${selectedCustomers.size} / ${getCurrentSelectedStopsLimit()}`;
         }
+        const ssCount = document.getElementById('ssSelectedCount');
+        if (ssCount) ssCount.textContent = String(selectedCustomers.size);
+        const ssSummary = document.getElementById('ssSummaryText');
+        if (ssSummary) ssSummary.textContent = `${selectedCustomers.size} stop${selectedCustomers.size === 1 ? '' : 's'} selected`;
         if (selectionSelectedNoteEl) {
             const storageLabel = getCurrentStorageMode() === 'indexeddb' ? 'device-only Basic' : 'current cloud';
             selectionSelectedNoteEl.textContent = `You can select up to ${getCurrentSelectedStopsLimit()} stops at once on the ${storageLabel} plan setup.`;
@@ -7775,6 +7803,7 @@
 
       selectedListDisplayDiv.innerHTML = selectedEntries.map((customerEntry, index) => `
           <div class="selected-stop-card">
+              <button type="button" class="ss-remove" data-ss-remove="${escapeHtml(customerEntry.uniqueId || '')}" aria-label="Remove ${escapeHtml(customerEntry.Name || 'stop')}">&times;</button>
               <strong>${index + 1}. ${escapeHtml(customerEntry.Name || 'Unknown')}</strong>
               <span class="selected-stop-meta">${escapeHtml(customerEntry.Address || 'Address not available')}</span>
               <span class="selected-stop-meta">${escapeHtml(String(customerEntry['Hp No'] || '').trim() || 'No phone number saved')}</span>
@@ -7782,6 +7811,48 @@
       `).join('');
       updateManualAssignAccessButton();
     }
+
+    // Stops Selection controls added with the 2026-10 UI refresh: Available / Selected view (phone),
+    // phone filter chips, the selected summary and removing a selected stop from its card.
+    function setStopsSelectionView(view) {
+        const container = document.querySelector('#page-select-stops .stop-selector-container');
+        if (container) container.dataset.ssView = view === 'selected' ? 'selected' : 'available';
+        document.querySelectorAll('#page-select-stops [data-ss-tab]').forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.ssTab === container?.dataset.ssView)));
+    }
+
+    function removeSelectedStop(customerId) {
+        if (!selectedCustomers.has(customerId)) return;
+        selectedCustomers.delete(customerId);
+        selectedAddresses.clear();
+        selectedCustomers.forEach((id) => {
+            const entry = allCustomerEntries.find((e) => e.uniqueId === id);
+            if (entry) selectedAddresses.add(entry.Address);
+        });
+        syncSessionToCloud();
+        updateSelectedListOnPage1();
+        updateManualAssignAccessButton();
+        renderCustomerList(searchCustomerInput ? searchCustomerInput.value : '');
+    }
+
+    document.getElementById('page-select-stops')?.addEventListener('click', (event) => {
+        const tab = event.target.closest('[data-ss-tab]');
+        if (tab) { setStopsSelectionView(tab.dataset.ssTab); return; }
+        const chip = event.target.closest('[data-phone-filter]');
+        if (chip) {
+            stopPhoneFilter = chip.dataset.phoneFilter;
+            document.querySelectorAll('#page-select-stops [data-phone-filter]').forEach((item) => item.setAttribute('aria-pressed', String(item === chip)));
+            stopListSearchTerm = null;
+            renderCustomerList(searchCustomerInput ? searchCustomerInput.value : '');
+            return;
+        }
+        if (event.target.closest('#ssSummaryBtn')) {
+            const container = document.querySelector('#page-select-stops .stop-selector-container');
+            setStopsSelectionView(container?.dataset.ssView === 'selected' ? 'available' : 'selected');
+            return;
+        }
+        const remove = event.target.closest('[data-ss-remove]');
+        if (remove) removeSelectedStop(remove.dataset.ssRemove);
+    });
 
     // ===== CONTROLLER =====
     // Manual assignment page flow and user interactions.
