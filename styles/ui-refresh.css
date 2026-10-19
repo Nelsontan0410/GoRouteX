@@ -3334,3 +3334,55 @@ body:has(#main.shell) .shell {
   font-size: clamp(1.6rem, 2.4vw, 2.1rem) !important;
   font-weight: 700 !important;
 }
+
+.app-more-sheet .app-more-item,
+.app-more-sheet .app-more-item:visited {
+  color: var(--ui-ink-2) !important;
+  text-decoration: none !important;
+}
+
+.app-more-sheet .app-more-item:hover,
+.app-more-sheet .app-more-item[aria-current="page"] {
+  color: var(--ui-blue) !important;
+}
+
+/* Review & Assign on phones: map and route sheet first; restriction and detour tools after them. */
+@media (max-width: 767px) {
+  #page-manual-assign.active-page {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  #page-manual-assign > .ra-head { order: 1; }
+  #page-manual-assign > .ra-chips { order: 2; }
+  #page-manual-assign > #topBarPage2 { order: 3; }
+  #page-manual-assign > #mobileLayout { order: 4; }
+  #page-manual-assign > .manual-route-tools-row { order: 5; margin-top: 14px !important; }
+}
+
+@media (max-width: 767px) {
+  #page-manual-assign .route-slot.filled .slot-details {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    height: auto !important;
+  }
+
+  #page-manual-assign .route-slot.filled .slot-content {
+    display: block !important;
+    max-height: 2.7em;
+    line-height: 1.35 !important;
+    overflow: hidden !important;
+    white-space: normal !important;
+  }
+}
+
+@media (max-width: 767px) {
+  #page-manual-assign #routesSection,
+  #page-manual-assign #stop-assignment-lists-container,
+  #page-manual-assign #unassignedSection {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
