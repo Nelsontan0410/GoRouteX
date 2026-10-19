@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="driver-tracking.css?v=20260928-2">
   <link rel="stylesheet" href="styles/typography.css">
+  <link rel="stylesheet" href="driver/live-view.css">
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -57,17 +58,84 @@
         <div class="tracking-hero-meta">
           <span id="driverStatusChip" class="tracking-status-chip is-ready">Ready</span>
           <button id="driverSignOutBtn" class="tracking-return-link" type="button">Sign out</button>
-          <a id="operationsBackLink" class="tracking-return-link" href="dispatch.html" hidden>&larr; Back to Dispatch</a>
-          <a id="operationsHomeLink" class="tracking-return-link" href="order-hub.html" hidden>Home</a>
         </div>
       </header>
 
-      <section id="operationsReadOnly" class="driver-execution" aria-label="Read-only route monitoring" hidden>
-        <div class="driver-route-toolbar"><div><span class="driver-overline">OPERATIONS · READ ONLY</span><h2 id="operationsRouteName">Route status</h2></div><button id="operationsRefresh" type="button" class="driver-secondary">Refresh</button></div>
-        <p id="operationsStatus" role="status">Loading route status…</p>
-        <div class="driver-route-head"><p id="operationsDriver"></p><strong id="operationsRouteState" class="driver-route-status"></strong></div>
-        <p id="operationsProgress" class="driver-progress"></p><p id="operationsCurrent"></p><p id="operationsGps"></p><a id="operationsMap" target="_blank" rel="noopener noreferrer" hidden>Open latest position on map</a>
-        <h3>Stops</h3><ol id="operationsStops" class="driver-stop-list"></ol>
+      <section id="operationsReadOnly" class="live-view" aria-label="Live Route View (read only)" hidden>
+        <header class="live-header">
+          <div class="live-header-title">
+            <span class="live-header-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span>
+            <div>
+              <span class="live-eyebrow">Driver tracking · read only</span>
+              <h1>Live Route View</h1>
+              <p id="liveSubtitle">Monitor driver location, delivery progress and stop execution.</p>
+            </div>
+          </div>
+          <div class="live-header-side">
+            <nav class="live-nav" aria-label="Back to the app"><a id="operationsBackLink" class="live-button" href="dispatch.html">&larr; Back to Dispatch</a><a id="operationsHomeLink" class="live-button" href="order-hub.html">Home</a></nav>
+            <span id="liveStatusChip" class="live-chip">—</span>
+            <button id="operationsRefresh" type="button" class="live-button live-button-primary">Refresh</button>
+            <label class="live-toggle"><input id="liveAutoRefresh" type="checkbox" checked> Auto refresh (15s)</label>
+            <small id="operationsStatus" role="status">Loading route status…</small>
+          </div>
+        </header>
+
+        <div id="liveError" class="live-banner live-banner-error" role="alert" hidden></div>
+
+        <div class="live-main">
+          <section class="live-card live-map-card" aria-label="Route map">
+            <div class="live-map-wrap">
+              <div id="liveMap" class="live-map" aria-label="Map of the planned stops"></div>
+              <div id="liveMapEmpty" class="live-map-empty" hidden></div>
+            </div>
+            <div class="live-legend" aria-label="Map legend">
+              <span><i class="dot dot-pending"></i>Pending</span><span><i class="dot dot-arrived"></i>Arrived</span><span><i class="dot dot-done"></i>Delivered</span><span><i class="dot dot-failed"></i>Failed</span><span><i class="dot dot-driver"></i>Driver</span>
+            </div>
+            <p id="liveGpsLine" class="live-gps-line"></p>
+          </section>
+
+          <aside class="live-side">
+            <section class="live-card" aria-label="Driver and route">
+              <h2 class="live-card-title">Driver &amp; route</h2>
+              <div class="live-driver">
+                <div class="live-driver-main">
+                  <span id="liveDriverAvatar" class="live-avatar" aria-hidden="true">—</span>
+                  <div><strong id="operationsDriver">—</strong><span id="liveRouteRef" class="live-muted"></span></div>
+                </div>
+                <div class="live-ring" id="liveRing" role="img" aria-label="Stops processed">
+                  <svg viewBox="0 0 120 120"><circle class="ring-track" cx="60" cy="60" r="50"/><circle id="liveRingValue" class="ring-value" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="0 100"/></svg>
+                  <div><strong id="liveRingText">0 / 0</strong><small>stops processed</small></div>
+                </div>
+              </div>
+              <dl class="live-facts" id="liveFacts"></dl>
+              <div class="live-metrics">
+                <div><strong id="liveTotal">0</strong><span>Total stops</span></div>
+                <div class="is-done"><strong id="liveDone">0</strong><span>Delivered</span></div>
+                <div class="is-failed"><strong id="liveFailed">0</strong><span>Failed</span></div>
+                <div class="is-pending"><strong id="livePending">0</strong><span>Pending</span></div>
+              </div>
+            </section>
+            <section class="live-card" aria-label="Current and next stop" id="liveActivity"></section>
+            <section class="live-card" aria-label="Route timeline">
+              <h2 class="live-card-title">Route timeline</h2>
+              <ol id="liveTimeline" class="live-timeline"></ol>
+            </section>
+          </aside>
+        </div>
+
+        <section class="live-card live-stops" aria-label="Stops">
+          <div class="live-stops-head">
+            <h2 class="live-card-title" id="liveStopsTitle">Stops</h2>
+            <input id="liveSearch" type="search" placeholder="Search customer, address, order or contact" aria-label="Search stops">
+          </div>
+          <div class="live-table-wrap">
+            <table class="live-table">
+              <thead><tr><th scope="col">#</th><th scope="col">Status</th><th scope="col">Customer / Address</th><th scope="col">Contact</th><th scope="col">ETA</th><th scope="col">Actual</th><th scope="col"><span class="visually-hidden">Details</span></th></tr></thead>
+              <tbody id="operationsStops"></tbody>
+            </table>
+          </div>
+          <div id="liveStopDetail" class="live-stop-detail" hidden></div>
+        </section>
       </section>
       <section id="driverExecution" class="driver-execution" aria-label="Driver route execution">
         <div id="driverNotice" class="driver-notice" role="status" aria-live="polite">Loading assigned routes…</div>
