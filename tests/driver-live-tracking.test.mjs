@@ -49,3 +49,12 @@ test('Live view says why there is no GPS and polls every 15 seconds', () => {
   assert.match(ops, /Last activity/);
   assert.match(ops, /load\(\); \}, 15000\);/);
 });
+
+test('Live view has a way back to Dispatch and home', () => {
+  const html = read('driver-tracking.html');
+  assert.match(html, /id="operationsBackLink"[^>]*href="dispatch\.html" hidden/);
+  assert.match(html, /id="operationsHomeLink"[^>]*href="order-hub\.html" hidden/);
+  const ops = read('driver/operations-page.js');
+  assert.match(ops, /back\.hidden = false;/);
+  assert.match(ops, /\$\('operationsHomeLink'\)\.hidden = false;/);
+});

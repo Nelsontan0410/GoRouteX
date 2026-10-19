@@ -74,6 +74,13 @@ $('trackingContextNotice').hidden = true;
 document.querySelector('.tracking-hero h1').textContent = 'Live route view';
 document.querySelector('.tracking-hero p').textContent = 'Read-only route progress for operations.';
 $('driverSignOutBtn').hidden = true;
+// Live view opens in the same tab: give a way back to the app (the Dispatch page it came from, or home).
+const back = $('operationsBackLink');
+try { const from = new URL(document.referrer); if (from.origin === location.origin && from.pathname.endsWith('/dispatch.html')) back.href = from.pathname + from.search; } catch {}
+back.hidden = false;
+$('operationsHomeLink').hidden = false;
+$('blockedSecondaryAction').href = back.href;
+$('blockedSecondaryAction').textContent = 'Back to Dispatch';
 $('operationsRefresh').addEventListener('click', load);
 window.FirebaseApp?.auth?.onAuthStateChange?.(() => load());
 window.setInterval(() => { if (!$('trackingWorkspace').hidden) load(); }, 15000);
