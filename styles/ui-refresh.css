@@ -2072,3 +2072,326 @@ body:has(#main.shell) .shell {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ------------------------------------------------------- Customer Workspace */
+#page-add-stop .ui-customers-head {
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ui-ink) !important;
+}
+
+#page-add-stop .ui-customers-head .add-stop-title {
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem) !important;
+  color: var(--ui-ink) !important;
+}
+
+#page-add-stop .add-stop-nav-btn {
+  min-height: 40px !important;
+  padding: 8px 16px !important;
+  border: 1px solid var(--ui-border-strong) !important;
+  border-radius: 10px !important;
+  background: var(--ui-surface) !important;
+  color: var(--ui-ink-2) !important;
+  font-weight: 600 !important;
+}
+
+#page-add-stop .add-stop-container {
+  display: grid !important;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  gap: 18px;
+  overflow: visible !important;
+  align-items: start;
+}
+
+#page-add-stop .add-stop-form-panel {
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  gap: 14px !important;
+}
+
+#page-add-stop .add-stop-form-panel > .form-section,
+#page-add-stop .add-stop-form-panel > div > .form-section {
+  margin: 0 !important;
+  padding: 18px 20px !important;
+  background: var(--ui-surface) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: var(--ui-radius) !important;
+  box-shadow: var(--ui-shadow) !important;
+}
+
+#page-add-stop .form-section h3 {
+  font-size: 1.08rem !important;
+  color: var(--ui-ink) !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 0 6px !important;
+}
+
+#page-add-stop .form-description {
+  color: var(--ui-muted) !important;
+  font-size: 0.86rem !important;
+}
+
+/* Segmented tabs */
+#page-add-stop .stop-workspace-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px !important;
+  padding: 4px !important;
+  background: #eaeef4 !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+#page-add-stop .stop-workspace-tab {
+  min-height: 40px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: var(--ui-muted) !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  box-shadow: none !important;
+}
+
+#page-add-stop .stop-workspace-tab.is-active {
+  background: var(--ui-surface) !important;
+  color: var(--ui-blue) !important;
+  box-shadow: 0 1px 3px rgba(16, 32, 64, 0.12) !important;
+}
+
+#page-add-stop .add-stop-map-panel {
+  position: sticky !important;
+  top: 16px;
+  height: calc(100vh - 160px);
+  min-height: 520px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  overflow: hidden;
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
+}
+
+#page-add-stop .map-instructions {
+  border: 0 !important;
+  border-bottom: 1px solid var(--ui-border) !important;
+  border-radius: 0 !important;
+  background: var(--ui-surface-2) !important;
+  color: var(--ui-muted) !important;
+  font-size: 0.86rem !important;
+}
+
+/* Search mode: the customer table takes the whole width. */
+#page-add-stop .add-stop-container[data-mode="edit"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#page-add-stop .add-stop-container[data-mode="edit"] .add-stop-map-panel {
+  display: none !important;
+}
+
+#page-add-stop .add-stop-container[data-mode="edit"] .stop-workspace-tabs {
+  max-width: 460px;
+}
+
+#page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls {
+  display: grid !important;
+  grid-template-columns: 200px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 6px;
+  align-items: end;
+}
+
+#page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls label[for="masterSearchType"] { grid-column: 1; grid-row: 1; }
+#page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls label[for="manageStopsSearchInput"] { grid-column: 2; grid-row: 1; }
+#page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls #masterSearchType { grid-column: 1; grid-row: 2; }
+#page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls #manageStopsSearchInput { grid-column: 2; grid-row: 2; }
+#page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls button { grid-column: 3; grid-row: 2; width: auto !important; min-width: 110px; }
+
+#page-add-stop input,
+#page-add-stop select,
+#page-add-stop textarea {
+  border-radius: 10px !important;
+  border-color: var(--ui-border-strong) !important;
+}
+
+/* Shared table */
+.ui-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+}
+
+.ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ui-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--ui-surface-2);
+  color: var(--ui-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--ui-border);
+  white-space: nowrap;
+}
+
+.ui-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ui-border);
+  vertical-align: middle;
+  color: var(--ui-ink-2);
+}
+
+.ui-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ui-table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.customer-table .manage-stop-item {
+  display: table-row !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.customer-table td.customer-address {
+  color: var(--ui-muted);
+  max-width: 360px;
+}
+
+.customer-table .manage-stop-actions {
+  display: table-cell !important;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.customer-table .manage-stop-actions button {
+  min-height: 32px !important;
+  padding: 5px 12px !important;
+  margin-left: 6px;
+  border-radius: 8px !important;
+  font-size: 0.82rem !important;
+  width: auto !important;
+}
+
+.ui-kind {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ui-surface-2);
+  border: 1px solid var(--ui-border);
+  color: var(--ui-muted);
+  font-size: 0.72rem;
+}
+
+.master-search-count {
+  margin: 14px 0 8px !important;
+  color: var(--ui-muted) !important;
+  font-size: 0.84rem !important;
+  font-weight: 600;
+}
+
+#page-add-stop .manage-stops-list {
+  max-height: none !important;
+  overflow: visible !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+@media (max-width: 1100px) {
+  #page-add-stop .add-stop-container {
+    grid-template-columns: 1fr;
+  }
+
+  #page-add-stop .add-stop-map-panel {
+    position: relative !important;
+    top: 0;
+    height: 420px;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  #page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls {
+    grid-template-columns: 1fr auto;
+  }
+
+  #page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls label[for="masterSearchType"],
+  #page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls #masterSearchType { grid-column: 1 / -1; }
+  #page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls label[for="manageStopsSearchInput"] { grid-column: 1 / -1; grid-row: 3; }
+  #page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls #manageStopsSearchInput { grid-column: 1; grid-row: 4; }
+  #page-add-stop .add-stop-container[data-mode="edit"] .master-search-controls button { grid-column: 2; grid-row: 4; }
+
+  /* Customer rows as cards */
+  .customer-table thead { display: none; }
+  .customer-table,
+  .customer-table tbody { display: block; }
+  .customer-table .manage-stop-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 10px;
+    padding: 12px !important;
+    border-bottom: 1px solid var(--ui-border) !important;
+  }
+  .customer-table td { display: block; padding: 0; border: 0; }
+  .customer-table td:first-child { grid-column: 1; }
+  .customer-table .manage-stop-actions { display: flex !important; flex-direction: column; gap: 6px; grid-column: 2; grid-row: 1 / span 4; }
+  .customer-table .manage-stop-actions button { margin: 0; }
+  .customer-table td[data-label="Location"],
+  .customer-table td[data-label="Phone"],
+  .customer-table td.customer-address { grid-column: 1; font-size: 0.84rem; color: var(--ui-muted); max-width: none; }
+  .ui-table-wrap { border-radius: 12px; }
+}
+
+@media (min-width: 901px) {
+  #page-add-stop.active-page {
+    padding: 24px 28px 48px !important;
+    box-sizing: border-box;
+  }
+}
+
+#page-add-stop .ui-customers-head,
+#page-add-stop .ui-customers-head * {
+  text-align: left !important;
+}
+
+#page-add-stop .ui-customers-head {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+}
+
+@media (max-width: 767px) {
+  #page-add-stop .ui-customers-head {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+
+  #page-add-stop .ui-customers-head .ui-head-actions {
+    width: auto;
+    justify-self: start;
+  }
+}

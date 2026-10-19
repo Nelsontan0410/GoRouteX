@@ -8,7 +8,7 @@ const app = read('app.html');
 const page = app.slice(app.indexOf('<div id="page-add-stop"'), app.indexOf('<div class="add-stop-map-panel"'));
 
 test('master-data labels say Customer Workspace / Add Customer / Search Customers', () => {
-  assert.match(page, /<div class="add-stop-title">Customer Workspace<\/div>/);
+  assert.match(page, /<div class="add-stop-title[^"]*"[^>]*>Customer Workspace<\/div>/);
   assert.match(page, /data-stop-workspace-mode="add"[^>]*>Add Customer</);
   assert.match(page, /<h3 id="addStopCreateHeading">Add Customer<\/h3>/);
   assert.match(page, /<h3>Search Customers<\/h3>/);

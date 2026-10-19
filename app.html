@@ -700,9 +700,13 @@
 
   <!-- Page 5: Add New Stop -->
   <div id="page-add-stop" class="page mobile-core-page">
-    <div class="add-stop-header workspace-intro-header">
-      <div class="add-stop-title">Customer Workspace</div>
-      <div class="add-stop-header-controls workspace-intro-actions">
+    <div class="add-stop-header workspace-intro-header ui-page-header ui-customers-head">
+      <div>
+        <span class="ui-eyebrow">Customers</span>
+        <div class="add-stop-title ui-title" role="heading" aria-level="1">Customer Workspace</div>
+        <p class="ui-subtitle">Manage customers, contacts and delivery locations in one place.</p>
+      </div>
+      <div class="add-stop-header-controls workspace-intro-actions ui-head-actions">
         <button class="add-stop-nav-btn" onclick="goBackToPreviousPage()">Back</button>
       </div>
     </div>
@@ -789,12 +793,12 @@
 
         <div id="manageStopsSection" class="form-section" data-stop-workspace-panel="edit" hidden>
           <h3>Search Customers</h3>
-          <p class="form-description">Find a customer by name, contact, phone number or address, then edit or delete it.</p>
+          <p class="form-description">All saved customer locations. Search by name, contact, phone number or address, then edit or delete.</p>
           <form id="masterSearchForm" class="master-search-controls">
             <label for="masterSearchType">Search type</label>
             <select id="masterSearchType" required><option value="customer">Customer Name</option><option value="contact">Contact Name</option><option value="phone">Phone Number</option><option value="address">Delivery Address</option></select>
             <label for="manageStopsSearchInput">Search terms</label>
-            <input type="search" id="manageStopsSearchInput" placeholder="Enter a name, number, or address" required>
+            <input type="search" id="manageStopsSearchInput" placeholder="Search customers, contacts, phones or addresses">
             <button type="submit" class="submit-btn">Search</button>
           </form>
           <div id="manageStopsList" class="manage-stops-list" role="status"><p class="no-items">Choose a search type and enter a query.</p></div>
@@ -12658,6 +12662,9 @@
     function setStopWorkspaceMode(mode) {
         const nextMode = ['add', 'edit', 'import'].includes(mode) ? mode : 'add';
         activeStopWorkspaceMode = nextMode;
+        // Layout hook: the customer table (Search) uses the full width; Add and Import keep the map beside.
+        const workspaceContainer = document.querySelector('#page-add-stop .add-stop-container');
+        if (workspaceContainer) workspaceContainer.dataset.mode = nextMode;
         document.querySelectorAll('[data-stop-workspace-panel]').forEach((panel) => {
             panel.hidden = panel.dataset.stopWorkspacePanel !== nextMode;
         });
@@ -12788,29 +12795,33 @@
         renderManageStopsList(manageStopsSearchTerm);
     }
 
+    // Customer table: every saved stop when the search box is empty (first 100), otherwise the matches.
     function renderManageStopsList(searchTerm = manageStopsSearchTerm) {
         if (!manageStopsList) return;
         manageStopsSearchTerm = String(searchTerm || '').trim();
-        if (!manageStopsSearchTerm) {
-            manageStopsList.innerHTML = '<p class="no-items">Choose a search type and enter a query.</p>';
-            return;
-        }
         const master = window.OrderMasterMaintenance?.getMaster?.();
         if (!master) { manageStopsList.textContent = 'Loading saved records...'; return; }
         const type = document.getElementById('masterSearchType')?.value || 'customer';
-        const records = window.GoRouteXMasterSearch?.search(master,type,manageStopsSearchTerm) || [];
-        if (!records.length) { manageStopsList.innerHTML = '<p class="no-items">No matching saved stops or contacts. Try another search.</p>'; return; }
+        const LIMIT = 100;
+        const records = manageStopsSearchTerm
+            ? (window.GoRouteXMasterSearch?.search(master,type,manageStopsSearchTerm) || [])
+            : (master.stops || []).filter((stop) => stop?.id).map((stop) => ({ kind: 'stop', id: stop.id, customer: (master.customers || []).find((c) => c.id === stop.customerId)?.name || stop.customerName || stop.name || 'Unassigned customer', stop: stop.label || stop.name || '', address: stop.address || stop.Address || '', phone: stop.phone || stop['Hp No'] || '', contact: '' }))
+                .sort((a, b) => a.customer.localeCompare(b.customer));
+        if (!records.length) { manageStopsList.innerHTML = manageStopsSearchTerm ? '<p class="no-items">No matching saved stops or contacts. Try another search.</p>' : '<p class="no-items">No customers saved yet. Add one or import a list.</p>'; return; }
         const canManage = hasRolePermission('stops.manage');
-        manageStopsList.innerHTML = `<p class="master-search-count">${records.length} matching records</p>` + records.map(record => `
-            <div class="manage-stop-item">
-              <div class="manage-stop-main">
-                <div class="manage-stop-name">${escapeHtml(record.kind === 'contact' ? record.contact : record.stop)} <small>${record.kind === 'contact' ? 'Contact' : 'Saved stop'}</small></div>
-                <div class="manage-stop-meta">Customer: ${escapeHtml(record.customer)} · Stop: ${escapeHtml(record.stop)}</div>
-                <div class="manage-stop-meta">Address: ${escapeHtml(record.address || 'General customer contact')}</div>
-                <div class="manage-stop-meta">Phone: ${escapeHtml(record.phone || '—')}</div>
-              </div>
-              ${canManage ? `<div class="manage-stop-actions"><button type="button" data-action="edit-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Edit</button><button type="button" class="delete-stop-btn" data-action="delete-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Delete</button></div>` : '<div class="manage-stop-readonly">Read only</div>'}
-            </div>`).join('');
+        const shown = records.slice(0, LIMIT);
+        const countText = manageStopsSearchTerm
+            ? `${records.length} matching record${records.length === 1 ? '' : 's'}`
+            : `${records.length} saved customer location${records.length === 1 ? '' : 's'}${records.length > LIMIT ? ` · showing the first ${LIMIT}, search to narrow` : ''}`;
+        manageStopsList.innerHTML = `<p class="master-search-count">${escapeHtml(countText)}</p>
+            <div class="ui-table-wrap"><table class="ui-table customer-table"><thead><tr><th scope="col">Customer</th><th scope="col">Location / contact</th><th scope="col">Phone</th><th scope="col">Address</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>`
+            + shown.map(record => `<tr class="manage-stop-item">
+                <td data-label="Customer"><strong>${escapeHtml(record.customer)}</strong></td>
+                <td data-label="Location">${escapeHtml(record.kind === 'contact' ? record.contact : record.stop) || '—'} <small class="ui-kind">${record.kind === 'contact' ? 'Contact' : 'Stop'}</small></td>
+                <td data-label="Phone">${escapeHtml(record.phone || '—')}</td>
+                <td data-label="Address" class="customer-address">${escapeHtml(record.address || (record.kind === 'contact' ? 'General customer contact' : '—'))}</td>
+                <td class="manage-stop-actions">${canManage ? `<button type="button" data-action="edit-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Edit</button><button type="button" class="delete-stop-btn" data-action="delete-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Delete</button>` : '<span class="manage-stop-readonly">Read only</span>'}</td>
+              </tr>`).join('') + '</tbody></table></div>';
     }
 
     function removeStopFromPlanningState(stopId) {
@@ -13106,8 +13117,14 @@
     document.getElementById('masterSearchType')?.addEventListener('change', () => {
         manageStopsSearchTerm = ''; if (manageStopsSearchInput) manageStopsSearchInput.value = ''; renderManageStopsList('');
     });
+    // Filter as the user types (the Search button still works).
+    let manageStopsSearchTimer = null;
+    manageStopsSearchInput?.addEventListener('input', () => {
+        clearTimeout(manageStopsSearchTimer);
+        manageStopsSearchTimer = setTimeout(() => renderManageStopsList(manageStopsSearchInput.value || ''), 200);
+    });
     document.addEventListener('goroutex:master-updated', () => {
-        if (activeStopWorkspaceMode === 'edit' && manageStopsSearchTerm) renderManageStopsList(manageStopsSearchTerm);
+        if (activeStopWorkspaceMode === 'edit') renderManageStopsList(manageStopsSearchTerm);
     });
     manageStopsList?.addEventListener('click', async event => {
         const button = event.target.closest('button[data-action][data-stop-id]');
