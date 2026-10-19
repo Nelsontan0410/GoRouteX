@@ -28,7 +28,17 @@ async function load() {
     const gps = route.gps;
     const updated = gps ? new Date(gps.lastUpdatedAt || gps.lastUploadedClientAt || 0) : null;
     const age = updated && Number.isFinite(updated.getTime()) ? Date.now() - updated.getTime() : Infinity;
-    const gpsLabel = !gps ? 'No GPS update' : gps.status === 'stopped' ? 'Tracking stopped' : age <= 90000 && age >= 0 ? `GPS live · ${Math.max(1, Math.floor(age / 1000))}s ago` : 'GPS stale';
+    const clock = (value) => { const date = new Date(value || NaN); return Number.isFinite(date.getTime()) ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''; };
+    // Latest thing the driver recorded (arrival, delivery or issue): shown when GPS is not live.
+    const activity = (execution?.stops || []).flatMap(stop => [[stop.actualArrivalAt, 'arrived at', stop], [stop.actualCompletedAt, 'delivered', stop], [stop.failedAt, 'reported an issue at', stop]])
+      .filter(([at]) => at).sort((a, b) => String(b[0]).localeCompare(String(a[0])))[0];
+    const lastSeen = activity ? ` · Last activity ${clock(activity[0])}: ${activity[1]} ${activity[2].stopName || 'stop ' + activity[2].sequence}` : '';
+    const gpsLabel = !execution ? 'No GPS: the driver has not started this route'
+      : gps?.status === 'error' || gps?.lastErrorMessage && gps?.status !== 'active' ? `GPS problem on the driver's phone: ${gps.lastErrorMessage || 'location unavailable'}${lastSeen}`
+      : !gps ? `No GPS update yet${lastSeen}`
+      : gps.status === 'stopped' ? `Tracking stopped${lastSeen}`
+      : age <= 90000 && age >= 0 ? `GPS live · ${Math.max(1, Math.floor(age / 1000))}s ago`
+      : `Last GPS ${clock(updated)}${lastSeen}. Phones pause web pages while Google Maps is open; the position updates when the driver opens GoRouteX.`;
     $('operationsRouteName').textContent = route.routeName || `Route ${route.routeId}`;
     $('operationsDriver').textContent = `Driver: ${route.driverName || '—'}`;
     $('operationsProgress').textContent = `${processed} / ${stops.length} processed · ${delivered} delivered · ${failed} failed`;
@@ -66,4 +76,4 @@ document.querySelector('.tracking-hero p').textContent = 'Read-only route progre
 $('driverSignOutBtn').hidden = true;
 $('operationsRefresh').addEventListener('click', load);
 window.FirebaseApp?.auth?.onAuthStateChange?.(() => load());
-window.setInterval(() => { if (!$('trackingWorkspace').hidden) load(); }, 30000);
+window.setInterval(() => { if (!$('trackingWorkspace').hidden) load(); }, 15000);

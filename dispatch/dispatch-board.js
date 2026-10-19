@@ -228,7 +228,8 @@
         actions.append(live);
         const done = Number(dispatch.execution?.completedStops || 0);
         const total = Number(dispatch.execution?.totalStops || stops.length);
-        card.append(element('p', `Driver: ${dispatch.driverName || '—'} · Progress: ${done} / ${total}`, 'dispatch-progress'));
+        const started = !['DISPATCHED', undefined, null, ''].includes(dispatch.execution?.status);
+        card.append(element('p', `Driver: ${dispatch.driverName || '—'} · ${started ? `Progress: ${done} / ${total}` : 'Not started yet'}`, 'dispatch-progress'));
       }
       card.append(actions);
       const list = element('ol', '', 'dispatch-stop-list');

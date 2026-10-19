@@ -528,3 +528,4 @@ a {
 
 .tracking-hero .tracking-status-chip.is-stopped{background:#e5eaf0;color:#273d55}
 .driver-navigate-all{display:grid;gap:10px;background:#fff;border:1px solid #dce3ec;border-radius:16px;padding:18px;margin-bottom:12px}.driver-navigate-all h3{margin:0;font-size:1rem}.driver-navigate-all small{color:#536479}.driver-navigate-parts{display:grid;gap:8px}.driver-navigate-parts a{display:flex;align-items:center;justify-content:center;text-decoration:none}
+.driver-location-alert{display:grid;gap:10px;padding:14px 16px;background:#fff1f2;border:1px solid #f3b4bf;color:#a51d35;border-radius:14px;line-height:1.45}.driver-location-alert[hidden]{display:none}.driver-location-alert p{margin:0;font-weight:650}
