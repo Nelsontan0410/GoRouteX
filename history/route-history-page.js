@@ -233,6 +233,24 @@ function renderHistoryBrowserSummary(filteredEntries) {
             : 'No saved routes match the current filters.';
 
         renderHistoryFilterChips();
+        renderHistoryStatusBreakdown(filteredEntries);
+    }
+
+// Status breakdown of the routes shown (ring + legend), from the same metadata as the list.
+function renderHistoryStatusBreakdown(filteredEntries) {
+        const box = document.getElementById('historyStatusBreakdown');
+        if (!box) return;
+        const groups = [['ready', 'Ready', '#16834f'], ['partial', 'Partial', '#2456c4'], ['needs-review', 'Needs review', '#c22b3f']];
+        const counts = groups.map(([key]) => filteredEntries.filter((entry) => entry.meta.status === key).length);
+        const other = filteredEntries.length - counts.reduce((a, b) => a + b, 0);
+        const rows = groups.map(([key, label, color], i) => ({ label, color, count: counts[i] }));
+        if (other > 0) rows.push({ label: 'Other', color: '#8a96a8', count: other });
+        const total = filteredEntries.length;
+        let start = 0;
+        const stops = rows.filter((row) => row.count).map((row) => { const end = start + (row.count / total) * 100; const part = `${row.color} ${start}% ${end}%`; start = end; return part; });
+        const ring = total ? `conic-gradient(${stops.join(', ')})` : 'conic-gradient(#e3e8f0 0 100%)';
+        box.innerHTML = `<div class="ui-ring" style="background:${ring}"><div><strong>${total}</strong><span>Routes</span></div></div>`
+            + `<ul class="ui-legend">${rows.map((row) => `<li><i style="background:${row.color}"></i><span>${escapeHtml(row.label)}</span><strong>${row.count}</strong><em>${total ? Math.round((row.count / total) * 100) : 0}%</em></li>`).join('')}</ul>`;
     }
 
 function getTodayHistoryEntries() {

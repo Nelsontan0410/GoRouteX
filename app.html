@@ -203,17 +203,22 @@
     <p id="dashboardUpgradeCopy" class="dashboard-hidden-support" hidden aria-hidden="true"></p>
   </div>
   <div id="page-history-browser" class="page mobile-deep-page">
-    <div class="history-browser-header">
-      <h1>Full Route History</h1>
-      <div style="display:flex; gap:10px;">
+    <div class="ui-history">
+    <div class="history-browser-header ui-page-header">
+      <div>
+        <span class="ui-eyebrow">History</span>
+        <h1 class="ui-title">Full Route History</h1>
+        <p class="ui-subtitle">Review saved route plans. Search, filter and reopen a plan.</p>
+      </div>
+      <div class="ui-head-actions">
         <button type="button" class="action-button-secondary" onclick="goBackToPreviousPage()">Back</button>
-        <button id="backFromHistoryBrowserBtn" class="action-button-secondary">Dashboard</button>
+        <button id="backFromHistoryBrowserBtn" class="action-button-secondary">PlanEngine</button>
       </div>
     </div>
-    <div class="history-browser-toolbar">
+    <div class="history-browser-toolbar ui-card">
       <div class="history-filter-grid">
         <div class="history-filter-field">
-          <label for="historySearchInput">Search history</label>
+          <label for="historySearchInput">Keyword search</label>
           <input type="search" id="historySearchInput" placeholder="Search by route, origin, driver, or notes">
         </div>
         <div class="history-filter-field">
@@ -241,40 +246,38 @@
           </select>
         </div>
       </div>
-      <div class="history-summary-grid" aria-label="Filtered route history summary">
-        <div class="history-summary-card">
-          <span class="history-summary-label">Routes Shown</span>
-          <strong id="filteredRoutesCount" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Matching the active history filters</span>
-        </div>
-        <div class="history-summary-card">
-          <span class="history-summary-label">Stops Shown</span>
-          <strong id="filteredStopsCount" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Across filtered route plans</span>
-        </div>
-        <div class="history-summary-card">
-          <span class="history-summary-label">People</span>
-          <strong id="filteredDriversCount" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Unique planners or drivers in view</span>
-        </div>
-        <div class="history-summary-card">
-          <span class="history-summary-label">Latest Activity</span>
-          <strong id="filteredLastActivity" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Most recent route save in the filtered list</span>
-        </div>
-      </div>
       <div class="history-results-meta">
         <span id="historyResultsMeta">Showing all saved routes.</span>
         <div id="historyFilterChips" class="history-filter-chips" aria-live="polite"></div>
       </div>
     </div>
-    <div class="history-browser-actions">
-      <button id="loadSelectedRouteFromBrowserBtn" class="action-button-success" disabled>Load Selected Route</button>
-      <button id="clearHistoryFromBrowserBtn" class="action-button-secondary">Clear All History</button>
+    <div class="ui-kpi-grid history-kpis" aria-label="Filtered route history summary">
+      <article class="ui-kpi"><span class="ui-kpi-icon" data-icon="routes" aria-hidden="true"></span><div><span class="ui-kpi-label">Routes shown</span><strong id="filteredRoutesCount" class="ui-kpi-value">--</strong><span class="ui-kpi-note">Matching the filters</span></div></article>
+      <article class="ui-kpi"><span class="ui-kpi-icon is-green" data-icon="pin" aria-hidden="true"></span><div><span class="ui-kpi-label">Stops shown</span><strong id="filteredStopsCount" class="ui-kpi-value">--</strong><span class="ui-kpi-note">Across those plans</span></div></article>
+      <article class="ui-kpi"><span class="ui-kpi-icon is-violet" data-icon="users" aria-hidden="true"></span><div><span class="ui-kpi-label">People</span><strong id="filteredDriversCount" class="ui-kpi-value">--</strong><span class="ui-kpi-note">Planners or drivers</span></div></article>
+      <article class="ui-kpi"><span class="ui-kpi-icon is-amber" data-icon="clock" aria-hidden="true"></span><div><span class="ui-kpi-label">Latest activity</span><strong id="filteredLastActivity" class="ui-kpi-value ui-kpi-value-sm">--</strong><span class="ui-kpi-note">Most recent save</span></div></article>
     </div>
-    <div id="historyBrowserList" class="history-list history-browser-list"></div>
-    <div class="history-browser-actions">
-      <button id="loadMoreHistoryBtn" class="action-button-secondary" type="button" hidden>Load More</button>
+    <div class="ui-history-grid">
+      <section class="ui-card ui-history-main" aria-labelledby="historyTableTitle">
+        <div class="ui-card-head">
+          <h2 id="historyTableTitle" class="ui-card-title">Route history</h2>
+          <div class="history-browser-actions">
+            <button id="clearHistoryFromBrowserBtn" class="action-button-secondary">Clear All History</button>
+            <button id="loadSelectedRouteFromBrowserBtn" class="action-button-primary" disabled>Load Selected Route</button>
+          </div>
+        </div>
+        <div class="ui-recent-head ui-history-head" aria-hidden="true"><span>Plan / driver</span><span>Stops</span><span>Restrictions</span><span>Action</span></div>
+        <div id="historyBrowserList" class="history-list history-browser-list"></div>
+        <div class="history-browser-actions ui-history-more">
+          <button id="loadMoreHistoryBtn" class="action-button-secondary" type="button" hidden>Load More</button>
+        </div>
+      </section>
+      <aside class="ui-card ui-history-side" aria-labelledby="historyBreakdownTitle">
+        <h2 id="historyBreakdownTitle" class="ui-card-title">Status breakdown</h2>
+        <p class="ui-card-sub">Routes shown with the current filters.</p>
+        <div id="historyStatusBreakdown" class="ui-breakdown"></div>
+      </aside>
+    </div>
     </div>
   </div>
 
