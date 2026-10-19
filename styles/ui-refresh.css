@@ -1834,3 +1834,241 @@ body:has(#main.shell) .shell {
 #page-history-browser .history-item-metric strong {
   font-size: 0.9rem !important;
 }
+
+/* ------------------------------------------------------------ Plan & Access */
+.ui-account {
+  display: grid;
+  gap: 18px;
+  max-width: 1360px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+#page-account-access .account-access-header {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  position: static !important;
+}
+
+#page-account-access .ui-head-actions .action-button-primary {
+  background: var(--ui-blue) !important;
+  border-color: var(--ui-blue) !important;
+  color: #fff !important;
+}
+
+.ui-account-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 18px !important;
+  margin: 0 !important;
+}
+
+.ui-account-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.ui-account-stack {
+  display: grid;
+  gap: 18px;
+}
+
+#page-account-access .account-access-panel,
+#page-account-access .account-access-hero {
+  margin: 0 !important;
+}
+
+#page-account-access .panel-heading {
+  margin-bottom: 12px !important;
+}
+
+#page-account-access .panel-heading h3,
+#page-account-access .account-hero-header h3 {
+  font-size: 1.08rem !important;
+  color: var(--ui-ink) !important;
+  margin: 0 0 4px !important;
+}
+
+#page-account-access .panel-heading p {
+  color: var(--ui-muted) !important;
+  font-size: 0.86rem !important;
+  margin: 0 !important;
+}
+
+/* Plan summary: one wide card with the plan, role, status and the upgrade action. */
+.ui-account-hero {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 8px 24px;
+  align-items: center;
+}
+
+.ui-account-hero .account-hero-header {
+  grid-column: 1;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 !important;
+}
+
+.ui-account-hero .account-hero-header > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ui-account-hero .account-hero-copy {
+  grid-column: 1;
+  margin: 0 !important;
+  color: var(--ui-muted) !important;
+  font-size: 0.9rem !important;
+}
+
+.ui-account-hero #accountBillingNotice {
+  grid-column: 1 / -1;
+}
+
+.ui-account-hero .account-hero-meta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin: 0 !important;
+}
+
+.ui-account-hero .account-meta-card {
+  padding: 12px 14px !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 12px !important;
+  background: var(--ui-surface-2) !important;
+  box-shadow: none !important;
+}
+
+.ui-account-hero .account-meta-card span {
+  display: block;
+  color: var(--ui-muted) !important;
+  font-size: 0.78rem !important;
+}
+
+.ui-account-hero .account-meta-card strong {
+  font-size: 0.98rem !important;
+  color: var(--ui-ink) !important;
+}
+
+.ui-account-hero .account-plan-pill {
+  border-radius: 999px !important;
+  padding: 4px 12px !important;
+  background: var(--ui-green-soft) !important;
+  color: var(--ui-green) !important;
+  font-weight: 700 !important;
+  font-size: 0.8rem !important;
+}
+
+/* Usage cards in one row with progress bars. */
+.ui-account-usage .account-usage-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.ui-account-usage .account-usage-grid > * {
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 12px !important;
+  background: var(--ui-surface-2) !important;
+  box-shadow: none !important;
+  padding: 14px !important;
+}
+
+.ui-settings-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1180px) {
+  .ui-account-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .ui-account-hero .account-hero-meta {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .ui-account-cols {
+    grid-template-columns: 1fr;
+  }
+
+  .ui-settings-links {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .ui-account-hero .account-hero-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .ui-account-hero .account-hero-meta {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .ui-settings-links {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 901px) {
+  .ui-account {
+    padding: 24px 28px 56px;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 767px) {
+  .ui-head-actions {
+    display: grid !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: none !important;
+    flex-direction: row !important;
+    width: 100%;
+  }
+
+  .ui-head-actions > * {
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
+
+#page-account-access .access-feature-list {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+#page-account-access .access-feature-list > * {
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 12px !important;
+  background: var(--ui-surface-2) !important;
+  box-shadow: none !important;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 767px) {
+  #page-account-access .access-feature-list {
+    grid-template-columns: 1fr !important;
+  }
+}

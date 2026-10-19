@@ -921,21 +921,22 @@
   </div>
 
   <div id="page-account-access" class="page mobile-deep-page">
-    <div class="account-access-header">
+    <div class="ui-account">
+    <div class="account-access-header ui-page-header">
       <div>
-        <h2 style="margin: 0;">Plan &amp; Access</h2>
-        <p class="account-access-subtitle">Review your current plan, usage, locked features, and role-ready access settings.</p>
+        <span class="ui-eyebrow">Workspace settings</span>
+        <h1 class="ui-title">Plan &amp; Access</h1>
+        <p class="account-access-subtitle ui-subtitle">Your subscription, usage limits, feature access and workspace settings.</p>
       </div>
-      <div class="account-access-actions">
+      <div class="account-access-actions ui-head-actions">
         <button type="button" class="action-button-secondary" onclick="goBackToPreviousPage()">Back</button>
-        <button id="backFromAccountAccessBtn" class="action-button-secondary" type="button">Dashboard</button>
+        <button id="backFromAccountAccessBtn" class="action-button-secondary" type="button">PlanEngine</button>
         <a id="openPublicPricingLink" class="action-button-primary" href="index.html#pricing">View Pricing</a>
       </div>
     </div>
 
-    <div class="account-access-grid">
-      <section class="account-access-panel" aria-labelledby="companySettingsTitle"><h3 id="companySettingsTitle">Company settings</h3><p>Set Driver, Vehicle, Route Planning, Order, and delivery defaults for this workspace.</p><a class="action-button-secondary" href="settings.html">Open Settings</a></section>
-      <section class="account-access-hero" aria-labelledby="accountPlanHeroTitle">
+    <div class="account-access-grid ui-account-grid">
+      <section class="account-access-hero ui-card ui-account-hero" aria-labelledby="accountPlanHeroTitle">
         <div class="account-hero-header">
           <div>
             <span id="accountCurrentPlanBadge" class="account-plan-pill">Trial</span>
@@ -960,8 +961,27 @@
           </div>
         </div>
       </section>
-
-      <section class="account-access-panel" aria-labelledby="accountSubscriptionTitle">
+      <section class="account-access-panel ui-card ui-account-usage" aria-labelledby="accountUsageTitle">
+        <div class="panel-heading">
+          <div class="panel-heading-stack">
+            <h3 id="accountUsageTitle">Usage and limits</h3>
+            <p>Know what your current plan allows before you hit a limit in daily operations.</p>
+          </div>
+        </div>
+        <div id="accountUsageCards" class="account-usage-grid"></div>
+      </section>
+      <div class="ui-account-cols">
+        <section class="account-access-panel ui-card" aria-labelledby="accountFeatureAccessTitle">
+        <div class="panel-heading">
+          <div class="panel-heading-stack">
+            <h3 id="accountFeatureAccessTitle">Feature access</h3>
+            <p>Clear locked states make it obvious what is available now and what needs an upgrade.</p>
+          </div>
+        </div>
+        <div id="accountFeatureAccessList" class="access-feature-list"></div>
+      </section>
+        <div class="ui-account-stack">
+          <section class="account-access-panel ui-card" aria-labelledby="accountSubscriptionTitle">
         <div class="panel-heading">
           <div class="panel-heading-stack">
             <h3 id="accountSubscriptionTitle">Subscription</h3>
@@ -1000,28 +1020,7 @@
           </div>
         </form>
       </section>
-
-      <section class="account-access-panel" aria-labelledby="accountUsageTitle">
-        <div class="panel-heading">
-          <div class="panel-heading-stack">
-            <h3 id="accountUsageTitle">Usage and limits</h3>
-            <p>Know what your current plan allows before you hit a limit in daily operations.</p>
-          </div>
-        </div>
-        <div id="accountUsageCards" class="account-usage-grid"></div>
-      </section>
-
-      <section class="account-access-panel" aria-labelledby="accountFeatureAccessTitle">
-        <div class="panel-heading">
-          <div class="panel-heading-stack">
-            <h3 id="accountFeatureAccessTitle">Feature access</h3>
-            <p>Clear locked states make it obvious what is available now and what needs an upgrade.</p>
-          </div>
-        </div>
-        <div id="accountFeatureAccessList" class="access-feature-list"></div>
-      </section>
-
-      <section class="account-access-panel" aria-labelledby="accountRoleAccessTitle">
+          <section class="account-access-panel ui-card" aria-labelledby="accountRoleAccessTitle">
         <div class="panel-heading">
           <div class="panel-heading-stack">
             <h3 id="accountRoleAccessTitle">Role visibility</h3>
@@ -1030,9 +1029,12 @@
         </div>
         <div id="accountRoleAccessList" class="role-access-list"></div>
       </section>
+        </div>
+      </div>
+      <section class="account-access-panel ui-card" aria-labelledby="companySettingsTitle"><div class="ui-card-head"><div><h3 id="companySettingsTitle" class="ui-card-title">Workspace settings</h3><p class="ui-card-sub">Driver, vehicle, route planning, order and delivery defaults for this workspace.</p></div><a class="ui-link-button" href="settings.html">Edit settings</a></div><div class="ui-settings-links"><a class="ui-tile" data-icon="users" href="settings.html#drivers">Drivers<small>Working hours and accounts</small></a><a class="ui-tile is-violet" data-icon="truck" href="settings.html#vehicles">Vehicles<small>Capacity and plates</small></a><a class="ui-tile is-green" data-icon="clock" href="settings.html#routePlanning">Route planning<small>Service time and start/end</small></a><a class="ui-tile is-amber" data-icon="list" href="settings.html#orders">Order rules<small>Contact and readiness</small></a></div></section>
     </div>
 
-    <section class="account-access-panel" aria-labelledby="accountPlansTitle">
+    <section class="account-access-panel ui-card" aria-labelledby="accountPlansTitle">
       <div class="panel-heading">
         <div class="panel-heading-stack">
           <h3 id="accountPlansTitle">Plan comparison</h3>
@@ -1042,7 +1044,7 @@
       <div id="accountPlanCards" class="account-plan-grid"></div>
     </section>
 
-    <section class="account-access-panel" aria-labelledby="accountCompareTitle">
+    <section class="account-access-panel ui-card" aria-labelledby="accountCompareTitle">
       <div class="panel-heading">
         <div class="panel-heading-stack">
           <h3 id="accountCompareTitle">Feature comparison</h3>
@@ -1051,6 +1053,7 @@
       </div>
       <div id="accountPlanComparisonTable" class="account-comparison-table-wrap"></div>
     </section>
+    </div>
   </div>
 
   <nav id="mobileTabBar" class="mobile-tab-bar is-hidden" aria-label="Mobile Navigation">
