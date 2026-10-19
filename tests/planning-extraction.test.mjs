@@ -57,10 +57,11 @@ test('finalization keeps manual check, build, safety, render, ETA, persistence a
  const {c,events}=flow();await c.handleProceedToOptimizeRoutes({saveAfterPlan:true});
  assert.deepEqual(events,['preflight','manual-check','prepare','build','safety','render','eta','persist','dispatch:stable_plan']);
 });
-test('safety failure prevents ETA and finalized persistence',async()=>{
+test('a failed restriction check is only a warning: ETA and save still run',async()=>{
  const {c,calls}=flow();c.RouteSafety.validateRoutes=async()=>{throw Error('validation unavailable')};
- await assert.rejects(c.handleProceedToOptimizeRoutes({saveAfterPlan:true}),/validation unavailable/);
- assert.equal(calls.eta,0);assert.equal(calls.writes,0);
+ c.openTimeWindowExceptionModal=async(v,notes)=>{assert.match(notes.join(' '),/restrictions were not checked/);return {action:'override'};};
+ await c.handleProceedToOptimizeRoutes({saveAfterPlan:true});
+ assert.equal(calls.eta,1);assert.equal(calls.writes,1);
 });
 test('one explicit finalization generates ETA once and saves once without profile or stop reads',async()=>{
  const {c,calls}=flow();await c.handleProceedToOptimizeRoutes({saveAfterPlan:true});

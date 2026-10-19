@@ -121,7 +121,7 @@ test('an explicit override records actor and reason with the violations', async 
 test('the confirm flow checks windows after ETA and before saving, and saves the override with the plan', () => {
   const flow = finalization.slice(finalization.indexOf('async function handleProceedToOptimizeRoutes('));
   const eta = flow.indexOf('generateTimeListAndShowOnPage3Legacy');
-  const check = flow.indexOf('enforceDeliveryWindows(etaResult)');
+  const check = flow.indexOf('enforceDeliveryWindows(etaResult');
   const save = flow.indexOf('savePlannedRoutes(');
   assert.ok(eta < check && check < save);
   assert.match(flow, /if \(!windowCheck\.proceed\) \{[\s\S]*?return \{ success: false, blocked: 'delivery-windows' \};/);
