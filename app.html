@@ -956,67 +956,51 @@
   </div>
 
   <div id="page-account-access" class="page mobile-deep-page">
-    <div class="ui-account">
-    <div class="account-access-header ui-page-header">
-      <div>
-        <span class="ui-eyebrow">Workspace settings</span>
-        <h1 class="ui-title">Plan &amp; Access</h1>
-        <p class="account-access-subtitle ui-subtitle">Your subscription, usage limits, feature access and workspace settings.</p>
-      </div>
-      <div class="account-access-actions ui-head-actions">
-        <button type="button" class="action-button-secondary" onclick="goBackToPreviousPage()">Back</button>
-        <button id="backFromAccountAccessBtn" class="action-button-secondary" type="button">PlanEngine</button>
-        <a id="openPublicPricingLink" class="action-button-primary" href="index.html#pricing">View Pricing</a>
-      </div>
-    </div>
+    <div class="plan-page">
+      <header class="plan-head">
+        <div>
+          <h1 class="plan-title">Plan</h1>
+          <p class="plan-subtitle">Your plan and usage.</p>
+        </div>
+        <button id="backFromAccountAccessBtn" class="plan-back" type="button" onclick="goBackToPreviousPage()">Back</button>
+      </header>
 
-    <div class="account-access-grid ui-account-grid">
-      <section class="account-access-hero ui-card ui-account-hero" aria-labelledby="accountPlanHeroTitle">
-        <div class="account-hero-header">
-          <div>
-            <span id="accountCurrentPlanBadge" class="account-plan-pill">Trial</span>
-            <h3 id="accountPlanHeroTitle">Current plan</h3>
+      <section class="plan-card" aria-labelledby="accountPlanHeroTitle">
+        <div class="plan-card-main">
+          <div class="plan-card-name">
+            <h2 id="accountPlanHeroTitle" class="visually-hidden">Current plan</h2>
+            <span id="accountCurrentPlanBadge" class="plan-badge">Basic</span>
+            <span id="accountPlanStatusTag" class="plan-status-tag">Active</span>
           </div>
-          <button id="requestUpgradeBtn" type="button" class="action-button-primary">Request Upgrade</button>
-        </div>
-        <p id="accountPlanSummary" class="account-hero-copy">Your current plan details will appear here after access is resolved.</p>
-        <div id="accountBillingNotice" class="access-inline-banner" hidden></div>
-        <div class="account-hero-meta">
-          <div class="account-meta-card">
-            <span>Role</span>
-            <strong id="accountRoleValue">--</strong>
-          </div>
-          <div class="account-meta-card">
-            <span>Status</span>
-            <strong id="accountStatusValue">--</strong>
-          </div>
-          <div class="account-meta-card">
-            <span>Access until</span>
-            <strong id="accountExpiryValue">--</strong>
+          <div class="plan-card-actions">
+            <button id="requestUpgradeBtn" type="button" class="plan-upgrade-btn">Upgrade</button>
+            <button id="accountManageBillingBtn" type="button" class="plan-link-btn" hidden>Manage subscription</button>
           </div>
         </div>
       </section>
-      <section class="account-access-panel ui-card ui-account-usage" aria-labelledby="accountUsageTitle">
-        <div class="panel-heading">
-          <div class="panel-heading-stack">
-            <h3 id="accountUsageTitle">Usage and limits</h3>
-            <p>Know what your current plan allows before you hit a limit in daily operations.</p>
-          </div>
-        </div>
-        <div id="accountUsageCards" class="account-usage-grid"></div>
+
+      <section class="plan-card" aria-labelledby="accountUsageTitle">
+        <h2 id="accountUsageTitle" class="plan-card-title">Usage</h2>
+        <div id="accountUsageCards" class="plan-usage"></div>
       </section>
-      <div class="ui-account-cols">
-        <section class="account-access-panel ui-card" aria-labelledby="accountFeatureAccessTitle">
-        <div class="panel-heading">
-          <div class="panel-heading-stack">
-            <h3 id="accountFeatureAccessTitle">Feature access</h3>
-            <p>Clear locked states make it obvious what is available now and what needs an upgrade.</p>
-          </div>
+
+      <details class="plan-included" id="planIncluded">
+        <summary>See what&rsquo;s included</summary>
+        <ul id="accountFeatureAccessList" class="plan-feature-list"></ul>
+      </details>
+    </div>
+  </div>
+
+  <div id="page-pricing" class="page mobile-deep-page">
+    <div class="plan-page plan-page-wide">
+      <header class="plan-head">
+        <div>
+          <h1 class="plan-title">Pricing &amp; billing</h1>
+          <p class="plan-subtitle">Choose a plan and manage your subscription.</p>
         </div>
-        <div id="accountFeatureAccessList" class="access-feature-list"></div>
-      </section>
-        <div class="ui-account-stack">
-          <section class="account-access-panel ui-card" aria-labelledby="accountSubscriptionTitle">
+        <button id="backFromPricingBtn" class="plan-back" type="button">Back to plan</button>
+      </header>
+      <section class="account-access-panel ui-card" aria-labelledby="accountSubscriptionTitle">
         <div class="panel-heading">
           <div class="panel-heading-stack">
             <h3 id="accountSubscriptionTitle">Subscription</h3>
@@ -1055,21 +1039,7 @@
           </div>
         </form>
       </section>
-          <section class="account-access-panel ui-card" aria-labelledby="accountRoleAccessTitle">
-        <div class="panel-heading">
-          <div class="panel-heading-stack">
-            <h3 id="accountRoleAccessTitle">Role visibility</h3>
-            <p>Role-aware navigation and action visibility are ready for admin and driver access.</p>
-          </div>
-        </div>
-        <div id="accountRoleAccessList" class="role-access-list"></div>
-      </section>
-        </div>
-      </div>
-      <section class="account-access-panel ui-card" aria-labelledby="companySettingsTitle"><div class="ui-card-head"><div><h3 id="companySettingsTitle" class="ui-card-title">Workspace settings</h3><p class="ui-card-sub">Driver, vehicle, route planning, order and delivery defaults for this workspace.</p></div><a class="ui-link-button" href="settings.html">Edit settings</a></div><div class="ui-settings-links"><a class="ui-tile" data-icon="users" href="settings.html#drivers">Drivers<small>Working hours and accounts</small></a><a class="ui-tile is-violet" data-icon="truck" href="settings.html#vehicles">Vehicles<small>Capacity and plates</small></a><a class="ui-tile is-green" data-icon="clock" href="settings.html#routePlanning">Route planning<small>Service time and start/end</small></a><a class="ui-tile is-amber" data-icon="list" href="settings.html#orders">Order rules<small>Contact and readiness</small></a></div></section>
-    </div>
-
-    <section class="account-access-panel ui-card" aria-labelledby="accountPlansTitle">
+      <section class="account-access-panel ui-card" aria-labelledby="accountPlansTitle">
       <div class="panel-heading">
         <div class="panel-heading-stack">
           <h3 id="accountPlansTitle">Plan comparison</h3>
@@ -1078,8 +1048,7 @@
       </div>
       <div id="accountPlanCards" class="account-plan-grid"></div>
     </section>
-
-    <section class="account-access-panel ui-card" aria-labelledby="accountCompareTitle">
+      <section class="account-access-panel ui-card" aria-labelledby="accountCompareTitle">
       <div class="panel-heading">
         <div class="panel-heading-stack">
           <h3 id="accountCompareTitle">Feature comparison</h3>
@@ -1104,7 +1073,7 @@
       <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span>
       <span class="mobile-tab-text">Dispatch</span>
     </button>
-    <button type="button" class="mobile-tab-btn" data-nav="more" aria-haspopup="true" aria-expanded="false" data-more-pages='[{"key":"gps","label":"GPS Tracking","href":"app.html#page-gps-tracking","page":"page-gps-tracking"}]'>
+    <button type="button" class="mobile-tab-btn" data-nav="more" aria-haspopup="true" aria-expanded="false">
       <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
       <span class="mobile-tab-text">More</span>
     </button>
@@ -1206,6 +1175,7 @@
   
 <script src="go-routex-access.js"></script>
 <script src="route-planner-product.js"></script>
+<script src="plan-access-view.js"></script>
 <script src="account-context.js"></script>
 <script src="state.js"></script>
 <link rel="stylesheet" href="lorry-safety.css?v=20260920-1">
@@ -1769,14 +1739,11 @@
     const backFromAccountAccessBtn = document.getElementById('backFromAccountAccessBtn');
     const requestUpgradeBtn = document.getElementById('requestUpgradeBtn');
     const accountCurrentPlanBadgeEl = document.getElementById('accountCurrentPlanBadge');
-    const accountPlanSummaryEl = document.getElementById('accountPlanSummary');
-    const accountBillingNoticeEl = document.getElementById('accountBillingNotice');
-    const accountRoleValueEl = document.getElementById('accountRoleValue');
-    const accountStatusValueEl = document.getElementById('accountStatusValue');
-    const accountExpiryValueEl = document.getElementById('accountExpiryValue');
+    const accountPlanStatusTagEl = document.getElementById('accountPlanStatusTag');
+    const accountManageBillingBtn = document.getElementById('accountManageBillingBtn');
+    const backFromPricingBtn = document.getElementById('backFromPricingBtn');
     const accountUsageCardsDiv = document.getElementById('accountUsageCards');
     const accountFeatureAccessListDiv = document.getElementById('accountFeatureAccessList');
-    const accountRoleAccessListDiv = document.getElementById('accountRoleAccessList');
     const accountPlanCardsDiv = document.getElementById('accountPlanCards');
     const accountPlanComparisonTableDiv = document.getElementById('accountPlanComparisonTable');
     const billingCurrencySelect = document.getElementById('billingCurrencySelect');
@@ -1907,7 +1874,6 @@
     const MOBILE_CORE_PAGES = new Set([
       'page-history-dashboard',
       'page-select-stops',
-      'page-gps-tracking',
       'page-add-stop'
     ]);
     const MOBILE_DEEP_PAGES = new Set([
@@ -1915,7 +1881,8 @@
       'page-manual-assign',
       'page-maps-preview',
       'page-fullscreen-map',
-      'page-account-access'
+      'page-account-access',
+      'page-pricing'
     ]);
     const lazyPageCache = new Map();
     let appRootEl = document.getElementById('appRoot');
@@ -1931,14 +1898,12 @@
       stops: 'page-select-stops',
       'select-stops': 'page-select-stops',
       'manual-assign': 'page-manual-assign',
-      tracking: 'page-gps-tracking',
-      gps: 'page-gps-tracking',
       customers: 'page-add-stop',
       'customer-workspace': 'page-add-stop',
       'manage-stops': 'page-add-stop',
       account: 'page-account-access',
-      billing: 'page-account-access',
-      pricing: 'page-account-access',
+      billing: 'page-pricing',
+      pricing: 'page-pricing',
       settings: 'page-account-access'
     };
     const historyBrowserFilters = {
@@ -2800,7 +2765,7 @@
       const headerCells = planKeys.map((planKey) => {
         const plan = toolkit.getPlanDefinition(planKey);
         const isCurrent = planKey === currentPlanKey;
-        return `<th scope="col"${isCurrent ? ' class="is-current"' : ''}>${escapeHtml(plan?.shortName || planKey)}${isCurrent ? '<span class="table-current-badge">Current</span>' : ''}</th>`;
+        return `<th scope="col"${isCurrent ? ' class="is-current"' : ''}>${escapeHtml(window.GoRouteXPlanAccess?.planName(planKey) || plan?.shortName || planKey)}${isCurrent ? '<span class="table-current-badge">Current</span>' : ''}</th>`;
       }).join('');
       const rowMarkup = rows.map((row) => {
         const cells = planKeys.map((planKey) => {
@@ -2844,14 +2809,14 @@
         const checkoutMarkup = planKey === 'basic'
           ? '<div class="account-plan-billing"><strong>Free</strong><span>No subscription required</span></div>'
           : planKey === 'goplan'
-            ? `<div class="account-plan-billing"><strong>${escapeHtml(formatBillingAmount(goQuote))}</strong><span>per month</span><button type="button" class="action-button-primary account-plan-cta" data-billing-plan="goplan" data-billing-interval="month"${checkoutDisabled(goQuote) ? ' disabled' : ''}>Start GoPlan</button></div>`
+            ? `<div class="account-plan-billing"><strong>${escapeHtml(formatBillingAmount(goQuote))}</strong><span>per month</span><button type="button" class="action-button-primary account-plan-cta" data-billing-plan="goplan" data-billing-interval="month"${checkoutDisabled(goQuote) ? ' disabled' : ''}>Start Go</button></div>`
             : `<div class="account-plan-billing"><strong>${escapeHtml(formatBillingAmount(proMonthQuote))}</strong><span>per month</span><button type="button" class="action-button-primary account-plan-cta" data-billing-plan="proplan" data-billing-interval="month"${checkoutDisabled(proMonthQuote) ? ' disabled' : ''}>Start Pro monthly</button><strong>${escapeHtml(formatBillingAmount(proYearQuote))}</strong><span>per year</span><button type="button" class="action-button-secondary account-plan-cta" data-billing-plan="proplan" data-billing-interval="year"${checkoutDisabled(proYearQuote) ? ' disabled' : ''}>Start Pro annual</button></div>`;
         return `
           <article class="account-plan-card${isCurrent ? ' is-current' : ''}${isFeatured ? ' is-featured' : ''}">
             <div class="account-plan-card-head">
               <div>
                 <span class="account-plan-card-label">${escapeHtml(plan?.storageMode === 'indexeddb' ? 'Device-only' : 'Cloud-backed')}</span>
-                <h4>${escapeHtml(plan?.name || planKey)}</h4>
+                <h4>${escapeHtml(window.GoRouteXPlanAccess?.planName(planKey) || plan?.name || planKey)}</h4>
               </div>
               ${isCurrent ? '<span class="account-plan-card-badge">Current</span>' : ''}
             </div>
@@ -2876,109 +2841,54 @@
       });
     }
 
+    // Two usage rows (Saved stops, Auto plans today) and the per-route cap. A warning appears only from 80%.
     function renderAccountUsageCards(context) {
+      const view = window.GoRouteXPlanAccess;
+      if (!accountUsageCardsDiv || !view) return;
       const productToolkit = getProductToolkit();
-      if (!accountUsageCardsDiv) return;
-      const usageLimitEntries = [
-        { key: 'customers', label: 'Saved Stops', unitLabel: 'saved stops' },
-        { key: 'activeRoutes', label: 'Auto Plans Today', unitLabel: 'auto plans/day' },
-        { key: 'selectedStops', label: 'Selected Stops', unitLabel: 'selected stops' }
+      const profile = window.currentUserProfile || {};
+      const upgrade = view.upgradeInfo(getCurrentProductPlan(), getBillingUiState(profile), Boolean(profile.stripeSubscriptionId));
+      const entries = [
+        { key: 'customers', label: 'Saved stops', noun: 'Saved stops' },
+        { key: 'activeRoutes', label: 'Auto plans today', noun: 'Auto plan' }
       ];
-      const cards = usageLimitEntries.map((entry) => {
+      const rows = entries.map((entry) => {
         const status = getUsageStatus(entry.key);
-        const displayLabel = entry.label;
-        const displayUnit = entry.unitLabel;
-        const limitText = productToolkit?.formatLimitValue
-          ? productToolkit.formatLimitValue(status.limit, displayUnit)
-          : `${status.limit ?? '--'} ${displayUnit}`;
-        const stateClass = status.reached ? 'is-danger' : status.nearLimit ? 'is-warning' : 'is-ok';
-        const noteText = status.limit === Number.POSITIVE_INFINITY
-          ? 'No plan limit on this metric.'
-          : status.reached
-            ? 'Limit reached. Upgrade before adding more volume.'
-            : status.nearLimit
-              ? 'Approaching limit. Plan ahead to avoid blocking operations.'
-              : 'Within current plan allowance.';
+        const row = view.usageRow({ label: entry.label, noun: entry.noun, used: status.used, limit: status.limit });
+        const warning = row.warning
+          ? `<p class="plan-usage-warning is-${row.level}" role="status">${escapeHtml(row.warning)}${row.level === 'red' && upgrade.showUpgrade ? ' <button type="button" class="plan-link-btn" data-plan-upgrade>Upgrade</button>' : ''}</p>`
+          : '';
+        const aria = row.limit === null
+          ? `aria-valuemin="0" aria-valuenow="${row.used}"`
+          : `aria-valuemin="0" aria-valuemax="${row.limit}" aria-valuenow="${Math.min(row.used, row.limit)}"`;
         return `
-          <article class="account-usage-card ${stateClass}">
-            <div class="account-usage-head">
-              <span>${escapeHtml(displayLabel)}</span>
-              <strong>${escapeHtml(String(status.used))}</strong>
-            </div>
-            <div class="account-usage-meta">${escapeHtml(limitText)}</div>
-            <div class="account-usage-bar">
-              <span style="width:${status.limit === Number.POSITIVE_INFINITY ? 12 : Math.max(status.percent, 6)}%;"></span>
-            </div>
-            <p>${escapeHtml(noteText)}</p>
-          </article>
-        `;
+          <div class="plan-usage-row is-${row.level}">
+            <div class="plan-usage-line"><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.valueText)}</strong></div>
+            <div class="plan-usage-bar" role="progressbar" aria-label="${escapeHtml(row.label)}" ${aria}><span style="width:${row.limit === null ? 0 : row.percent}%"></span></div>
+            ${warning}
+          </div>`;
       }).join('');
-
-      const productPlan = getCurrentProductPlan();
-      const productDisplayLimits = productToolkit?.getPlanDisplayLimits
-        ? productToolkit.getPlanDisplayLimits(productPlan)
-        : {
-            stopsPerRoute: '10 stops/route',
-            storageMode: 'Device-only storage'
-          };
-      accountUsageCardsDiv.innerHTML = `${cards}
-        <article class="account-usage-card is-neutral">
-          <div class="account-usage-head">
-            <span>Stops per route</span>
-            <strong>${escapeHtml(productDisplayLimits.stopsPerRoute)}</strong>
-          </div>
-          <p>Current planner screens are aligned to the per-route stop capacity shown here.</p>
-        </article>
-        <article class="account-usage-card is-neutral">
-          <div class="account-usage-head">
-            <span>Storage mode</span>
-            <strong>${escapeHtml(productDisplayLimits.storageMode)}</strong>
-          </div>
-          <p>Basic keeps core data on this device, while paid plans keep route data cloud-backed.</p>
-        </article>`;
+      const displayLimits = productToolkit?.getPlanDisplayLimits ? productToolkit.getPlanDisplayLimits(getCurrentProductPlan()) : { stopsPerRoute: '10 stops/route' };
+      const maxLine = view.maxStopsLine(displayLimits.stopsPerRoute);
+      accountUsageCardsDiv.innerHTML = rows + (maxLine ? `<p class="plan-usage-note">${escapeHtml(maxLine)}</p>` : '');
     }
 
+    // What's included: a check when the feature is available, a lock when a higher plan is needed (same gates).
     function renderAccountFeatureAccess() {
       const toolkit = getProductToolkit();
-      if (!accountFeatureAccessListDiv || !toolkit) return;
+      const view = window.GoRouteXPlanAccess;
+      if (!accountFeatureAccessListDiv || !toolkit || !view) return;
       const currentPlanKey = getCurrentProductPlan();
+      const check = '<svg class="plan-feature-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+      const lock = '<svg class="plan-feature-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
       accountFeatureAccessListDiv.innerHTML = Object.values(toolkit.FEATURE_DEFINITIONS || {}).map((feature) => {
         const allowed = toolkit.canUseFeature(feature.key, currentPlanKey);
-        const requiredPlan = toolkit.getPlanDefinition(toolkit.getRequiredPlanForFeature(feature.key) || 'goplan');
         const isPreview = toolkit.isPreviewFeature(feature.key);
-        const stateLabel = isPreview
-          ? 'Coming soon'
-          : (allowed ? 'Available now' : `Unlock on ${requiredPlan?.shortName || 'higher plan'}`);
-        return `
-          <article class="access-feature-item${allowed ? ' is-available' : ' is-locked'}">
-            <div>
-              <strong>${escapeHtml(feature.name)}</strong>
-              <p>${escapeHtml(isPreview
-                ? 'Not yet available for operational use.'
-                : 'Available when your plan includes this workflow capability.')}</p>
-            </div>
-            <span class="access-feature-state">${escapeHtml(stateLabel)}</span>
-          </article>
-        `;
-      }).join('');
-    }
-
-    function renderAccountRoleAccess(context) {
-      const toolkit = getAccessToolkit();
-      if (!accountRoleAccessListDiv || !toolkit) return;
-      accountRoleAccessListDiv.innerHTML = (toolkit.ROLE_ORDER || []).map((roleKey) => {
-        const role = toolkit.ROLE_DEFINITIONS[roleKey];
-        const isCurrent = roleKey === context.roleKey;
-        return `
-          <article class="role-access-card${isCurrent ? ' is-current' : ''}">
-            <div class="role-access-head">
-              <strong>${escapeHtml(role?.name || roleKey)}</strong>
-              ${isCurrent ? '<span class="role-access-badge">Current role</span>' : ''}
-            </div>
-            <p>${escapeHtml(role?.summary || '')}</p>
-            <div class="role-access-permissions">${(role?.permissions || []).map((permission) => `<span>${escapeHtml(permission)}</span>`).join('')}</div>
-          </article>
-        `;
+        const requiredKey = toolkit.getRequiredPlanForFeature(feature.key) || 'goplan';
+        const note = isPreview ? 'Coming soon' : allowed ? '' : `${view.planName(requiredKey)} plan`;
+        const state = isPreview ? 'is-soon' : allowed ? 'is-available' : 'is-locked';
+        const label = isPreview ? `${feature.name}, coming soon` : allowed ? `${feature.name}, included` : `${feature.name}, needs the ${view.planName(requiredKey)} plan`;
+        return `<li class="plan-feature ${state}" aria-label="${escapeHtml(label)}">${allowed && !isPreview ? check : lock}<span>${escapeHtml(feature.name)}</span>${note ? `<small>${escapeHtml(note)}</small>` : ''}</li>`;
       }).join('');
     }
 
@@ -3170,7 +3080,6 @@
             stopsPerRoute: '10 stops/route',
             storageMode: 'Device-only storage'
           };
-      const expiryText = formatPlanDate(getPlanExpiryValue(window.currentUserProfile || {})) || '--';
       const customerUsageText = formatUsageText('customers');
       const activeRouteUsageText = formatUsageText('activeRoutes');
       const customerStatus = getUsageStatus('customers');
@@ -3212,24 +3121,20 @@
       }
       renderDashboardUpgradePanel(productPlan);
 
-      if (accountCurrentPlanBadgeEl) accountCurrentPlanBadgeEl.textContent = productPlan?.name || 'Basic';
-      if (accountPlanSummaryEl) {
-        accountPlanSummaryEl.textContent = `${billingState.message} Current usage: ${customerUsageText} and ${activeRouteUsageText}.`;
-      }
-      if (accountBillingNoticeEl) {
-        accountBillingNoticeEl.hidden = billingState.key === 'active' || billingState.key === 'basic';
-        accountBillingNoticeEl.classList.toggle('is-warning', ['grace', 'expired'].includes(billingState.key));
-        accountBillingNoticeEl.innerHTML = `<strong>${escapeHtml(billingState.label)}</strong><p>${escapeHtml(billingState.message)}</p>`;
-      }
-      if (accountRoleValueEl) accountRoleValueEl.textContent = context.role?.name || '--';
-      if (accountStatusValueEl) accountStatusValueEl.textContent = billingState.label;
-      if (accountExpiryValueEl) accountExpiryValueEl.textContent = expiryText;
-      if (requestUpgradeBtn) {
-        requestUpgradeBtn.hidden = billingState.key === 'developer';
-        requestUpgradeBtn.disabled = false;
-        requestUpgradeBtn.textContent = productPlanKey === 'basic' || billingState.key === 'expired'
-          ? 'Choose subscription'
-          : 'Manage subscription';
+      const planView = window.GoRouteXPlanAccess;
+      if (accountCurrentPlanBadgeEl) accountCurrentPlanBadgeEl.textContent = planView ? planView.planName(productPlanKey) : (productPlan?.name || 'Basic');
+      if (planView) {
+        const status = planView.statusInfo(billingState, getPlanExpiryValue(window.currentUserProfile || {}));
+        if (accountPlanStatusTagEl) {
+          accountPlanStatusTagEl.textContent = status.text;
+          accountPlanStatusTagEl.className = `plan-status-tag is-${status.tone}`;
+        }
+        const upgrade = planView.upgradeInfo(productPlanKey, billingState, Boolean(window.currentUserProfile?.stripeSubscriptionId));
+        if (requestUpgradeBtn) {
+          requestUpgradeBtn.hidden = !upgrade.showUpgrade;
+          requestUpgradeBtn.disabled = false;
+        }
+        if (accountManageBillingBtn) accountManageBillingBtn.hidden = !upgrade.showManage;
       }
       if (dashboardUpgradeBtn) {
         dashboardUpgradeBtn.textContent = billingState.key === 'expired' ? 'Renew Pro' : 'Upgrade Plan';
@@ -3246,7 +3151,6 @@
 
       renderAccountUsageCards(context);
       renderAccountFeatureAccess();
-      renderAccountRoleAccess(context);
       renderSubscriptionActions(window.currentUserProfile || {});
       renderAccountPlanCards(productPlanKey);
       if (accountPlanComparisonTableDiv) {
@@ -3290,6 +3194,8 @@
 
     function normalizePageId(pageId) {
       const normalized = String(pageId || '').trim();
+      // GPS tracking is no longer reachable from the app: any link to it lands on the dashboard.
+      if (normalized === 'page-gps-tracking') return 'page-history-dashboard';
       return PAGE_HASH_ALIASES[normalized] || normalized;
     }
 
@@ -3344,7 +3250,7 @@
 
     function updateMobileNavigationState(activePageId) {
       // Every app.html page is part of the Dashboard workflow except Account (lower sidebar area).
-      window.GoRouteXSidebar?.setActive(activePageId === 'page-account-access' ? 'account' : 'dashboard');
+      window.GoRouteXSidebar?.setActive(activePageId === 'page-account-access' || activePageId === 'page-pricing' ? 'account' : 'dashboard');
 
       if (!mobileTabBar) return;
 
@@ -5029,6 +4935,11 @@
           permission: 'billing.manage',
           title: 'Account access is restricted for this role',
           message: 'Plan controls, billing access, and account management are reserved for admins.'
+        },
+        'page-pricing': {
+          permission: 'billing.manage',
+          title: 'Billing is restricted for this role',
+          message: 'Plan controls, billing access, and account management are reserved for admins.'
         }
       };
       pageId = normalizePageId(pageId);
@@ -5105,7 +5016,7 @@
         loadHistoryOnce().then(renderHistoryBrowserList).catch((error) => {
           console.warn('History browser load failed:', error);
         });
-      } else if (pageId === 'page-account-access') {
+      } else if (pageId === 'page-account-access' || pageId === 'page-pricing') {
         renderPricingAccessUi();
       } else if (pageId === 'page-select-stops') {
         refreshAutoPlanStatus();
@@ -5265,13 +5176,13 @@
         if (backFromAccountAccessBtn) {
             backFromAccountAccessBtn.addEventListener('click', () => showPage('page-history-dashboard'));
         }
-        if (requestUpgradeBtn) {
-            requestUpgradeBtn.addEventListener('click', () => {
-                if (window.currentUserProfile?.stripeSubscriptionId) {
-                    openStripeBillingPortal();
-                    return;
-                }
-                document.getElementById('accountPlansTitle')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Upgrade and Manage subscription open the in-app Pricing & billing page (plans, checkout, billing).
+        if (requestUpgradeBtn) requestUpgradeBtn.addEventListener('click', () => showPage('page-pricing'));
+        if (accountManageBillingBtn) accountManageBillingBtn.addEventListener('click', () => showPage('page-pricing'));
+        if (backFromPricingBtn) backFromPricingBtn.addEventListener('click', () => showPage('page-account-access'));
+        if (accountUsageCardsDiv) {
+            accountUsageCardsDiv.addEventListener('click', (event) => {
+                if (event.target.closest('[data-plan-upgrade]')) showPage('page-pricing');
             });
         }
         if (billingCurrencySelect) {

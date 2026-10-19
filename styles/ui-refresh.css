@@ -3506,3 +3506,332 @@ body:has(#main.shell) .shell {
     padding: 0 28px !important;
   }
 }
+
+.settings-account-facts {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+}
+
+.settings-account-facts dt {
+  color: var(--ui-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.settings-account-facts dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------- Plan (simplified) */
+.plan-page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+}
+
+.plan-page-wide {
+  max-width: 1100px;
+}
+
+.plan-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plan-title {
+  margin: 0;
+  color: var(--ui-ink);
+  font-size: clamp(1.6rem, 4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.plan-subtitle {
+  margin: 4px 0 0;
+  color: var(--ui-muted);
+  font-size: 0.95rem;
+}
+
+.plan-back {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--ui-border-strong);
+  border-radius: 10px;
+  background: var(--ui-surface);
+  color: var(--ui-ink-2);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.plan-card {
+  padding: 18px 20px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  min-width: 0;
+}
+
+.plan-card-title {
+  margin: 0 0 14px;
+  color: var(--ui-ink);
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.plan-card-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.plan-card-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: var(--ui-blue);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.plan-status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ui-green-soft);
+  color: var(--ui-green);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.plan-status-tag.is-trial { background: var(--ui-blue-soft); color: var(--ui-blue); }
+.plan-status-tag.is-warn { background: var(--ui-amber-soft); color: var(--ui-amber); }
+.plan-status-tag.is-developer { background: #eef1f5; color: var(--ui-muted); }
+
+.plan-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.plan-upgrade-btn {
+  min-height: 44px;
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--ui-blue);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.plan-upgrade-btn[hidden],
+.plan-link-btn[hidden] {
+  display: none !important;
+}
+
+.plan-link-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ui-blue);
+  font: inherit;
+  font-weight: 600;
+  padding: 6px 2px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.plan-upgrade-btn:focus-visible,
+.plan-link-btn:focus-visible,
+.plan-back:focus-visible,
+.plan-included summary:focus-visible {
+  outline: 3px solid #8db1f5;
+  outline-offset: 2px;
+}
+
+/* Usage rows: one line of label and value, a thin bar, a warning only from 80% */
+.plan-usage {
+  display: grid;
+  gap: 16px;
+}
+
+.plan-usage-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.95rem;
+}
+
+.plan-usage-line span {
+  color: var(--ui-ink-2);
+  font-weight: 500;
+}
+
+.plan-usage-line strong {
+  color: var(--ui-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-usage-bar {
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: #e9edf3;
+  overflow: hidden;
+}
+
+.plan-usage-bar > span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--ui-blue);
+}
+
+.plan-usage-row.is-amber .plan-usage-bar > span { background: #e0922a; }
+.plan-usage-row.is-red .plan-usage-bar > span { background: var(--ui-red); }
+
+.plan-usage-warning {
+  margin: 8px 0 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.plan-usage-warning.is-amber { color: var(--ui-amber); }
+.plan-usage-warning.is-red { color: var(--ui-red); }
+
+.plan-usage-note {
+  margin: 0;
+  color: var(--ui-muted);
+  font-size: 0.85rem;
+}
+
+/* What's included */
+.plan-included {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+}
+
+.plan-included summary {
+  list-style: none;
+  padding: 14px 20px;
+  color: var(--ui-blue);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.plan-included summary::-webkit-details-marker { display: none; }
+.plan-included summary::after { content: "+"; margin-left: auto; font-size: 1.2rem; }
+.plan-included[open] summary::after { content: "\2212"; }
+
+.plan-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px 14px;
+  display: grid;
+}
+
+.plan-feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--ui-border);
+  font-size: 0.92rem;
+  min-width: 0;
+}
+
+.plan-feature small {
+  margin-left: auto;
+  color: var(--ui-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.plan-feature-icon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.plan-feature.is-available .plan-feature-icon { color: var(--ui-green); }
+.plan-feature.is-locked,
+.plan-feature.is-soon { color: var(--ui-muted); }
+
+/* Pricing & billing page */
+#page-pricing .plan-page-wide .account-access-panel,
+#page-pricing .plan-page-wide .ui-card {
+  margin: 0 !important;
+}
+
+@media (max-width: 767px) {
+  .plan-page {
+    padding: 16px 16px 96px;
+  }
+
+  .plan-card-main {
+    align-items: flex-start;
+  }
+
+  .plan-upgrade-btn {
+    width: 100%;
+  }
+
+  .plan-card-actions {
+    width: 100%;
+  }
+}
+
+#page-pricing .account-plan-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+@media (max-width: 900px) {
+  #page-pricing .account-plan-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.plan-back {
+  border: 1px solid var(--ui-border-strong) !important;
+}

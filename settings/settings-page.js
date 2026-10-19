@@ -440,8 +440,13 @@ else window.FirebaseApp.auth.onAuthStateChange(async user => {
     state.user = user;
     if (location.hash === '#routePlanning') loadPlanInsights();
     let planLabel = 'Plan unavailable';
-    try { planLabel = window.GoRouteXAccountContext.resolvePlan(identity).planLabel; }
+    let planId = '';
+    try { const plan = window.GoRouteXAccountContext.resolvePlan(identity); planLabel = plan.planLabel; planId = plan.planId; }
     catch (error) { console.warn('SETTINGS_PLAN_UNAVAILABLE', { code: String(error?.code || 'unknown').slice(0, 60) }); }
+    // Role and storage mode (moved here from the Plan page): the stored role, and where data is kept for this plan.
+    const roleText = String(identity.role || '').replace(/^./, letter => letter.toUpperCase());
+    $('settingsRole').textContent = roleText || '—';
+    $('settingsStorage').textContent = planId ? (planId === 'basic' ? 'This device' : 'Cloud sync') : '—';
     $('settingsAccount').textContent = identity.displayName + ' · ' + planLabel;
     await load();
   } catch (error) {
