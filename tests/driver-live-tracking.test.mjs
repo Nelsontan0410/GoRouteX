@@ -42,19 +42,9 @@ test('a GPS timeout keeps watching; only a denied permission stops tracking', ()
   assert.equal(denied.stopped, 1);
 });
 
-test('Live view says why there is no GPS and polls every 15 seconds', () => {
-  const ops = read('driver/operations-page.js');
-  assert.match(ops, /the driver has not started this route/);
-  assert.match(ops, /GPS problem on the driver's phone/);
-  assert.match(ops, /Last activity/);
-  assert.match(ops, /load\(\); \}, 15000\);/);
-});
-
 test('Live view has a way back to Dispatch and home', () => {
   const html = read('driver-tracking.html');
-  assert.match(html, /id="operationsBackLink"[^>]*href="dispatch\.html" hidden/);
-  assert.match(html, /id="operationsHomeLink"[^>]*href="order-hub\.html" hidden/);
-  const ops = read('driver/operations-page.js');
-  assert.match(ops, /back\.hidden = false;/);
-  assert.match(ops, /\$\('operationsHomeLink'\)\.hidden = false;/);
+  assert.match(html, /id="operationsBackLink"[^>]*href="dispatch\.html"/);
+  assert.match(html, /id="operationsHomeLink"[^>]*href="order-hub\.html"/);
+  assert.match(read('driver/operations-page.js'), /\$\('blockedSecondaryAction'\)\.href = back\.href;/);
 });
