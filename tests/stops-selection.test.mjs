@@ -6,7 +6,7 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf
 const app = read('app.html');
 const planningPage = read('planning/planning-page.js');
 const page = app.slice(app.indexOf('<div id="page-select-stops"'), app.indexOf('<button id="goToManualAssignBtn"'));
-const panel = page.slice(page.indexOf('<div id="routeSettingsPanel"'), page.indexOf('<div class="stop-selector-container">'));
+const panel = page.slice(page.indexOf('<div id="routeSettingsPanel"'), page.indexOf('<div class="stop-selector-container"'));
 const visible = page.replace(panel, '');
 
 test('the Route Settings card and its start/end/date summary are no longer shown on Stops Selection', () => {

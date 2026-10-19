@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="styles/master-search.css">
   <link rel="stylesheet" href="styles/typography.css">
   <link rel="stylesheet" href="styles/workspace-layout.css">
+  <link rel="stylesheet" href="styles/ui-refresh.css">
   <script>
     (function setMobileViewportHeight() {
       function updateViewportVar() {
@@ -84,7 +85,7 @@
     </main>
   </div>
   <div id="page-history-dashboard" class="page mobile-core-page active-page">
-    <div class="dashboard-landing-shell">
+    <div class="dashboard-landing-shell ui-dashboard">
       <section class="dashboard-landing-card dashboard-account-card" aria-label="Account summary">
         <div class="dashboard-account-strip">
           <article class="dashboard-strip-item" aria-labelledby="dashboardLoginStatusLabel">
@@ -115,75 +116,77 @@
         <div class="dashboard-wordmark">GoRouteX</div>
       </div>
 
-      <section class="dashboard-landing-card dashboard-actions-card" aria-labelledby="dashboardRouteActionsTitle">
-        <div class="panel-heading dashboard-simple-heading">
-          <div class="panel-heading-stack">
-            <h3 id="dashboardRouteActionsTitle">Optimise every route. Cut delivery costs.</h3>
-            <p>Build the best route for every stop, reduce unnecessary driving, and keep your team on schedule.</p>
-          </div>
+      <header class="ui-page-header ui-dash-head">
+        <div>
+          <span class="ui-eyebrow">PlanEngine</span>
+          <h1 class="ui-title" id="dashboardRouteActionsTitle">Today&rsquo;s route workspace</h1>
+          <p class="ui-subtitle">Plan routes, reuse saved plans and keep your deliveries on schedule.</p>
         </div>
-        <div class="dashboard-primary-actions" aria-label="Primary route actions">
-          <button id="createNewRouteBtn" class="action-button-primary" type="button">Start Route Plan</button>
-          <button id="manageStopsBtn" class="action-button-secondary" type="button">Manage Customers</button>
-          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled title="Select a recent route plan below first">Load Route</button>
-        </div>
+        <span class="ui-date-chip" id="dashboardTodayChip" aria-label="Today"></span>
+        <script>(function () { var chip = document.getElementById('dashboardTodayChip'); if (chip) chip.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); })();</script>
+      </header>
+
+      <section class="ui-kpi-grid ui-dash-kpis" aria-label="Route plan summary">
+        <article class="ui-kpi"><span class="ui-kpi-icon" data-icon="routes" aria-hidden="true"></span><div><span class="ui-kpi-label">Saved plans</span><strong class="ui-kpi-value" id="totalRoutesCount">--</strong><span class="ui-kpi-note">Loaded route history</span></div></article>
+        <article class="ui-kpi"><span class="ui-kpi-icon is-violet" data-icon="truck" aria-hidden="true"></span><div><span class="ui-kpi-label">Routes today</span><strong class="ui-kpi-value" id="todayRoutesCount">--</strong><span class="ui-kpi-note">Plans saved today</span></div></article>
+        <article class="ui-kpi"><span class="ui-kpi-icon is-green" data-icon="pin" aria-hidden="true"></span><div><span class="ui-kpi-label">Stops today</span><strong class="ui-kpi-value" id="totalStopsCount">--</strong><span class="ui-kpi-note">Across today&rsquo;s plans</span></div></article>
+        <article class="ui-kpi"><span class="ui-kpi-icon is-amber" data-icon="chart" aria-hidden="true"></span><div><span class="ui-kpi-label">Avg stops / route</span><strong class="ui-kpi-value" id="avgStopsPerRoute">--</strong><span class="ui-kpi-note">Saved plans</span></div></article>
       </section>
 
-      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true">
-        <div class="dashboard-history-header">
-          <div class="panel-heading-stack">
-            <h3 id="dashboardHistorySnapshotTitle">Recent route plans</h3>
-            <p id="historyStatsStatus" class="dashboard-stats-status" aria-live="polite">Loading saved route history...</p>
+      <div class="ui-dash-grid">
+        <section id="historyStatsPanel" class="ui-card ui-recent" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true">
+          <div class="ui-card-head">
+            <div>
+              <h2 id="dashboardHistorySnapshotTitle" class="ui-card-title">Recent route plans</h2>
+              <p id="historyStatsStatus" class="ui-card-sub" aria-live="polite">Loading saved route history...</p>
+            </div>
+            <button id="browseFullHistoryBtn" class="ui-link-button" type="button">View all</button>
           </div>
-          <button id="browseFullHistoryBtn" class="action-button-secondary" type="button">Browse Full History</button>
-        </div>
 
-        <div class="stats-grid dashboard-snapshot-grid">
-          <div class="stat-item">
-            <div class="stat-number" id="totalRoutesCount">--</div>
-            <div class="stat-label">Saved Plans</div>
+          <div class="ui-recent-head" aria-hidden="true">
+            <span>Plan / driver</span>
+            <span>Stops</span>
+            <span>Restrictions</span>
+            <span>Action</span>
           </div>
-          <div class="stat-item">
-            <div class="stat-number" id="todayRoutesCount">--</div>
-            <div class="stat-label">Routes Today</div>
+          <div class="history-list" id="historyList">
+            <div class="empty-history">
+              <div class="empty-history-icon">No Data</div>
+              <h4>No Route History Found</h4>
+              <p>Your planned routes will appear here for easy access and API cost optimization.</p>
+            </div>
           </div>
-          <div class="stat-item">
-            <div class="stat-number" id="totalStopsCount">--</div>
-            <div class="stat-label">Stops Today</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number" id="avgStopsPerRoute">--</div>
-            <div class="stat-label">Avg Stops/Route</div>
-          </div>
-        </div>
+        </section>
 
-        <div class="dashboard-snapshot-statuses" aria-label="Route history snapshot status">
-          <article class="dashboard-status-panel">
-            <span class="dashboard-card-label">Today's saved plans</span>
-            <strong id="dashboardAssignedRoutes" class="dashboard-status-value">--</strong>
-            <span id="dashboardAssignedRoutesNote" class="dashboard-status-meta">Checking today's saved plans</span>
-          </article>
-          <article class="dashboard-status-panel">
-            <span class="dashboard-card-label">Latest saved route</span>
-            <strong id="dashboardLatestRoute" class="dashboard-status-value">--</strong>
-            <span id="dashboardLatestRouteNote" class="dashboard-status-meta">Recent planning activity will appear here</span>
-          </article>
-        </div>
+        <aside class="ui-dash-side">
+          <section class="ui-card" aria-labelledby="dashboardQuickActionsTitle">
+            <h2 id="dashboardQuickActionsTitle" class="ui-card-title">Quick actions</h2>
+            <div class="dashboard-primary-actions ui-quick-actions" aria-label="Primary route actions">
+              <button id="createNewRouteBtn" class="action-button-primary ui-tile" data-icon="route" type="button">Start Route Plan<small>Select stops and optimise</small></button>
+              <button id="manageStopsBtn" class="action-button-secondary ui-tile is-green" data-icon="users" type="button">Manage Customers<small>Saved delivery locations</small></button>
+              <a class="ui-tile is-violet" data-icon="box" href="order-hub.html">Order Hub<small>Import and review orders</small></a>
+              <a class="ui-tile is-amber" data-icon="truck" href="dispatch.html" data-nav="dispatch">Dispatch<small>Send routes to drivers</small></a>
+              <button id="loadSelectedRouteBtn" class="action-button-secondary ui-tile is-grey" data-icon="load" type="button" disabled title="Select a recent route plan first">Load Route<small>Reopen the selected plan</small></button>
+            </div>
+          </section>
 
-        <div class="dashboard-history-table-head" aria-hidden="true">
-          <span>Plan / driver</span>
-          <span>Delivery counts</span>
-          <span>Restriction notice</span>
-          <span>Action</span>
-        </div>
-        <div class="history-list" id="historyList">
-          <div class="empty-history">
-            <div class="empty-history-icon">No Data</div>
-            <h4>No Route History Found</h4>
-            <p>Your planned routes will appear here for easy access and API cost optimization.</p>
-          </div>
-        </div>
-      </section>
+          <section class="ui-card ui-dash-today" aria-label="Today">
+            <h2 class="ui-card-title">Today</h2>
+            <div class="ui-today-list" aria-label="Route history snapshot status">
+              <article class="ui-today-item">
+                <span class="ui-today-label">Today's saved plans</span>
+                <strong id="dashboardAssignedRoutes" class="ui-today-value">--</strong>
+                <span id="dashboardAssignedRoutesNote" class="ui-today-meta">Checking today's saved plans</span>
+              </article>
+              <article class="ui-today-item">
+                <span class="ui-today-label">Latest saved route</span>
+                <strong id="dashboardLatestRoute" class="ui-today-value">--</strong>
+                <span id="dashboardLatestRouteNote" class="ui-today-meta">Recent planning activity will appear here</span>
+              </article>
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <div id="dashboardEmptyState" class="dashboard-hidden-support" hidden aria-hidden="true"></div>
@@ -200,17 +203,22 @@
     <p id="dashboardUpgradeCopy" class="dashboard-hidden-support" hidden aria-hidden="true"></p>
   </div>
   <div id="page-history-browser" class="page mobile-deep-page">
-    <div class="history-browser-header">
-      <h1>Full Route History</h1>
-      <div style="display:flex; gap:10px;">
+    <div class="ui-history">
+    <div class="history-browser-header ui-page-header">
+      <div>
+        <span class="ui-eyebrow">History</span>
+        <h1 class="ui-title">Full Route History</h1>
+        <p class="ui-subtitle">Review saved route plans. Search, filter and reopen a plan.</p>
+      </div>
+      <div class="ui-head-actions">
         <button type="button" class="action-button-secondary" onclick="goBackToPreviousPage()">Back</button>
-        <button id="backFromHistoryBrowserBtn" class="action-button-secondary">Dashboard</button>
+        <button id="backFromHistoryBrowserBtn" class="action-button-secondary">PlanEngine</button>
       </div>
     </div>
-    <div class="history-browser-toolbar">
+    <div class="history-browser-toolbar ui-card">
       <div class="history-filter-grid">
         <div class="history-filter-field">
-          <label for="historySearchInput">Search history</label>
+          <label for="historySearchInput">Keyword search</label>
           <input type="search" id="historySearchInput" placeholder="Search by route, origin, driver, or notes">
         </div>
         <div class="history-filter-field">
@@ -238,46 +246,45 @@
           </select>
         </div>
       </div>
-      <div class="history-summary-grid" aria-label="Filtered route history summary">
-        <div class="history-summary-card">
-          <span class="history-summary-label">Routes Shown</span>
-          <strong id="filteredRoutesCount" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Matching the active history filters</span>
-        </div>
-        <div class="history-summary-card">
-          <span class="history-summary-label">Stops Shown</span>
-          <strong id="filteredStopsCount" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Across filtered route plans</span>
-        </div>
-        <div class="history-summary-card">
-          <span class="history-summary-label">People</span>
-          <strong id="filteredDriversCount" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Unique planners or drivers in view</span>
-        </div>
-        <div class="history-summary-card">
-          <span class="history-summary-label">Latest Activity</span>
-          <strong id="filteredLastActivity" class="history-summary-value">--</strong>
-          <span class="history-summary-note">Most recent route save in the filtered list</span>
-        </div>
-      </div>
       <div class="history-results-meta">
         <span id="historyResultsMeta">Showing all saved routes.</span>
         <div id="historyFilterChips" class="history-filter-chips" aria-live="polite"></div>
       </div>
     </div>
-    <div class="history-browser-actions">
-      <button id="loadSelectedRouteFromBrowserBtn" class="action-button-success" disabled>Load Selected Route</button>
-      <button id="clearHistoryFromBrowserBtn" class="action-button-secondary">Clear All History</button>
+    <div class="ui-kpi-grid history-kpis" aria-label="Filtered route history summary">
+      <article class="ui-kpi"><span class="ui-kpi-icon" data-icon="routes" aria-hidden="true"></span><div><span class="ui-kpi-label">Routes shown</span><strong id="filteredRoutesCount" class="ui-kpi-value">--</strong><span class="ui-kpi-note">Matching the filters</span></div></article>
+      <article class="ui-kpi"><span class="ui-kpi-icon is-green" data-icon="pin" aria-hidden="true"></span><div><span class="ui-kpi-label">Stops shown</span><strong id="filteredStopsCount" class="ui-kpi-value">--</strong><span class="ui-kpi-note">Across those plans</span></div></article>
+      <article class="ui-kpi"><span class="ui-kpi-icon is-violet" data-icon="users" aria-hidden="true"></span><div><span class="ui-kpi-label">People</span><strong id="filteredDriversCount" class="ui-kpi-value">--</strong><span class="ui-kpi-note">Planners or drivers</span></div></article>
+      <article class="ui-kpi"><span class="ui-kpi-icon is-amber" data-icon="clock" aria-hidden="true"></span><div><span class="ui-kpi-label">Latest activity</span><strong id="filteredLastActivity" class="ui-kpi-value ui-kpi-value-sm">--</strong><span class="ui-kpi-note">Most recent save</span></div></article>
     </div>
-    <div id="historyBrowserList" class="history-list history-browser-list"></div>
-    <div class="history-browser-actions">
-      <button id="loadMoreHistoryBtn" class="action-button-secondary" type="button" hidden>Load More</button>
+    <div class="ui-history-grid">
+      <section class="ui-card ui-history-main" aria-labelledby="historyTableTitle">
+        <div class="ui-card-head">
+          <h2 id="historyTableTitle" class="ui-card-title">Route history</h2>
+          <div class="history-browser-actions">
+            <button id="clearHistoryFromBrowserBtn" class="action-button-secondary">Clear All History</button>
+            <button id="loadSelectedRouteFromBrowserBtn" class="action-button-primary" disabled>Load Selected Route</button>
+          </div>
+        </div>
+        <div class="ui-recent-head ui-history-head" aria-hidden="true"><span>Plan / driver</span><span>Stops</span><span>Restrictions</span><span>Action</span></div>
+        <div id="historyBrowserList" class="history-list history-browser-list"></div>
+        <div class="history-browser-actions ui-history-more">
+          <button id="loadMoreHistoryBtn" class="action-button-secondary" type="button" hidden>Load More</button>
+        </div>
+      </section>
+      <aside class="ui-card ui-history-side" aria-labelledby="historyBreakdownTitle">
+        <h2 id="historyBreakdownTitle" class="ui-card-title">Status breakdown</h2>
+        <p class="ui-card-sub">Routes shown with the current filters.</p>
+        <div id="historyStatusBreakdown" class="ui-breakdown"></div>
+      </aside>
+    </div>
     </div>
   </div>
 
   <div id="page-select-stops" class="page mobile-core-page">
-    <div class="stop-selector-header workspace-intro-header">
+    <div class="stop-selector-header workspace-intro-header ui-planner-head">
       <div class="workspace-intro-title">
+        <span class="ui-eyebrow">Route planner</span>
         <h2>Stops Selection</h2>
         <p class="workspace-intro-description">Select the stops for this route, review your selection, and continue to assignment.</p>
       </div>
@@ -286,6 +293,11 @@
         <button type="button" id="openRouteSettingsBtn" class="action-button-secondary" aria-haspopup="dialog" aria-controls="routeSettingsPanel" style="width:auto; margin-bottom:0;">Route settings</button>
       </div>
     </div>
+    <ol class="ui-stepper" aria-label="Planning steps">
+      <li class="is-current" aria-current="step"><span>1</span>Select stops</li>
+      <li><span>2</span>Review &amp; assign</li>
+      <li><span>3</span>Confirm</li>
+    </ol>
     <div id="orderPlanNotice" class="order-plan-notice" role="status" hidden></div>
     <div id="routeSettingsPanel" class="route-settings-overlay" role="dialog" aria-modal="true" aria-labelledby="routeSettingsPanelTitle" hidden>
       <div class="route-settings-overlay-card">
@@ -343,13 +355,22 @@
     </div>
       </div>
     </div>
-    <div class="stop-selector-container">
+    <div class="ss-tabs" role="tablist" aria-label="Show stops">
+      <button type="button" role="tab" data-ss-tab="available" aria-selected="true">Available</button>
+      <button type="button" role="tab" data-ss-tab="selected" aria-selected="false">Selected (<span id="ssSelectedCount">0</span>)</button>
+    </div>
+    <div class="stop-selector-container" data-ss-view="available">
       <div class="stop-selector-left">
         <div class="search-stop-panel-header">
           <label for="searchCustomerInput">Search Stops</label>
           <button id="selectionAddCustomerBtn" class="action-button-secondary" type="button">Add Stop</button>
         </div>
         <input type="text" id="searchCustomerInput" placeholder="Search name, address, or phone" />
+        <div class="ss-chips" role="group" aria-label="Filter stops">
+          <button type="button" data-phone-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-phone-filter="phone" aria-pressed="false">Has phone</button>
+          <button type="button" data-phone-filter="nophone" aria-pressed="false">No phone</button>
+        </div>
         <div id="customerList">
           <div id="stopsContainer">
             <div id="stopsSpacer"></div>
@@ -362,10 +383,25 @@
         <div id="selectedListDisplay"><em>No stops selected yet.</em></div>
       </div>
     </div>
-    <button id="goToManualAssignBtn">Review & Assign Selected Stops</button>
+    <div class="ss-footer">
+      <button type="button" class="ss-summary" id="ssSummaryBtn" aria-label="View selected stops"><span id="ssSummaryText">0 stops selected</span><small>Tap to view or edit</small></button>
+      <button id="goToManualAssignBtn">Review & Assign Selected Stops</button>
+    </div>
   </div>
 
   <div id="page-manual-assign" class="page mobile-deep-page">
+    <div class="ui-planner-head ra-head">
+      <div>
+        <span class="ui-eyebrow">Route planner</span>
+        <h2>Review &amp; Assign</h2>
+      </div>
+      <ol class="ui-stepper" aria-label="Planning steps">
+        <li class="is-done"><span>1</span>Select stops</li>
+        <li class="is-current" aria-current="step"><span>2</span>Review &amp; assign</li>
+        <li><span>3</span>Confirm</li>
+      </ol>
+    </div>
+    <div id="raChips" class="ra-chips" aria-live="polite"></div>
     <div id="topBarPage2">
       <div id="messageBar">Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.</div>
       <div id="currentOriginDisplay" hidden>Origin: ...</div>
@@ -402,6 +438,7 @@
         </div>
         <div id="routePanel" class="manual-assign-panel">
         <button id="toggleRoutePanel" type="button" aria-label="Toggle route panel">&#9650;</button>
+        <div id="raTabs" class="ra-tabs" role="tablist" aria-label="Route groups"></div>
         <div id="stop-assignment-lists-container">
             <div id="unassignedSection">
                 <div class="route-list-wrapper">
@@ -694,9 +731,13 @@
 
   <!-- Page 5: Add New Stop -->
   <div id="page-add-stop" class="page mobile-core-page">
-    <div class="add-stop-header workspace-intro-header">
-      <div class="add-stop-title">Customer Workspace</div>
-      <div class="add-stop-header-controls workspace-intro-actions">
+    <div class="add-stop-header workspace-intro-header ui-page-header ui-customers-head">
+      <div>
+        <span class="ui-eyebrow">Customers</span>
+        <div class="add-stop-title ui-title" role="heading" aria-level="1">Customer Workspace</div>
+        <p class="ui-subtitle">Manage customers, contacts and delivery locations in one place.</p>
+      </div>
+      <div class="add-stop-header-controls workspace-intro-actions ui-head-actions">
         <button class="add-stop-nav-btn" onclick="goBackToPreviousPage()">Back</button>
       </div>
     </div>
@@ -783,12 +824,12 @@
 
         <div id="manageStopsSection" class="form-section" data-stop-workspace-panel="edit" hidden>
           <h3>Search Customers</h3>
-          <p class="form-description">Find a customer by name, contact, phone number or address, then edit or delete it.</p>
+          <p class="form-description">All saved customer locations. Search by name, contact, phone number or address, then edit or delete.</p>
           <form id="masterSearchForm" class="master-search-controls">
             <label for="masterSearchType">Search type</label>
             <select id="masterSearchType" required><option value="customer">Customer Name</option><option value="contact">Contact Name</option><option value="phone">Phone Number</option><option value="address">Delivery Address</option></select>
             <label for="manageStopsSearchInput">Search terms</label>
-            <input type="search" id="manageStopsSearchInput" placeholder="Enter a name, number, or address" required>
+            <input type="search" id="manageStopsSearchInput" placeholder="Search customers, contacts, phones or addresses">
             <button type="submit" class="submit-btn">Search</button>
           </form>
           <div id="manageStopsList" class="manage-stops-list" role="status"><p class="no-items">Choose a search type and enter a query.</p></div>
@@ -915,21 +956,22 @@
   </div>
 
   <div id="page-account-access" class="page mobile-deep-page">
-    <div class="account-access-header">
+    <div class="ui-account">
+    <div class="account-access-header ui-page-header">
       <div>
-        <h2 style="margin: 0;">Plan &amp; Access</h2>
-        <p class="account-access-subtitle">Review your current plan, usage, locked features, and role-ready access settings.</p>
+        <span class="ui-eyebrow">Workspace settings</span>
+        <h1 class="ui-title">Plan &amp; Access</h1>
+        <p class="account-access-subtitle ui-subtitle">Your subscription, usage limits, feature access and workspace settings.</p>
       </div>
-      <div class="account-access-actions">
+      <div class="account-access-actions ui-head-actions">
         <button type="button" class="action-button-secondary" onclick="goBackToPreviousPage()">Back</button>
-        <button id="backFromAccountAccessBtn" class="action-button-secondary" type="button">Dashboard</button>
+        <button id="backFromAccountAccessBtn" class="action-button-secondary" type="button">PlanEngine</button>
         <a id="openPublicPricingLink" class="action-button-primary" href="index.html#pricing">View Pricing</a>
       </div>
     </div>
 
-    <div class="account-access-grid">
-      <section class="account-access-panel" aria-labelledby="companySettingsTitle"><h3 id="companySettingsTitle">Company settings</h3><p>Set Driver, Vehicle, Route Planning, Order, and delivery defaults for this workspace.</p><a class="action-button-secondary" href="settings.html">Open Settings</a></section>
-      <section class="account-access-hero" aria-labelledby="accountPlanHeroTitle">
+    <div class="account-access-grid ui-account-grid">
+      <section class="account-access-hero ui-card ui-account-hero" aria-labelledby="accountPlanHeroTitle">
         <div class="account-hero-header">
           <div>
             <span id="accountCurrentPlanBadge" class="account-plan-pill">Trial</span>
@@ -954,8 +996,27 @@
           </div>
         </div>
       </section>
-
-      <section class="account-access-panel" aria-labelledby="accountSubscriptionTitle">
+      <section class="account-access-panel ui-card ui-account-usage" aria-labelledby="accountUsageTitle">
+        <div class="panel-heading">
+          <div class="panel-heading-stack">
+            <h3 id="accountUsageTitle">Usage and limits</h3>
+            <p>Know what your current plan allows before you hit a limit in daily operations.</p>
+          </div>
+        </div>
+        <div id="accountUsageCards" class="account-usage-grid"></div>
+      </section>
+      <div class="ui-account-cols">
+        <section class="account-access-panel ui-card" aria-labelledby="accountFeatureAccessTitle">
+        <div class="panel-heading">
+          <div class="panel-heading-stack">
+            <h3 id="accountFeatureAccessTitle">Feature access</h3>
+            <p>Clear locked states make it obvious what is available now and what needs an upgrade.</p>
+          </div>
+        </div>
+        <div id="accountFeatureAccessList" class="access-feature-list"></div>
+      </section>
+        <div class="ui-account-stack">
+          <section class="account-access-panel ui-card" aria-labelledby="accountSubscriptionTitle">
         <div class="panel-heading">
           <div class="panel-heading-stack">
             <h3 id="accountSubscriptionTitle">Subscription</h3>
@@ -994,28 +1055,7 @@
           </div>
         </form>
       </section>
-
-      <section class="account-access-panel" aria-labelledby="accountUsageTitle">
-        <div class="panel-heading">
-          <div class="panel-heading-stack">
-            <h3 id="accountUsageTitle">Usage and limits</h3>
-            <p>Know what your current plan allows before you hit a limit in daily operations.</p>
-          </div>
-        </div>
-        <div id="accountUsageCards" class="account-usage-grid"></div>
-      </section>
-
-      <section class="account-access-panel" aria-labelledby="accountFeatureAccessTitle">
-        <div class="panel-heading">
-          <div class="panel-heading-stack">
-            <h3 id="accountFeatureAccessTitle">Feature access</h3>
-            <p>Clear locked states make it obvious what is available now and what needs an upgrade.</p>
-          </div>
-        </div>
-        <div id="accountFeatureAccessList" class="access-feature-list"></div>
-      </section>
-
-      <section class="account-access-panel" aria-labelledby="accountRoleAccessTitle">
+          <section class="account-access-panel ui-card" aria-labelledby="accountRoleAccessTitle">
         <div class="panel-heading">
           <div class="panel-heading-stack">
             <h3 id="accountRoleAccessTitle">Role visibility</h3>
@@ -1024,9 +1064,12 @@
         </div>
         <div id="accountRoleAccessList" class="role-access-list"></div>
       </section>
+        </div>
+      </div>
+      <section class="account-access-panel ui-card" aria-labelledby="companySettingsTitle"><div class="ui-card-head"><div><h3 id="companySettingsTitle" class="ui-card-title">Workspace settings</h3><p class="ui-card-sub">Driver, vehicle, route planning, order and delivery defaults for this workspace.</p></div><a class="ui-link-button" href="settings.html">Edit settings</a></div><div class="ui-settings-links"><a class="ui-tile" data-icon="users" href="settings.html#drivers">Drivers<small>Working hours and accounts</small></a><a class="ui-tile is-violet" data-icon="truck" href="settings.html#vehicles">Vehicles<small>Capacity and plates</small></a><a class="ui-tile is-green" data-icon="clock" href="settings.html#routePlanning">Route planning<small>Service time and start/end</small></a><a class="ui-tile is-amber" data-icon="list" href="settings.html#orders">Order rules<small>Contact and readiness</small></a></div></section>
     </div>
 
-    <section class="account-access-panel" aria-labelledby="accountPlansTitle">
+    <section class="account-access-panel ui-card" aria-labelledby="accountPlansTitle">
       <div class="panel-heading">
         <div class="panel-heading-stack">
           <h3 id="accountPlansTitle">Plan comparison</h3>
@@ -1036,7 +1079,7 @@
       <div id="accountPlanCards" class="account-plan-grid"></div>
     </section>
 
-    <section class="account-access-panel" aria-labelledby="accountCompareTitle">
+    <section class="account-access-panel ui-card" aria-labelledby="accountCompareTitle">
       <div class="panel-heading">
         <div class="panel-heading-stack">
           <h3 id="accountCompareTitle">Feature comparison</h3>
@@ -1045,24 +1088,25 @@
       </div>
       <div id="accountPlanComparisonTable" class="account-comparison-table-wrap"></div>
     </section>
+    </div>
   </div>
 
   <nav id="mobileTabBar" class="mobile-tab-bar is-hidden" aria-label="Mobile Navigation">
     <button type="button" class="mobile-tab-btn" data-page="page-history-dashboard">
-      <span class="mobile-tab-icon">Home</span>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></span>
       <span class="mobile-tab-text">PlanEngine</span>
     </button>
     <button type="button" class="mobile-tab-btn" onclick="window.location.href='order-hub.html'">
-      <span class="mobile-tab-icon">Orders</span>
-      <span class="mobile-tab-text">Order Hub</span>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span>
+      <span class="mobile-tab-text">Orders</span>
     </button>
     <button type="button" class="mobile-tab-btn" onclick="openDispatchPage()">
-      <span class="mobile-tab-icon">Routes</span>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span>
       <span class="mobile-tab-text">Dispatch</span>
     </button>
-    <button type="button" class="mobile-tab-btn" data-page="page-gps-tracking">
-      <span class="mobile-tab-icon">GPS</span>
-      <span class="mobile-tab-text">Tracking</span>
+    <button type="button" class="mobile-tab-btn" data-nav="more" aria-haspopup="true" aria-expanded="false" data-more-pages='[{"key":"gps","label":"GPS Tracking","href":"app.html#page-gps-tracking","page":"page-gps-tracking"}]'>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+      <span class="mobile-tab-text">More</span>
     </button>
   </nav>
     </div>
@@ -1309,6 +1353,7 @@
   <script src="planning/manual-assignment-page.js?v=20261003-1"></script>
   <script src="planning/manual-assignment-dnd.js?v=20261003-1"></script>
   <script src="planning/manual-map-preview.js?v=20261003-1"></script>
+  <script src="planning/review-assign-ui.js"></script>
   <script>
     // ===== STATE =====
     // Global app state, selected stops, route plan state, map instances, UI flags, and runtime caches.
@@ -7433,13 +7478,19 @@
         appLog(`Restored ${selectedCustomers.size} selected customers from ${selectedAddresses.size} stored addresses`);
     }
 
+    // Phone filter chips on Stops Selection: 'all' | 'phone' | 'nophone'.
+    let stopPhoneFilter = 'all';
     function getFilteredCustomerEntries(searchTerm = '') {
         const keyword = String(searchTerm || '').trim().toLowerCase();
-        if (!keyword) {
+        const hasPhone = (entry) => String(entry['Hp No'] || '').trim() !== '';
+        const byPhone = stopPhoneFilter === 'phone' ? hasPhone : stopPhoneFilter === 'nophone' ? (entry) => !hasPhone(entry) : null;
+        if (!keyword && !byPhone) {
             return allCustomerEntries;
         }
 
         return allCustomerEntries.filter((entry) => {
+            if (byPhone && !byPhone(entry)) return false;
+            if (!keyword) return true;
             const haystack = `${entry.Name || ''} ${entry.Address || ''} ${entry['Hp No'] || ''}`.toLowerCase();
             return haystack.includes(keyword);
         });
@@ -7458,6 +7509,10 @@
         if (selectedStopsBadgeEl) {
             selectedStopsBadgeEl.textContent = `${selectedCustomers.size} / ${getCurrentSelectedStopsLimit()}`;
         }
+        const ssCount = document.getElementById('ssSelectedCount');
+        if (ssCount) ssCount.textContent = String(selectedCustomers.size);
+        const ssSummary = document.getElementById('ssSummaryText');
+        if (ssSummary) ssSummary.textContent = `${selectedCustomers.size} stop${selectedCustomers.size === 1 ? '' : 's'} selected`;
         if (selectionSelectedNoteEl) {
             const storageLabel = getCurrentStorageMode() === 'indexeddb' ? 'device-only Basic' : 'current cloud';
             selectionSelectedNoteEl.textContent = `You can select up to ${getCurrentSelectedStopsLimit()} stops at once on the ${storageLabel} plan setup.`;
@@ -7762,6 +7817,7 @@
 
       selectedListDisplayDiv.innerHTML = selectedEntries.map((customerEntry, index) => `
           <div class="selected-stop-card">
+              <button type="button" class="ss-remove" data-ss-remove="${escapeHtml(customerEntry.uniqueId || '')}" aria-label="Remove ${escapeHtml(customerEntry.Name || 'stop')}">&times;</button>
               <strong>${index + 1}. ${escapeHtml(customerEntry.Name || 'Unknown')}</strong>
               <span class="selected-stop-meta">${escapeHtml(customerEntry.Address || 'Address not available')}</span>
               <span class="selected-stop-meta">${escapeHtml(String(customerEntry['Hp No'] || '').trim() || 'No phone number saved')}</span>
@@ -7769,6 +7825,48 @@
       `).join('');
       updateManualAssignAccessButton();
     }
+
+    // Stops Selection controls added with the 2026-10 UI refresh: Available / Selected view (phone),
+    // phone filter chips, the selected summary and removing a selected stop from its card.
+    function setStopsSelectionView(view) {
+        const container = document.querySelector('#page-select-stops .stop-selector-container');
+        if (container) container.dataset.ssView = view === 'selected' ? 'selected' : 'available';
+        document.querySelectorAll('#page-select-stops [data-ss-tab]').forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.ssTab === container?.dataset.ssView)));
+    }
+
+    function removeSelectedStop(customerId) {
+        if (!selectedCustomers.has(customerId)) return;
+        selectedCustomers.delete(customerId);
+        selectedAddresses.clear();
+        selectedCustomers.forEach((id) => {
+            const entry = allCustomerEntries.find((e) => e.uniqueId === id);
+            if (entry) selectedAddresses.add(entry.Address);
+        });
+        syncSessionToCloud();
+        updateSelectedListOnPage1();
+        updateManualAssignAccessButton();
+        renderCustomerList(searchCustomerInput ? searchCustomerInput.value : '');
+    }
+
+    document.getElementById('page-select-stops')?.addEventListener('click', (event) => {
+        const tab = event.target.closest('[data-ss-tab]');
+        if (tab) { setStopsSelectionView(tab.dataset.ssTab); return; }
+        const chip = event.target.closest('[data-phone-filter]');
+        if (chip) {
+            stopPhoneFilter = chip.dataset.phoneFilter;
+            document.querySelectorAll('#page-select-stops [data-phone-filter]').forEach((item) => item.setAttribute('aria-pressed', String(item === chip)));
+            stopListSearchTerm = null;
+            renderCustomerList(searchCustomerInput ? searchCustomerInput.value : '');
+            return;
+        }
+        if (event.target.closest('#ssSummaryBtn')) {
+            const container = document.querySelector('#page-select-stops .stop-selector-container');
+            setStopsSelectionView(container?.dataset.ssView === 'selected' ? 'available' : 'selected');
+            return;
+        }
+        const remove = event.target.closest('[data-ss-remove]');
+        if (remove) removeSelectedStop(remove.dataset.ssRemove);
+    });
 
     // ===== CONTROLLER =====
     // Manual assignment page flow and user interactions.
@@ -12649,6 +12747,9 @@
     function setStopWorkspaceMode(mode) {
         const nextMode = ['add', 'edit', 'import'].includes(mode) ? mode : 'add';
         activeStopWorkspaceMode = nextMode;
+        // Layout hook: the customer table (Search) uses the full width; Add and Import keep the map beside.
+        const workspaceContainer = document.querySelector('#page-add-stop .add-stop-container');
+        if (workspaceContainer) workspaceContainer.dataset.mode = nextMode;
         document.querySelectorAll('[data-stop-workspace-panel]').forEach((panel) => {
             panel.hidden = panel.dataset.stopWorkspacePanel !== nextMode;
         });
@@ -12779,29 +12880,33 @@
         renderManageStopsList(manageStopsSearchTerm);
     }
 
+    // Customer table: every saved stop when the search box is empty (first 100), otherwise the matches.
     function renderManageStopsList(searchTerm = manageStopsSearchTerm) {
         if (!manageStopsList) return;
         manageStopsSearchTerm = String(searchTerm || '').trim();
-        if (!manageStopsSearchTerm) {
-            manageStopsList.innerHTML = '<p class="no-items">Choose a search type and enter a query.</p>';
-            return;
-        }
         const master = window.OrderMasterMaintenance?.getMaster?.();
         if (!master) { manageStopsList.textContent = 'Loading saved records...'; return; }
         const type = document.getElementById('masterSearchType')?.value || 'customer';
-        const records = window.GoRouteXMasterSearch?.search(master,type,manageStopsSearchTerm) || [];
-        if (!records.length) { manageStopsList.innerHTML = '<p class="no-items">No matching saved stops or contacts. Try another search.</p>'; return; }
+        const LIMIT = 100;
+        const records = manageStopsSearchTerm
+            ? (window.GoRouteXMasterSearch?.search(master,type,manageStopsSearchTerm) || [])
+            : (master.stops || []).filter((stop) => stop?.id).map((stop) => ({ kind: 'stop', id: stop.id, customer: (master.customers || []).find((c) => c.id === stop.customerId)?.name || stop.customerName || stop.name || 'Unassigned customer', stop: stop.label || stop.name || '', address: stop.address || stop.Address || '', phone: stop.phone || stop['Hp No'] || '', contact: '' }))
+                .sort((a, b) => a.customer.localeCompare(b.customer));
+        if (!records.length) { manageStopsList.innerHTML = manageStopsSearchTerm ? '<p class="no-items">No matching saved stops or contacts. Try another search.</p>' : '<p class="no-items">No customers saved yet. Add one or import a list.</p>'; return; }
         const canManage = hasRolePermission('stops.manage');
-        manageStopsList.innerHTML = `<p class="master-search-count">${records.length} matching records</p>` + records.map(record => `
-            <div class="manage-stop-item">
-              <div class="manage-stop-main">
-                <div class="manage-stop-name">${escapeHtml(record.kind === 'contact' ? record.contact : record.stop)} <small>${record.kind === 'contact' ? 'Contact' : 'Saved stop'}</small></div>
-                <div class="manage-stop-meta">Customer: ${escapeHtml(record.customer)} · Stop: ${escapeHtml(record.stop)}</div>
-                <div class="manage-stop-meta">Address: ${escapeHtml(record.address || 'General customer contact')}</div>
-                <div class="manage-stop-meta">Phone: ${escapeHtml(record.phone || '—')}</div>
-              </div>
-              ${canManage ? `<div class="manage-stop-actions"><button type="button" data-action="edit-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Edit</button><button type="button" class="delete-stop-btn" data-action="delete-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Delete</button></div>` : '<div class="manage-stop-readonly">Read only</div>'}
-            </div>`).join('');
+        const shown = records.slice(0, LIMIT);
+        const countText = manageStopsSearchTerm
+            ? `${records.length} matching record${records.length === 1 ? '' : 's'}`
+            : `${records.length} saved customer location${records.length === 1 ? '' : 's'}${records.length > LIMIT ? ` · showing the first ${LIMIT}, search to narrow` : ''}`;
+        manageStopsList.innerHTML = `<p class="master-search-count">${escapeHtml(countText)}</p>
+            <div class="ui-table-wrap"><table class="ui-table customer-table"><thead><tr><th scope="col">Customer</th><th scope="col">Location / contact</th><th scope="col">Phone</th><th scope="col">Address</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>`
+            + shown.map(record => `<tr class="manage-stop-item">
+                <td data-label="Customer"><strong>${escapeHtml(record.customer)}</strong></td>
+                <td data-label="Location">${escapeHtml(record.kind === 'contact' ? record.contact : record.stop) || '—'} <small class="ui-kind">${record.kind === 'contact' ? 'Contact' : 'Stop'}</small></td>
+                <td data-label="Phone">${escapeHtml(record.phone || '—')}</td>
+                <td data-label="Address" class="customer-address">${escapeHtml(record.address || (record.kind === 'contact' ? 'General customer contact' : '—'))}</td>
+                <td class="manage-stop-actions">${canManage ? `<button type="button" data-action="edit-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Edit</button><button type="button" class="delete-stop-btn" data-action="delete-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Delete</button>` : '<span class="manage-stop-readonly">Read only</span>'}</td>
+              </tr>`).join('') + '</tbody></table></div>';
     }
 
     function removeStopFromPlanningState(stopId) {
@@ -13097,8 +13202,14 @@
     document.getElementById('masterSearchType')?.addEventListener('change', () => {
         manageStopsSearchTerm = ''; if (manageStopsSearchInput) manageStopsSearchInput.value = ''; renderManageStopsList('');
     });
+    // Filter as the user types (the Search button still works).
+    let manageStopsSearchTimer = null;
+    manageStopsSearchInput?.addEventListener('input', () => {
+        clearTimeout(manageStopsSearchTimer);
+        manageStopsSearchTimer = setTimeout(() => renderManageStopsList(manageStopsSearchInput.value || ''), 200);
+    });
     document.addEventListener('goroutex:master-updated', () => {
-        if (activeStopWorkspaceMode === 'edit' && manageStopsSearchTerm) renderManageStopsList(manageStopsSearchTerm);
+        if (activeStopWorkspaceMode === 'edit') renderManageStopsList(manageStopsSearchTerm);
     });
     manageStopsList?.addEventListener('click', async event => {
         const button = event.target.closest('button[data-action][data-stop-id]');
