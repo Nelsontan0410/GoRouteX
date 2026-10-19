@@ -182,6 +182,7 @@ export default async (req) => {
       const plan = planSnap.exists ? planSnap.data() : body.planSnapshot;
       if (!plan || !Array.isArray(plan.plannedRoutes) || !plan.plannedRoutes.length) return respond({ success: false, error: 'Route plan was not found. Save the plan before dispatching.' }, 404);
       const candidates = [];
+      const warnings = [];
       const seen = new Set();
       for (const row of assignments) {
         const routeId = clean(row.routeId, 60);
@@ -191,7 +192,8 @@ export default async (req) => {
         // 'day': the whole plan as one route for one driver (dispatch/day-route.js).
         const route = routeId === DayRoute.DAY_ROUTE_ID ? DayRoute.mergeDayRoute(plan.plannedRoutes) : (plan.plannedRoutes || []).find(item => String(item?.id) === routeId);
         if (!route || !Array.isArray(route.customerStops) || !route.customerStops.length) return respond({ success: false, error: `Route ${routeId} has no finalized stops.` }, 400);
-        if (!hasEtaForEveryStop(route)) return respond({ success: false, error: `Route ${routeId} is missing a finalized stop ETA. Replan and save it first.` }, 400);
+        // A missing ETA is a warning; the route is still dispatched.
+        if (!hasEtaForEveryStop(route)) warnings.push(`Route ${routeId} has stops without a finalized ETA.`);
         candidates.push({ routeId, route, driverUid, dispatchId: key(uid, planId, routeId) });
       }
       // Verify each distinct Driver once, concurrently, immediately before the transaction.
@@ -236,7 +238,7 @@ export default async (req) => {
           tx.set(db.collection('users').doc(driver.uid).collection('history').doc(dispatchId), delivery);
         }
       });
-      return respond({ success: true, routes: selected.map(item => ({ routeId: item.routeId, dispatchId: item.dispatchId, driverUid: item.driver.uid, driverName: item.driver.name })) });
+      return respond({ success: true, warnings, routes: selected.map(item => ({ routeId: item.routeId, dispatchId: item.dispatchId, driverUid: item.driver.uid, driverName: item.driver.name })) });
     }
 
     if (action === 'routes' && req.method === 'GET' && url.searchParams.get('planId')) {

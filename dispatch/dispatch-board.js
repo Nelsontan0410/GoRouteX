@@ -184,7 +184,7 @@
     if (!context.routes.some(route => routeKey(route) === state.activeRouteId)) state.activeRouteId = routeKey(context.routes[0]);
     renderAllDriverSelect(context, saved);
     const printAll = $('dispatchPrintAllBtn');
-    if (printAll) printAll.disabled = !context.routes.every(routeHasEta) || (state.options?.canPrintRoute && !state.options.canPrintRoute(context.routes[0]));
+    if (printAll) printAll.disabled = (state.options?.canPrintRoute && !state.options.canPrintRoute(context.routes[0]));
     $('dispatchAllBtn').disabled = !saved || state.loading || !state.drivers.length || context.routes.every(route => dispatchOf(context, route));
     for (const route of context.routes) {
       const routeId = routeKey(route);
@@ -194,7 +194,7 @@
       card.dataset.routeId = routeId;
       const head = element('div', '', 'dispatch-route-head');
       const title = element('h3', route.label || `Route ${routeId}`);
-      const status = element('span', dispatch?.execution?.status || (dispatch ? 'DISPATCHED' : saved ? (routeHasEta(route) ? 'READY TO DISPATCH' : 'ETA REQUIRED') : 'SAVE PLAN FIRST'), 'dispatch-status');
+      const status = element('span', dispatch?.execution?.status || (dispatch ? 'DISPATCHED' : saved ? (routeHasEta(route) ? 'READY TO DISPATCH' : 'READY · ETA MISSING') : 'SAVE PLAN FIRST'), 'dispatch-status');
       status.classList.add('dispatch-status-value');
       head.append(title, status);
       card.append(head, element('p', `${stops.length} stops · Total distance ${distance(route)} · Driving ${duration(route)} · Total time incl. service ${formatSeconds(route.dayElapsedSeconds)}`, 'dispatch-route-metrics'));
@@ -218,7 +218,7 @@
         // A plan of several routes (older plans) can still be sent route by route; one day route uses the toolbar button.
         if (context.routes.length > 1) {
           const send = element('button', 'Dispatch route', 'action-button-primary');
-          send.type = 'button'; send.disabled = !saved || !routeHasEta(route) || state.loading || !state.drivers.length;
+          send.type = 'button'; send.disabled = !saved || state.loading || !state.drivers.length;
           send.onclick = () => dispatchRoutes([route]);
           actions.append(send);
         }
@@ -375,7 +375,6 @@
     for (const route of routes) {
       if (dispatchOf(context, route)) continue;
       const driverUid = selectedDriver(routeKey(route));
-      if (!routeHasEta(route)) return notice(`Route ${routeKey(route)} is missing a finalized ETA. Replan before dispatching. No routes were changed.`, true);
       if (!driverUid) return notice(`Select a driver for Route ${routeKey(route)} before dispatching. No routes were changed.`, true);
       assignments.push({ routeId: routeKey(route), driverUid });
     }
@@ -383,10 +382,10 @@
     state.loading = true; render(); notice('Dispatching…');
     try {
       const planSnapshot = { date: context.date, planningDate: context.date, startTime: context.startTime, routeStartTime: context.startTime, originName: context.origin, endLocationLabel: context.end, plannedRoutes: context.routes.map(route => ({ id: route.id, customerStops: route.customerStops || [], originalWaypoints: route.originalWaypoints || [], optimizedStops: route.optimizedStops || [], detailedStopTimes: route.detailedStopTimes || [], routeStopConfigs: route.routeStopConfigs || [], endLocationId: route.endLocationId || null, estimatedDistanceMeters: (route.directionsResult?.routes?.[0]?.legs || []).reduce((sum, leg) => sum + Number(leg.distance?.value || 0), 0), estimatedDurationSeconds: (route.directionsResult?.routes?.[0]?.legs || []).reduce((sum, leg) => sum + Number(leg.duration?.value || 0), 0) })) };
-      await api('dispatch', { planId: context.planId, assignments, planSnapshot });
+      const sent = await api('dispatch', { planId: context.planId, assignments, planSnapshot });
       state.driverCache = null;
       await refresh(true);
-      notice(`${assignments.length} route${assignments.length === 1 ? '' : 's'} dispatched.`);
+      notice(`${assignments.length} route${assignments.length === 1 ? '' : 's'} dispatched.${(sent?.warnings || []).length ? ' Warning: ' + sent.warnings.join(' ') : ''}`);
     } catch (error) { notice(error.message, true); }
     finally { state.loading = false; render(); }
   }

@@ -378,10 +378,10 @@ function pastPlanningDateNote() {
         return selected && today && selected < today ? `The planning date ${selected} is already in the past.` : '';
     }
 
-async function enforceDeliveryWindows(etaResult) {
+async function enforceDeliveryWindows(etaResult, extraNotes = []) {
         AppState.timeWindowOverride = null;
         const violations = etaResult?.timeWindowViolations || [];
-        const notes = [deliveryWindowCheckGap(etaResult), workingEndWarning(), pastPlanningDateNote()].filter(Boolean);
+        const notes = [deliveryWindowCheckGap(etaResult), workingEndWarning(), pastPlanningDateNote(), ...extraNotes].filter(Boolean);
         if (violations.length) notes.unshift(`${violations.length} stop(s) are outside customer delivery hours.`);
         if (!notes.length) return { proceed: true };
         const decision = await openTimeWindowExceptionModal(violations, notes);
@@ -424,14 +424,24 @@ async function handleProceedToOptimizeRoutes(options = {}) {
         step('waitForMapCheck');
         const dynamicBuildState = await RouteEngine.buildPlannedRoutes();
         step('buildRoutes');
-        await RouteSafety.validateRoutes(dynamicBuildState.plannedRoutes, { context: 'final', forceRefresh: false, reuse: true });
+        // The restriction check only informs: when it fails or finds conflicts, the planner is told and may still save.
+        const safetyNotes = [];
+        try {
+            await RouteSafety.validateRoutes(dynamicBuildState.plannedRoutes, { context: 'final', forceRefresh: false, reuse: true });
+        } catch (error) {
+            safetyNotes.push(`The lorry restriction check could not finish (${error?.message || 'unavailable'}), so restrictions were not checked.`);
+        }
+        for (const route of dynamicBuildState.plannedRoutes || []) {
+            const conflicts = route?.lorryValidation?.conflicts?.length || 0;
+            if (conflicts) safetyNotes.push(`Route ${route.id} still passes ${conflicts} restricted point(s).`);
+        }
         step('restrictionCheck');
         const dynamicRenderResult = renderPlannedRoutes(dynamicBuildState.plannedRoutes, dynamicBuildState, options);
         if (!dynamicRenderResult.success) return dynamicRenderResult;
         try { performance.mark('grx:etaStart'); } catch {}
         const etaResult = generateTimeListAndShowOnPage3Legacy({ print: false });
         try { performance.mark('grx:etaEnd'); performance.measure('grx:eta', 'grx:etaStart', 'grx:etaEnd'); } catch {}
-        const windowCheck = await enforceDeliveryWindows(etaResult);
+        const windowCheck = await enforceDeliveryWindows(etaResult, safetyNotes);
         if (!windowCheck.proceed) {
             currentRouteConfirmationState = { ...currentRouteConfirmationState, saving: false };
             updateConfirmRouteButtonState();
