@@ -53,7 +53,7 @@ test('every page reaches the other two through real links', () => {
 });
 
 test('route planning steps keep Dashboard as the active primary item inside app.html', () => {
-  assert.match(app, /window\.GoRouteXSidebar\?\.setActive\(activePageId === 'page-account-access' \? 'account' : 'dashboard'\);/);
+  assert.match(app, /window\.GoRouteXSidebar\?\.setActive\(activePageId === 'page-account-access' \|\| activePageId === 'page-pricing' \? 'account' : 'dashboard'\);/);
 });
 
 test('Order Hub and Dispatch no longer carry duplicate cross-page navigation in their top areas', () => {

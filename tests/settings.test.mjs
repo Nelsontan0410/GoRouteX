@@ -38,7 +38,7 @@ test('Settings page and navigation are present', () => {
   assert.equal((html.match(/id="serviceMinutes"/g) || []).length, 1, 'one service-time setting');
   assert.doesNotMatch(html, /id="section-(?:planning|capacity)"/);
   assert.match(html, /Save Changes/);
-  assert.match(readFileSync(new URL('../app.html', import.meta.url), 'utf8'), /settings\.html/);
+  assert.match(readFileSync(new URL('../app-sidebar.js', import.meta.url), 'utf8'), /settings\.html/, 'Settings stays one click away in the shared sidebar');
 });
 test('missing tenant settings resolve safe defaults without creating counts', async () => {
   const settings = await getTenantSettings();
