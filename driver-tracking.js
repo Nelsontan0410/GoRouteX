@@ -767,7 +767,7 @@
     return !state.pendingStopSync;
   }
 
-  function handlePositionSuccess(position) {
+  function handlePositionSuccess(position, force = false) {
     if (state.runtimeStatus !== 'active' || !state.routeUnlocked) return;
     const {latitude,longitude,accuracy}=position.coords;
     if (!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180||!Number.isFinite(accuracy)||accuracy>MAX_ACCEPTED_ACCURACY_METERS) {
@@ -791,7 +791,7 @@
       state.statusMessage = 'Tracking is active and GPS is available.';
     }
     renderAll();
-    void uploadCurrentPosition(false, 'active');
+    void uploadCurrentPosition(force === true, 'active');
   }
 
   function geolocationErrorMessage(error) {
@@ -809,6 +809,12 @@
   }
 
   function handlePositionError(error) {
+    // A timeout or a missing fix (e.g. while the phone had Google Maps in front) is temporary: keep watching.
+    if (error && error.code !== error.PERMISSION_DENIED && state.runtimeStatus === 'active') {
+      state.statusMessage = `${geolocationErrorMessage(error)} Still trying.`;
+      renderAll();
+      return;
+    }
     if (error && error.code === error.PERMISSION_DENIED) {
       state.permissionState = 'denied';
     }
@@ -1202,7 +1208,20 @@
     state.routeUnlocked = true;
     renderAll();
   }
-  global.DriverTrackingPage = { onMapApiReady, setRouteContext, startTracking: startTrackingFlow, stopTracking: stopTrackingFlow, getLatestPosition: () => state.lastKnownPosition, getStatus: () => getDisplayStatus(), isReady: () => state.bootstrapComplete };
+  /**
+   * Reads the position now and uploads it at once (the driver came back from Google Maps, or recorded a stop).
+   * Phones pause web pages in the background, so the watch is also restarted.
+   */
+  function refreshNow() {
+    if (state.runtimeStatus !== 'active' || !state.routeUnlocked || !navigator.geolocation) return false;
+    stopGeoWatch();
+    state.watchId = navigator.geolocation.watchPosition(handlePositionSuccess, handlePositionError, GEO_OPTIONS);
+    navigator.geolocation.getCurrentPosition((position) => {
+      handlePositionSuccess(position, true);
+    }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    return true;
+  }
+  global.DriverTrackingPage = { onMapApiReady, setRouteContext, refreshNow, getProblem: () => (getDisplayStatus() === 'error' ? { denied: state.permissionState === 'denied', message: state.statusMessage } : null), startTracking: startTrackingFlow, stopTracking: stopTrackingFlow, getLatestPosition: () => state.lastKnownPosition, getStatus: () => getDisplayStatus(), isReady: () => state.bootstrapComplete };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { void bootstrap(); }, { once: true });
   else void bootstrap();
