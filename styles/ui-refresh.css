@@ -1308,3 +1308,212 @@ body:has(#main.shell) .shell {
     margin: -6px auto 12px;
   }
 }
+
+/* ----------------------------------------------------------------- Dispatch */
+.dispatch-shell {
+  grid-template-columns: var(--ui-sidebar-w) minmax(0, 1fr) !important;
+  background: var(--ui-bg) !important;
+}
+
+.dispatch-board {
+  max-width: 1280px !important;
+  padding: 28px 28px 80px !important;
+  color: var(--ui-ink) !important;
+}
+
+.dispatch-heading.ui-page-header {
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.dispatch-kpis {
+  margin-bottom: 14px;
+}
+
+.dispatch-kpis .ui-kpi-value {
+  font-size: 1.3rem;
+}
+
+.dispatch-plan-summary {
+  margin: 0 0 16px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--ui-muted);
+  font-size: 0.88rem;
+  font-weight: 500 !important;
+}
+
+.dispatch-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 300px) auto auto;
+  align-items: end !important;
+  gap: 12px !important;
+  padding: 16px 18px;
+  margin-bottom: 18px !important;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+}
+
+.dispatch-toolbar-title {
+  display: grid;
+  gap: 2px;
+  align-self: center;
+}
+
+.dispatch-toolbar-title strong {
+  font-size: 1.02rem;
+}
+
+.dispatch-toolbar-title .ui-link-button {
+  justify-self: start;
+  padding: 0 !important;
+}
+
+.dispatch-toolbar .dispatch-all-driver {
+  display: grid !important;
+  gap: 6px;
+  margin: 0 !important;
+  color: var(--ui-muted);
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+}
+
+.dispatch-toolbar select {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--ui-border-strong);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ui-ink);
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.dispatch-route-card {
+  border-color: var(--ui-border) !important;
+  border-radius: var(--ui-radius) !important;
+  box-shadow: var(--ui-shadow) !important;
+  padding: 20px 22px !important;
+}
+
+.dispatch-route-head h3 {
+  font-size: 1.15rem !important;
+}
+
+.dispatch-status {
+  background: var(--ui-blue-soft) !important;
+  color: var(--ui-blue) !important;
+  letter-spacing: 0.02em !important;
+  padding: 5px 12px !important;
+}
+
+.dispatch-route-metrics {
+  color: var(--ui-ink-2) !important;
+  font-weight: 600 !important;
+  font-size: 0.92rem;
+}
+
+.dispatch-route-meta,
+.dispatch-progress {
+  color: var(--ui-muted) !important;
+}
+
+.dispatch-progress {
+  font-weight: 600 !important;
+}
+
+.dispatch-stop-list {
+  margin-top: 16px !important;
+  border-top: 1px solid var(--ui-border) !important;
+}
+
+.dispatch-stop {
+  grid-template-columns: 34px minmax(0, 1.1fr) minmax(0, 1.5fr) auto !important;
+  align-items: center !important;
+  padding: 12px 0 !important;
+  border-bottom-color: var(--ui-border) !important;
+}
+
+.dispatch-stop-seq {
+  grid-row: 1 / span 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ui-blue-soft);
+  color: var(--ui-blue);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.dispatch-stop small {
+  grid-column: 2 / 4 !important;
+}
+
+.dispatch-stop b {
+  color: var(--ui-ink-2) !important;
+  font-weight: 700;
+  background: var(--ui-surface-2);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+@media (max-width: 980px) {
+  .dispatch-shell {
+    display: block !important;
+  }
+
+  .dispatch-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dispatch-toolbar-title,
+  .dispatch-toolbar .dispatch-all-driver {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .dispatch-board {
+    padding: 16px 16px 96px !important;
+  }
+
+  .dispatch-stop {
+    grid-template-columns: 34px minmax(0, 1fr) auto !important;
+  }
+
+  .dispatch-stop span,
+  .dispatch-stop small {
+    grid-column: 2 / -1 !important;
+  }
+
+  .dispatch-stop b {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+  }
+}
+
+.dispatch-route-tabs[hidden] {
+  display: none !important;
+}
+
+#dispatchRefreshBtn {
+  min-height: 40px !important;
+  padding: 8px 16px !important;
+  border: 1px solid var(--ui-border-strong) !important;
+  border-radius: 10px !important;
+  background: var(--ui-surface) !important;
+  color: var(--ui-ink-2) !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+}
+
+.dispatch-toolbar-title .ui-link-button {
+  text-decoration: none;
+}

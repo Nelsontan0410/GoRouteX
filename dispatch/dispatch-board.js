@@ -161,6 +161,31 @@
     return `GPS live · ${Math.max(1, Math.floor(age / 1000))}s ago`;
   }
 
+  // Plan summary as KPI cards (values from the plan; '—' when the plan does not have them).
+  function renderKpis(context) {
+    const box = $('dispatchKpis');
+    if (!box) return;
+    const stops = context.routes.reduce((n, route) => n + routeStops(route).length, 0);
+    const single = context.routes.length === 1 ? context.routes[0] : null;
+    const cards = [
+      ['calendar', '', 'Planning date', context.date || '—'],
+      ['clock', 'is-violet', 'Start time', context.startTime || '—'],
+      ['pin', 'is-green', 'Stops', String(stops)],
+      single ? ['routes', 'is-amber', 'Total distance', distance(single)] : ['routes', 'is-amber', 'Routes', String(context.routes.length)]
+    ];
+    box.replaceChildren(...cards.map(([icon, tone, label, value]) => {
+      const card = element('article', '', 'ui-kpi');
+      const mark = element('span', '', `ui-kpi-icon ${tone}`.trim());
+      mark.dataset.icon = icon;
+      mark.setAttribute('aria-hidden', 'true');
+      const body = element('div');
+      body.append(element('span', label, 'ui-kpi-label'), element('strong', value, 'ui-kpi-value'));
+      card.append(mark, body);
+      return card;
+    }));
+    box.hidden = false;
+  }
+
   function render() {
     const board = $('dispatchBoard');
     const routesNode = $('dispatchRoutes');
@@ -173,6 +198,7 @@
     if (!context?.routes?.length) {
       $('dispatchPlanSummary').textContent = '';
       $('dispatchAllBtn').disabled = true;
+      if ($('dispatchKpis')) $('dispatchKpis').hidden = true;
       routesNode.append(element('p', 'No finalized route plan available.', 'dispatch-empty'));
       const plan = element('button', 'Plan a route', 'action-button-primary');
       plan.type = 'button'; plan.onclick = () => { global.location.href = 'app.html#page-select-stops'; };
@@ -180,6 +206,7 @@
       return;
     }
     $('dispatchPlanSummary').textContent = `${context.date || 'Date unavailable'} · ${context.startTime || 'Start time unavailable'} · ${context.routes.length} route${context.routes.length === 1 ? '' : 's'} · ${context.routes.reduce((n, route) => n + routeStops(route).length, 0)} stops`;
+    renderKpis(context);
     const saved = Boolean(context.planId);
     if (!context.routes.some(route => routeKey(route) === state.activeRouteId)) state.activeRouteId = routeKey(context.routes[0]);
     renderAllDriverSelect(context, saved);
@@ -236,7 +263,8 @@
       for (const [index, stop] of stops.entries()) {
         const timing = lookupTiming(route, stop);
         const row = element('li', '', 'dispatch-stop');
-        row.append(element('strong', `${index + 1}. ${text(stop.customerName || stop.Name || stop.stopName || stop.name) || 'Stop'}`));
+        row.append(element('i', String(index + 1), 'dispatch-stop-seq'));
+        row.append(element('strong', text(stop.customerName || stop.Name || stop.stopName || stop.name) || 'Stop'));
         const location = text(stop.stopName || stop.label);
         const address = text(stop.deliveryAddress || stop.address || stop.Address);
         row.append(element('span', [location, address].filter(Boolean).join(' · ') || 'Address unavailable'));
