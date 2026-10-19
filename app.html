@@ -390,6 +390,18 @@
   </div>
 
   <div id="page-manual-assign" class="page mobile-deep-page">
+    <div class="ui-planner-head ra-head">
+      <div>
+        <span class="ui-eyebrow">Route planner</span>
+        <h2>Review &amp; Assign</h2>
+      </div>
+      <ol class="ui-stepper" aria-label="Planning steps">
+        <li class="is-done"><span>1</span>Select stops</li>
+        <li class="is-current" aria-current="step"><span>2</span>Review &amp; assign</li>
+        <li><span>3</span>Confirm</li>
+      </ol>
+    </div>
+    <div id="raChips" class="ra-chips" aria-live="polite"></div>
     <div id="topBarPage2">
       <div id="messageBar">Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.</div>
       <div id="currentOriginDisplay" hidden>Origin: ...</div>
@@ -426,6 +438,7 @@
         </div>
         <div id="routePanel" class="manual-assign-panel">
         <button id="toggleRoutePanel" type="button" aria-label="Toggle route panel">&#9650;</button>
+        <div id="raTabs" class="ra-tabs" role="tablist" aria-label="Route groups"></div>
         <div id="stop-assignment-lists-container">
             <div id="unassignedSection">
                 <div class="route-list-wrapper">
@@ -1340,6 +1353,7 @@
   <script src="planning/manual-assignment-page.js?v=20261003-1"></script>
   <script src="planning/manual-assignment-dnd.js?v=20261003-1"></script>
   <script src="planning/manual-map-preview.js?v=20261003-1"></script>
+  <script src="planning/review-assign-ui.js"></script>
   <script>
     // ===== STATE =====
     // Global app state, selected stops, route plan state, map instances, UI flags, and runtime caches.
