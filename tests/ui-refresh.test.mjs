@@ -39,3 +39,9 @@ test('Order Hub validation panel counts the stored review reasons; Dispatch show
   assert.match(hub, /order\.validationIssues\?\.length\?order\.validationIssues/);
   assert.match(read('dispatch/dispatch-board.js'), /function renderKpis\(context\)/);
 });
+
+test('GPS tracking is not reachable: no More entry, no aliases, links land on the dashboard', () => {
+  assert.doesNotMatch(app, /data-more-pages|GPS Tracking<|tracking: 'page-gps-tracking'|gps: 'page-gps-tracking'/);
+  assert.match(app, /if \(normalized === 'page-gps-tracking'\) return 'page-history-dashboard';/);
+  assert.doesNotMatch(read('app-sidebar.js'), /GPS|morePages/);
+});

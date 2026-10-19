@@ -1073,7 +1073,7 @@
       <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span>
       <span class="mobile-tab-text">Dispatch</span>
     </button>
-    <button type="button" class="mobile-tab-btn" data-nav="more" aria-haspopup="true" aria-expanded="false" data-more-pages='[{"key":"gps","label":"GPS Tracking","href":"app.html#page-gps-tracking","page":"page-gps-tracking"}]'>
+    <button type="button" class="mobile-tab-btn" data-nav="more" aria-haspopup="true" aria-expanded="false">
       <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
       <span class="mobile-tab-text">More</span>
     </button>
@@ -1874,7 +1874,6 @@
     const MOBILE_CORE_PAGES = new Set([
       'page-history-dashboard',
       'page-select-stops',
-      'page-gps-tracking',
       'page-add-stop'
     ]);
     const MOBILE_DEEP_PAGES = new Set([
@@ -1899,8 +1898,6 @@
       stops: 'page-select-stops',
       'select-stops': 'page-select-stops',
       'manual-assign': 'page-manual-assign',
-      tracking: 'page-gps-tracking',
-      gps: 'page-gps-tracking',
       customers: 'page-add-stop',
       'customer-workspace': 'page-add-stop',
       'manage-stops': 'page-add-stop',
@@ -3197,6 +3194,8 @@
 
     function normalizePageId(pageId) {
       const normalized = String(pageId || '').trim();
+      // GPS tracking is no longer reachable from the app: any link to it lands on the dashboard.
+      if (normalized === 'page-gps-tracking') return 'page-history-dashboard';
       return PAGE_HASH_ALIASES[normalized] || normalized;
     }
 
