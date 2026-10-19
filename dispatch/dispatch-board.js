@@ -213,6 +213,12 @@
     const printAll = $('dispatchPrintAllBtn');
     if (printAll) printAll.disabled = (state.options?.canPrintRoute && !state.options.canPrintRoute(context.routes[0]));
     $('dispatchAllBtn').disabled = !saved || state.loading || !state.drivers.length || context.routes.every(route => dispatchOf(context, route));
+    const liveBtn = $('dispatchLiveBtn');
+    if (liveBtn) {
+      const firstDispatched = context.routes.map(route => dispatchOf(context, route)).find(Boolean);
+      liveBtn.hidden = !firstDispatched;
+      if (firstDispatched) liveBtn.href = `driver-tracking.html?mode=operations&dispatchId=${encodeURIComponent(firstDispatched.id)}`;
+    }
     for (const route of context.routes) {
       const routeId = routeKey(route);
       const dispatch = dispatchOf(context, route);
@@ -223,7 +229,15 @@
       const title = element('h3', route.label || `Route ${routeId}`);
       const status = element('span', dispatch?.execution?.status || (dispatch ? 'DISPATCHED' : saved ? (routeHasEta(route) ? 'READY TO DISPATCH' : 'READY · ETA MISSING') : 'SAVE PLAN FIRST'), 'dispatch-status');
       status.classList.add('dispatch-status-value');
-      head.append(title, status);
+      const headActions = element('div', '', 'dispatch-head-actions');
+      // View live opens the read-only Live Route View of this dispatched route.
+      if (dispatch) {
+        const liveLink = element('a', 'View live', 'dispatch-live-link');
+        liveLink.href = `driver-tracking.html?mode=operations&dispatchId=${encodeURIComponent(dispatch.id)}`;
+        headActions.append(liveLink);
+      }
+      headActions.append(status);
+      head.append(title, headActions);
       card.append(head, element('p', `${stops.length} stops · Total distance ${distance(route)} · Driving ${duration(route)} · Total time incl. service ${formatSeconds(route.dayElapsedSeconds)}`, 'dispatch-route-metrics'));
       card.append(element('p', `Planning date: ${context.date || '—'} · Start: ${context.startTime || '—'}`, 'dispatch-route-meta'));
       card.append(element('p', `From: ${context.origin || '—'} · To: ${context.end || '—'}`, 'dispatch-route-meta'));
@@ -250,9 +264,6 @@
           actions.append(send);
         }
       } else {
-        const live = element('a', 'View live', 'action-button-primary');
-        live.href = `driver-tracking.html?mode=operations&dispatchId=${encodeURIComponent(dispatch.id)}`;
-        actions.append(live);
         const done = Number(dispatch.execution?.completedStops || 0);
         const total = Number(dispatch.execution?.totalStops || stops.length);
         const started = !['DISPATCHED', undefined, null, ''].includes(dispatch.execution?.status);

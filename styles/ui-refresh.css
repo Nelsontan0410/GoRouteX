@@ -3386,3 +3386,123 @@ body:has(#main.shell) .shell {
     overflow: visible !important;
   }
 }
+
+/* ------------------------------------------------ Fixes after first live use */
+/* Dispatch: View live in the toolbar and the card header. */
+.dispatch-toolbar {
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 300px) auto auto auto !important;
+}
+
+.dispatch-toolbar .dispatch-live-btn[hidden] {
+  display: none !important;
+}
+
+.dispatch-toolbar .dispatch-live-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid var(--ui-blue);
+  border-radius: 10px;
+  background: var(--ui-surface);
+  color: var(--ui-blue);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.dispatch-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dispatch-live-link,
+.dispatch-live-link:visited {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: var(--ui-blue);
+  color: #fff !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (max-width: 980px) {
+  .dispatch-toolbar {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .dispatch-toolbar .dispatch-live-btn {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Customer Workspace: the page grows with its content so the whole list can be scrolled. */
+#page-add-stop.active-page {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
+}
+
+/* Search type, search terms and the Search button share one height. */
+#page-add-stop .master-search-controls select,
+#page-add-stop .master-search-controls input,
+#page-add-stop .master-search-controls button {
+  height: 44px !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: 0.95rem !important;
+}
+
+#page-add-stop .master-search-controls label {
+  margin: 0 !important;
+}
+
+/* Stops Selection (desktop): the two lists scroll inside their panels, so the page stays one screen
+   tall and Review & Assign sits in the normal flow right under them instead of floating. */
+@media (min-width: 768px) {
+  #page-select-stops .stop-selector-container {
+    height: calc(100vh - 340px);
+    min-height: 440px;
+  }
+
+  #page-select-stops .stop-selector-left,
+  #page-select-stops .stop-selector-right {
+    display: flex !important;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #page-select-stops #customerList,
+  #page-select-stops #selectedListDisplay {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  #page-select-stops #customerList {
+    overflow: hidden !important;
+  }
+
+  .ss-footer {
+    position: static !important;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+
+  #page-select-stops #goToManualAssignBtn {
+    width: auto !important;
+    min-width: 340px;
+    padding: 0 28px !important;
+  }
+}

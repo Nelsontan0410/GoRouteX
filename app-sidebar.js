@@ -52,7 +52,6 @@
       <a class="operations-brand" href="app.html#page-history-dashboard" data-nav="brand" aria-label="GoRouteX dashboard">GoRoute<span>X</span></a>
       <nav id="desktopAppNav" class="operations-nav" aria-label="Primary navigation">
         ${PRIMARY.map((item) => link(item, active, item.key === 'dashboard' ? 'is-dashboard' : '')).join('')}
-        <a id="driverNavButton" href="driver-tracking.html" data-nav="driver" hidden>${icon('driver')}<span class="nav-label">Driver Page</span></a>
       </nav>
       <div class="operations-sidebar-account">
         <div class="operations-sidebar-user"><span class="operations-avatar" id="sidebarAvatar" aria-hidden="true">·</span><div><strong id="sidebarDisplayName">Loading account…</strong>
