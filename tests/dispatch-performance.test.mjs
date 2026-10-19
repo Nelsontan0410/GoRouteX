@@ -32,7 +32,7 @@ test('standalone Dispatch receives the persisted plan ID and avoids Planning dep
   // The shared sidebar's Dispatch link opens the persisted plan through openDispatchPage inside app.html.
   const sidebar = readFileSync(new URL('../app-sidebar.js', import.meta.url), 'utf8');
   assert.match(sidebar, /target\.dataset\.nav === 'dispatch' && typeof global\.openDispatchPage === 'function'\) \{\s*event\.preventDefault\(\);\s*global\.openDispatchPage\(\);/);
-  assert.match(app, /onclick="openDispatchPage\(\)">\s*<span class="mobile-tab-icon">Routes/);
+  assert.match(app, /onclick="openDispatchPage\(\)">\s*<span class="mobile-tab-icon">[\s\S]*?<span class="mobile-tab-text">Dispatch/);
   assert.doesNotMatch(app, /id="dispatchBoard"/);
   assert.match(dispatchPage, /id="dispatchBoard"/);
   assert.match(dispatchPage, /src="dispatch\/dispatch-board\.js"/);

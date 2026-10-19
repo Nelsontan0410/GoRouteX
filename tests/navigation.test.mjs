@@ -34,11 +34,11 @@ test('Dashboard, Order Hub and Dispatch all mount the one shared sidebar with th
 test('the primary sidebar lists only Dashboard, Order Hub and Dispatch, keeps the logo and the account area', () => {
   const html = renderSidebar('order-hub');
   const nav = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
-  const labels = [...nav.matchAll(/>([^<]+)<\/a>/g)].map((m) => m[1]).filter((label) => label !== 'Driver Page');
+  const labels = [...nav.matchAll(/<span class="nav-label">([^<]+)<\/span><\/a>/g)].map((m) => m[1]).filter((label) => label !== 'Driver Page');
   assert.deepEqual(labels, ['PlanEngine', 'Order Hub', 'Dispatch']);
   assert.doesNotMatch(html, /Plan a route|Saved stops/);
   assert.match(html, /class="operations-brand"[^>]*>GoRoute<span>X<\/span>/);
-  for (const piece of ['id="sidebarDisplayName"', 'id="sidebarCurrentPlan"', '>Account</a>', '>Settings</a>', '>Logout</button>']) assert.ok(html.includes(piece), piece);
+  for (const piece of ['id="sidebarDisplayName"', 'id="sidebarCurrentPlan"', '>Plan &amp; Access</span></a>', '>Settings</span></a>', '>Logout</span></button>']) assert.ok(html.includes(piece), piece);
 });
 
 test('the active item comes from the page markup, so it survives direct navigation and refresh', () => {
@@ -63,7 +63,7 @@ test('Order Hub and Dispatch no longer carry duplicate cross-page navigation in 
 });
 
 test('Dashboard keeps Start Route Plan, adds Manage Customers, and keeps Load Route and recent plans', () => {
-  const hero = app.slice(app.indexOf('class="dashboard-primary-actions"'), app.indexOf('</section>', app.indexOf('class="dashboard-primary-actions"')));
+  const hero = app.slice(app.indexOf('class="dashboard-primary-actions'), app.indexOf('</section>', app.indexOf('class="dashboard-primary-actions')));
   assert.match(hero, /id="createNewRouteBtn"[^>]*>Start Route Plan</);
   assert.match(hero, /id="manageStopsBtn"[^>]*>Manage Customers</);
   assert.match(hero, /id="loadSelectedRouteBtn"[^>]*>Load Route</);

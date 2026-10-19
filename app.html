@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="styles/master-search.css">
   <link rel="stylesheet" href="styles/typography.css">
   <link rel="stylesheet" href="styles/workspace-layout.css">
+  <link rel="stylesheet" href="styles/ui-refresh.css">
   <script>
     (function setMobileViewportHeight() {
       function updateViewportVar() {
@@ -84,7 +85,7 @@
     </main>
   </div>
   <div id="page-history-dashboard" class="page mobile-core-page active-page">
-    <div class="dashboard-landing-shell">
+    <div class="dashboard-landing-shell ui-dashboard">
       <section class="dashboard-landing-card dashboard-account-card" aria-label="Account summary">
         <div class="dashboard-account-strip">
           <article class="dashboard-strip-item" aria-labelledby="dashboardLoginStatusLabel">
@@ -115,75 +116,77 @@
         <div class="dashboard-wordmark">GoRouteX</div>
       </div>
 
-      <section class="dashboard-landing-card dashboard-actions-card" aria-labelledby="dashboardRouteActionsTitle">
-        <div class="panel-heading dashboard-simple-heading">
-          <div class="panel-heading-stack">
-            <h3 id="dashboardRouteActionsTitle">Optimise every route. Cut delivery costs.</h3>
-            <p>Build the best route for every stop, reduce unnecessary driving, and keep your team on schedule.</p>
-          </div>
+      <header class="ui-page-header ui-dash-head">
+        <div>
+          <span class="ui-eyebrow">PlanEngine</span>
+          <h1 class="ui-title" id="dashboardRouteActionsTitle">Today&rsquo;s route workspace</h1>
+          <p class="ui-subtitle">Plan routes, reuse saved plans and keep your deliveries on schedule.</p>
         </div>
-        <div class="dashboard-primary-actions" aria-label="Primary route actions">
-          <button id="createNewRouteBtn" class="action-button-primary" type="button">Start Route Plan</button>
-          <button id="manageStopsBtn" class="action-button-secondary" type="button">Manage Customers</button>
-          <button id="loadSelectedRouteBtn" class="action-button-secondary" type="button" disabled title="Select a recent route plan below first">Load Route</button>
-        </div>
+        <span class="ui-date-chip" id="dashboardTodayChip" aria-label="Today"></span>
+        <script>(function () { var chip = document.getElementById('dashboardTodayChip'); if (chip) chip.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); })();</script>
+      </header>
+
+      <section class="ui-kpi-grid ui-dash-kpis" aria-label="Route plan summary">
+        <article class="ui-kpi"><span class="ui-kpi-icon" data-icon="routes" aria-hidden="true"></span><div><span class="ui-kpi-label">Saved plans</span><strong class="ui-kpi-value" id="totalRoutesCount">--</strong><span class="ui-kpi-note">Loaded route history</span></div></article>
+        <article class="ui-kpi"><span class="ui-kpi-icon is-violet" data-icon="truck" aria-hidden="true"></span><div><span class="ui-kpi-label">Routes today</span><strong class="ui-kpi-value" id="todayRoutesCount">--</strong><span class="ui-kpi-note">Plans saved today</span></div></article>
+        <article class="ui-kpi"><span class="ui-kpi-icon is-green" data-icon="pin" aria-hidden="true"></span><div><span class="ui-kpi-label">Stops today</span><strong class="ui-kpi-value" id="totalStopsCount">--</strong><span class="ui-kpi-note">Across today&rsquo;s plans</span></div></article>
+        <article class="ui-kpi"><span class="ui-kpi-icon is-amber" data-icon="chart" aria-hidden="true"></span><div><span class="ui-kpi-label">Avg stops / route</span><strong class="ui-kpi-value" id="avgStopsPerRoute">--</strong><span class="ui-kpi-note">Saved plans</span></div></article>
       </section>
 
-      <section id="historyStatsPanel" class="dashboard-landing-card dashboard-history-card dashboard-stats" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true">
-        <div class="dashboard-history-header">
-          <div class="panel-heading-stack">
-            <h3 id="dashboardHistorySnapshotTitle">Recent route plans</h3>
-            <p id="historyStatsStatus" class="dashboard-stats-status" aria-live="polite">Loading saved route history...</p>
+      <div class="ui-dash-grid">
+        <section id="historyStatsPanel" class="ui-card ui-recent" aria-labelledby="dashboardHistorySnapshotTitle" aria-busy="true">
+          <div class="ui-card-head">
+            <div>
+              <h2 id="dashboardHistorySnapshotTitle" class="ui-card-title">Recent route plans</h2>
+              <p id="historyStatsStatus" class="ui-card-sub" aria-live="polite">Loading saved route history...</p>
+            </div>
+            <button id="browseFullHistoryBtn" class="ui-link-button" type="button">View all</button>
           </div>
-          <button id="browseFullHistoryBtn" class="action-button-secondary" type="button">Browse Full History</button>
-        </div>
 
-        <div class="stats-grid dashboard-snapshot-grid">
-          <div class="stat-item">
-            <div class="stat-number" id="totalRoutesCount">--</div>
-            <div class="stat-label">Saved Plans</div>
+          <div class="ui-recent-head" aria-hidden="true">
+            <span>Plan / driver</span>
+            <span>Stops</span>
+            <span>Restrictions</span>
+            <span>Action</span>
           </div>
-          <div class="stat-item">
-            <div class="stat-number" id="todayRoutesCount">--</div>
-            <div class="stat-label">Routes Today</div>
+          <div class="history-list" id="historyList">
+            <div class="empty-history">
+              <div class="empty-history-icon">No Data</div>
+              <h4>No Route History Found</h4>
+              <p>Your planned routes will appear here for easy access and API cost optimization.</p>
+            </div>
           </div>
-          <div class="stat-item">
-            <div class="stat-number" id="totalStopsCount">--</div>
-            <div class="stat-label">Stops Today</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number" id="avgStopsPerRoute">--</div>
-            <div class="stat-label">Avg Stops/Route</div>
-          </div>
-        </div>
+        </section>
 
-        <div class="dashboard-snapshot-statuses" aria-label="Route history snapshot status">
-          <article class="dashboard-status-panel">
-            <span class="dashboard-card-label">Today's saved plans</span>
-            <strong id="dashboardAssignedRoutes" class="dashboard-status-value">--</strong>
-            <span id="dashboardAssignedRoutesNote" class="dashboard-status-meta">Checking today's saved plans</span>
-          </article>
-          <article class="dashboard-status-panel">
-            <span class="dashboard-card-label">Latest saved route</span>
-            <strong id="dashboardLatestRoute" class="dashboard-status-value">--</strong>
-            <span id="dashboardLatestRouteNote" class="dashboard-status-meta">Recent planning activity will appear here</span>
-          </article>
-        </div>
+        <aside class="ui-dash-side">
+          <section class="ui-card" aria-labelledby="dashboardQuickActionsTitle">
+            <h2 id="dashboardQuickActionsTitle" class="ui-card-title">Quick actions</h2>
+            <div class="dashboard-primary-actions ui-quick-actions" aria-label="Primary route actions">
+              <button id="createNewRouteBtn" class="action-button-primary ui-tile" data-icon="route" type="button">Start Route Plan<small>Select stops and optimise</small></button>
+              <button id="manageStopsBtn" class="action-button-secondary ui-tile is-green" data-icon="users" type="button">Manage Customers<small>Saved delivery locations</small></button>
+              <a class="ui-tile is-violet" data-icon="box" href="order-hub.html">Order Hub<small>Import and review orders</small></a>
+              <a class="ui-tile is-amber" data-icon="truck" href="dispatch.html" data-nav="dispatch">Dispatch<small>Send routes to drivers</small></a>
+              <button id="loadSelectedRouteBtn" class="action-button-secondary ui-tile is-grey" data-icon="load" type="button" disabled title="Select a recent route plan first">Load Route<small>Reopen the selected plan</small></button>
+            </div>
+          </section>
 
-        <div class="dashboard-history-table-head" aria-hidden="true">
-          <span>Plan / driver</span>
-          <span>Delivery counts</span>
-          <span>Restriction notice</span>
-          <span>Action</span>
-        </div>
-        <div class="history-list" id="historyList">
-          <div class="empty-history">
-            <div class="empty-history-icon">No Data</div>
-            <h4>No Route History Found</h4>
-            <p>Your planned routes will appear here for easy access and API cost optimization.</p>
-          </div>
-        </div>
-      </section>
+          <section class="ui-card ui-dash-today" aria-label="Today">
+            <h2 class="ui-card-title">Today</h2>
+            <div class="ui-today-list" aria-label="Route history snapshot status">
+              <article class="ui-today-item">
+                <span class="ui-today-label">Today's saved plans</span>
+                <strong id="dashboardAssignedRoutes" class="ui-today-value">--</strong>
+                <span id="dashboardAssignedRoutesNote" class="ui-today-meta">Checking today's saved plans</span>
+              </article>
+              <article class="ui-today-item">
+                <span class="ui-today-label">Latest saved route</span>
+                <strong id="dashboardLatestRoute" class="ui-today-value">--</strong>
+                <span id="dashboardLatestRouteNote" class="ui-today-meta">Recent planning activity will appear here</span>
+              </article>
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <div id="dashboardEmptyState" class="dashboard-hidden-support" hidden aria-hidden="true"></div>
@@ -1049,20 +1052,20 @@
 
   <nav id="mobileTabBar" class="mobile-tab-bar is-hidden" aria-label="Mobile Navigation">
     <button type="button" class="mobile-tab-btn" data-page="page-history-dashboard">
-      <span class="mobile-tab-icon">Home</span>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></span>
       <span class="mobile-tab-text">PlanEngine</span>
     </button>
     <button type="button" class="mobile-tab-btn" onclick="window.location.href='order-hub.html'">
-      <span class="mobile-tab-icon">Orders</span>
-      <span class="mobile-tab-text">Order Hub</span>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span>
+      <span class="mobile-tab-text">Orders</span>
     </button>
     <button type="button" class="mobile-tab-btn" onclick="openDispatchPage()">
-      <span class="mobile-tab-icon">Routes</span>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span>
       <span class="mobile-tab-text">Dispatch</span>
     </button>
-    <button type="button" class="mobile-tab-btn" data-page="page-gps-tracking">
-      <span class="mobile-tab-icon">GPS</span>
-      <span class="mobile-tab-text">Tracking</span>
+    <button type="button" class="mobile-tab-btn" data-nav="more" aria-haspopup="true" aria-expanded="false" data-more-pages='[{"key":"gps","label":"GPS Tracking","href":"app.html#page-gps-tracking","page":"page-gps-tracking"}]'>
+      <span class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+      <span class="mobile-tab-text">More</span>
     </button>
   </nav>
     </div>
