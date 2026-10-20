@@ -5,9 +5,10 @@ import vm from 'node:vm';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('tapping a navigation link starts the route when it was not started yet', () => {
+test('Start Route owns execution and GPS; navigation links only open Maps', () => {
   const page = read('driver/driver-page.js');
-  assert.match(page, /link\.addEventListener\('click',\(\)=>\{if\(!state\.execution&&!state\.busy\)startRoute\(\);\}\);/);
+  const navigation = page.slice(page.indexOf('function renderNavigateAll('), page.indexOf('// Back from Google Maps:'));
+  assert.doesNotMatch(navigation, /startRoute\(|store\.start|startTracking\(/);
   assert.match(page, /function startRoute\(\)\{return perform\(async\(\)=>\{state\.execution=await state\.store\.start\(state\.route\);[\s\S]*?await resumeTracking\(\);/);
   assert.match(page, /\$\('driverStartBtn'\)\.onclick=startRoute;/);
 });
