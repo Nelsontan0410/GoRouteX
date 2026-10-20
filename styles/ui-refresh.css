@@ -3835,3 +3835,13 @@ body:has(#main.shell) .shell {
 .plan-back {
   border: 1px solid var(--ui-border-strong) !important;
 }
+
+.master-search-saved {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--ui-green-soft);
+  color: var(--ui-green);
+  font-weight: 600;
+  font-size: 0.9rem;
+}

@@ -906,7 +906,8 @@
           </div>
 
           <div class="stop-import-utility-actions" aria-label="Stop file utilities">
-            <button type="button" id="exportStopsCsvBtn" class="action-button-secondary">Export customers</button>
+            <button type="button" id="exportStopsCsvBtn" class="action-button-secondary">Export customers (CSV)</button>
+            <button type="button" id="exportStopsXlsxBtn" class="action-button-secondary" title="Phone numbers keep leading zeros and + in Excel">Export customers (Excel)</button>
             <button type="button" id="deleteAllStopsBtn" class="action-button-secondary">Delete all customers</button>
           </div>
 
@@ -1176,6 +1177,7 @@
 <script src="go-routex-access.js"></script>
 <script src="route-planner-product.js"></script>
 <script src="plan-access-view.js"></script>
+<script src="csv-export.js"></script>
 <script src="account-context.js"></script>
 <script src="state.js"></script>
 <link rel="stylesheet" href="lorry-safety.css?v=20260920-1">
@@ -2899,6 +2901,7 @@
       const csvImportSection = document.getElementById('stopsImportSection');
       const downloadCsvTemplateBtn = document.getElementById('downloadCsvTemplateBtn');
       const exportStopsCsvBtn = document.getElementById('exportStopsCsvBtn');
+      const exportStopsXlsxBtn = document.getElementById('exportStopsXlsxBtn');
       const deleteAllStopsBtn = document.getElementById('deleteAllStopsBtn');
       const formControls = addStopForm
         ? addStopForm.querySelectorAll('input, textarea, button, select')
@@ -2913,7 +2916,7 @@
       const csvImportTargets = csvImportSection
         ? Array.from(csvImportSection.querySelectorAll('input, textarea, button, select'))
             .filter((element) => element
-              && !['downloadCsvTemplateBtn', 'exportStopsCsvBtn', 'deleteAllStopsBtn'].includes(element.id))
+              && !['downloadCsvTemplateBtn', 'exportStopsCsvBtn', 'exportStopsXlsxBtn', 'deleteAllStopsBtn'].includes(element.id))
         : [];
 
       if (addStopAccessNoticeDiv) {
@@ -2946,6 +2949,9 @@
       });
       if (downloadCsvTemplateBtn) {
         downloadCsvTemplateBtn.disabled = !canViewStops;
+      }
+      if (exportStopsXlsxBtn) {
+        exportStopsXlsxBtn.disabled = !canViewStops || !Array.isArray(allCustomerEntries) || allCustomerEntries.length === 0;
       }
       if (exportStopsCsvBtn) {
         exportStopsCsvBtn.disabled = !canViewStops || !Array.isArray(allCustomerEntries) || allCustomerEntries.length === 0;
@@ -12648,6 +12654,22 @@
     let addStopMarker = null;
     let recentlyAddedStops = [];
     let editingStopId = null;
+    // Edit from Search: return to the same search after Save or Cancel.
+    let editingReturnToSearch = false;
+    // The address the current coordinates belong to. When the user types a different address the coordinates no
+    // longer describe it: they are cleared until Search on Map or a map click confirms the new location.
+    let stopLocationAddress = null;
+    let stopLocationCoordinate = '';
+    const normalizeStopAddress = (value) => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    function rememberStopLocation() {
+        stopLocationAddress = document.getElementById('stopAddress')?.value || '';
+        stopLocationCoordinate = document.getElementById('stopCoordinate')?.value || '';
+    }
+    function stopAddressNeedsLocation() {
+        const coordinate = document.getElementById('stopCoordinate')?.value.trim() || '';
+        const address = document.getElementById('stopAddress')?.value || '';
+        return !coordinate || stopLocationAddress === null || normalizeStopAddress(address) !== normalizeStopAddress(stopLocationAddress);
+    }
     let manageStopsSearchTerm = '';
     let activeStopWorkspaceMode = 'add';
 
@@ -12733,6 +12755,7 @@
             const lat = event.latLng.lat();
             const lng = event.latLng.lng();
             setStopCoordinate(lat, lng);
+            rememberStopLocation();
             reverseGeocodeForAddStop(lat, lng);
         });
 
@@ -12753,6 +12776,8 @@
         window.GoRouteXCustomerConstraints?.set(null);
 
         editingStopId = null;
+        stopLocationAddress = null;
+        stopLocationCoordinate = '';
         setAddStopFormMode(false);
 
         if (addStopMarker) {
@@ -12816,7 +12841,7 @@
                 <td data-label="Location">${escapeHtml(record.kind === 'contact' ? record.contact : record.stop) || '—'} <small class="ui-kind">${record.kind === 'contact' ? 'Contact' : 'Stop'}</small></td>
                 <td data-label="Phone">${escapeHtml(record.phone || '—')}</td>
                 <td data-label="Address" class="customer-address">${escapeHtml(record.address || (record.kind === 'contact' ? 'General customer contact' : '—'))}</td>
-                <td class="manage-stop-actions">${canManage ? `<button type="button" data-action="edit-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Edit</button><button type="button" class="delete-stop-btn" data-action="delete-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Delete</button>` : '<span class="manage-stop-readonly">Read only</span>'}</td>
+                <td class="manage-stop-actions">${canManage ? `<button type="button" data-action="edit-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">${record.kind === 'contact' ? 'Edit contact' : 'Edit'}</button><button type="button" class="delete-stop-btn" data-action="delete-record" data-kind="${record.kind}" data-stop-id="${escapeHtml(record.id)}">Delete</button>` : '<span class="manage-stop-readonly">Read only</span>'}</td>
               </tr>`).join('') + '</tbody></table></div>';
     }
 
@@ -12906,6 +12931,7 @@
         const entry = allCustomerEntries.find((item) => item.uniqueId === stopId);
         if (!entry) return;
 
+        editingReturnToSearch = activeStopWorkspaceMode === 'edit';
         editingStopId = stopId;
         setAddStopFormMode(true);
         setStopWorkspaceMode('add');
@@ -12940,13 +12966,18 @@
             }
         }
 
+        // The saved coordinates belong to the saved address (empty when the stop has none).
+        stopLocationAddress = entry.Address || '';
+        stopLocationCoordinate = coordInput ? coordInput.value : '';
+
         if (statusDiv) {
             statusDiv.style.display = 'block';
             statusDiv.className = 'add-stop-status loading';
-            statusDiv.textContent = `Editing stop: ${entry.Name || 'Unnamed stop'}`;
+            statusDiv.textContent = `Editing customer: ${entry.Name || 'Unnamed customer'}`;
         }
 
-        if (nameInput) nameInput.focus();
+        document.getElementById('addStopCreateSection')?.scrollIntoView({ block: 'start' });
+        if (nameInput) nameInput.focus({ preventScroll: true });
         renderManageStopsList(manageStopsSearchTerm);
     }
 
@@ -13036,6 +13067,7 @@
                 if (addressInput) {
                     addressInput.value = results[0].formatted_address;
                 }
+                rememberStopLocation();
 
                 if (mapAddStop || ensureAddStopMapReady()) {
                     if (results[0].geometry.viewport) {
@@ -13073,6 +13105,7 @@
                     addressInput.value = results[0].formatted_address;
                 }
             }
+            rememberStopLocation();
         });
     }
 
@@ -13101,6 +13134,7 @@
                 const newLat = event.latLng.lat();
                 const newLng = event.latLng.lng();
                 setStopCoordinate(newLat, newLng);
+                rememberStopLocation();
             });
         }
 
@@ -13141,7 +13175,58 @@
     });
 
     cancelEditStopBtn?.addEventListener('click', () => {
+        const returnToSearch = !!editingStopId && editingReturnToSearch;
         clearAddStopForm(true);
+        if (returnToSearch) returnToCustomerSearch('');
+    });
+
+    // Back to Search with the same keyword and type; a short note confirms the save.
+    function returnToCustomerSearch(message) {
+        editingReturnToSearch = false;
+        setStopWorkspaceMode('edit');
+        if (manageStopsSearchInput) manageStopsSearchInput.value = manageStopsSearchTerm;
+        renderManageStopsList(manageStopsSearchTerm);
+        // The note sits above the results so a later refresh of the list does not remove it.
+        let note = document.getElementById('manageStopsSavedNote');
+        if (!note && manageStopsList) {
+            note = document.createElement('p');
+            note.id = 'manageStopsSavedNote';
+            note.className = 'master-search-saved';
+            note.setAttribute('role', 'status');
+            manageStopsList.before(note);
+        }
+        if (note) {
+            note.textContent = message || '';
+            note.hidden = !message;
+            clearTimeout(returnToCustomerSearch.timer);
+            if (message) returnToCustomerSearch.timer = setTimeout(() => { note.hidden = true; }, 8000);
+        }
+        document.getElementById('manageStopsSection')?.scrollIntoView({ block: 'start' });
+    }
+
+    // Typing a different address clears the coordinates (they belong to the old address); typing the old address
+    // back restores them.
+    document.getElementById('stopAddress')?.addEventListener('input', () => {
+        if (stopLocationAddress === null) return;
+        const coordInput = document.getElementById('stopCoordinate');
+        if (!coordInput) return;
+        const address = document.getElementById('stopAddress').value;
+        if (normalizeStopAddress(address) === normalizeStopAddress(stopLocationAddress)) {
+            if (!coordInput.value && stopLocationCoordinate) {
+                const parsed = parseLatLngFromCoordinateText(stopLocationCoordinate);
+                if (parsed.lat !== null && parsed.lng !== null) setStopCoordinate(parsed.lat, parsed.lng);
+            }
+            coordInput.placeholder = 'Will be filled after search';
+            return;
+        }
+        if (coordInput.value) {
+            coordInput.value = '';
+            if (addStopMarker) {
+                MapHandler.clearRendererMap(addStopMarker);
+                addStopMarker = null;
+            }
+        }
+        coordInput.placeholder = 'Address changed: click Search on Map to confirm';
     });
 
     document.getElementById('searchAddressBtn')?.addEventListener('click', () => {
@@ -13228,6 +13313,18 @@
             return;
         }
 
+        if (isEditing) {
+            const original = allCustomerEntries.find((entry) => entry.uniqueId === editingStopId);
+            const addressChanged = normalizeStopAddress(stopAddress) !== normalizeStopAddress(original?.Address || '');
+            if (addressChanged && stopAddressNeedsLocation()) {
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'add-stop-status error';
+                statusDiv.textContent = 'The address changed. Click Search on Map or click the map to confirm the new location, then save.';
+                document.getElementById('searchAddressBtn')?.focus();
+                return;
+            }
+        }
+
         if (stopData.constraintErrors?.length) {
             statusDiv.style.display = 'block';
             statusDiv.className = 'add-stop-status error';
@@ -13297,7 +13394,9 @@
             }
 
             document.dispatchEvent(new CustomEvent('goroutex:stop-saved', { detail: { id: saveResult.id, stopData } }));
+            const returnToSearch = isEditing && editingReturnToSearch;
             clearAddStopForm();
+            if (returnToSearch) returnToCustomerSearch(`"${stopName}" updated.`);
         } catch (error) {
             console.error('Error saving stop:', error);
             statusDiv.className = 'add-stop-status error';
@@ -14026,59 +14125,50 @@
         }
     }
 
+    // Customer export columns: unchanged header, order and meaning.
+    const CUSTOMER_EXPORT_HEADER = ['Customer Name', 'Phone', 'Address', 'Unit', 'Notes'];
+    const customerExportRow = (entry) => [entry.Name || '', entry['Hp No'] || '', entry.Address || '', entry.unit || '', entry.note || ''];
+
     function downloadCsvTemplate() {
-        const csvContent = [
-            'Customer Name,Phone,Address,Unit,Notes',
-            ''
-        ].join('\r\n');
-        downloadCsvText(csvContent, 'goroutex-stops-template.csv');
+        window.GoRouteXExport.downloadCsv('goroutex-stops-template.csv', CUSTOMER_EXPORT_HEADER, []);
     }
 
-    function csvCell(value) {
-        const text = String(value ?? '');
-        return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-    }
-
-    function downloadCsvText(csvContent, filename) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const objectUrl = URL.createObjectURL(blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = objectUrl;
-        downloadLink.download = filename;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(objectUrl);
-    }
-
-    function exportStopsCsv() {
+    function getCustomerExportRows() {
         if (!hasRolePermission('stops.view')) {
             promptForRoleRestriction({
                 title: 'Exporting stops is restricted',
                 message: 'Your current role can review route execution but cannot export saved stop data.'
             });
-            return;
+            return null;
         }
-
         const rows = Array.isArray(allCustomerEntries) ? allCustomerEntries : [];
         if (rows.length === 0) {
             setImportStatus('No saved stops to export.', 'error');
-            return;
+            return null;
         }
+        return rows;
+    }
 
-        const csvLines = [
-            ['Customer Name', 'Phone', 'Address', 'Unit', 'Notes'].join(','),
-            ...rows.map((entry) => [
-                csvCell(entry.Name || ''),
-                csvCell(entry['Hp No'] || ''),
-                csvCell(entry.Address || ''),
-                csvCell(entry.unit || ''),
-                csvCell(entry.note || '')
-            ].join(','))
-        ];
+    // CSV: UTF-8 with BOM (Excel shows Chinese correctly). Excel may still drop leading zeros of phone numbers
+    // in a CSV; the Excel export below keeps them (see csv-export.js).
+    function exportStopsCsv() {
+        const rows = getCustomerExportRows();
+        if (!rows) return;
         const today = new Date().toISOString().slice(0, 10);
-        downloadCsvText(csvLines.join('\r\n'), `goroutex-stops-${today}.csv`);
-        setImportStatus(`Exported ${rows.length} saved stop(s).`, 'success');
+        window.GoRouteXExport.downloadCsv(`goroutex-stops-${today}.csv`, CUSTOMER_EXPORT_HEADER, rows.map(customerExportRow));
+        setImportStatus(`Exported ${rows.length} saved stop(s) as CSV. Excel may hide leading zeros in phone numbers; use the Excel export to keep them.`, 'success');
+    }
+
+    function exportStopsXlsx() {
+        const rows = getCustomerExportRows();
+        if (!rows) return;
+        const today = new Date().toISOString().slice(0, 10);
+        try {
+            window.GoRouteXExport.downloadXlsx(`goroutex-stops-${today}.xlsx`, 'Customers', CUSTOMER_EXPORT_HEADER, rows.map(customerExportRow));
+            setImportStatus(`Exported ${rows.length} saved stop(s) as Excel. Phone numbers are kept as text.`, 'success');
+        } catch (error) {
+            setImportStatus(`❌ ${error.message}`, 'error');
+        }
     }
 
     async function deleteAllStops() {
@@ -14125,6 +14215,7 @@
     document.getElementById('runStopsImportBtn')?.addEventListener('click', runStopsImport);
     document.getElementById('downloadCsvTemplateBtn')?.addEventListener('click', downloadCsvTemplate);
     document.getElementById('exportStopsCsvBtn')?.addEventListener('click', exportStopsCsv);
+    document.getElementById('exportStopsXlsxBtn')?.addEventListener('click', exportStopsXlsx);
     document.getElementById('deleteAllStopsBtn')?.addEventListener('click', deleteAllStops);
     document.getElementById('browseStopsImportBtn')?.addEventListener('click', () => {
         document.getElementById('stopsImportFile')?.click();
