@@ -12,7 +12,7 @@ test('master-data labels say Customer Workspace / Add Customer / Search Customer
   assert.match(page, /data-stop-workspace-mode="add"[^>]*>Add Customer</);
   assert.match(page, /<h3 id="addStopCreateHeading">Add Customer<\/h3>/);
   assert.match(page, /<h3>Search Customers<\/h3>/);
-  assert.match(page, />Add Customer<\/button>/);
+  assert.match(page, />Save Customer<\/button>/);
   for (const text of ['Import customers from your spreadsheet', 'Add your customer list', 'When a matching customer already exists', 'Export customers', 'Delete all customers']) assert.ok(page.includes(text), text);
   for (const old of ['Stop workspace', 'Add New Stop', 'Search Saved Stops', 'Export saved stops', 'Delete all stops']) assert.ok(!page.includes(old), old);
   assert.match(app, /createHeading\.textContent = isEditing \? 'Edit Customer' : 'Add Customer'/);

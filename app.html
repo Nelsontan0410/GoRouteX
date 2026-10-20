@@ -778,17 +778,23 @@
               <input type="text" id="stopCoordinate" name="stopCoordinate" placeholder="Will be filled after search" readonly style="background: #f1f5f9; color: #475569;">
             </div>
 
-            <div id="addStopContactFields" class="form-section"><h4>Contact at this customer (optional)</h4><div class="form-group"><label for="stopContactName">Contact name</label><input id="stopContactName"></div><div class="form-group"><label for="stopContactPhone">Phone</label><input id="stopContactPhone" type="tel"></div><div class="form-group"><label for="stopContactRole">Role</label><input id="stopContactRole"></div></div>
+            <div id="addStopContactFields" class="form-section" hidden><h4>Contact at this customer (optional)</h4><div class="form-group"><label for="stopContactName">Contact name</label><input id="stopContactName"></div><div class="form-group"><label for="stopContactPhone">Phone</label><input id="stopContactPhone" type="tel"></div><div class="form-group"><label for="stopContactRole">Role</label><input id="stopContactRole"></div></div>
             <fieldset id="customerDeliveryAvailability" class="form-section customer-constraints">
-              <legend>Delivery Availability</legend>
+              <legend>Delivery Timing</legend>
               <div class="constraint-mode" role="radiogroup" aria-label="Delivery availability">
                 <label><input type="radio" name="deliveryScheduleMode" value="default" checked> Use default schedule</label>
                 <label><input type="radio" name="deliveryScheduleMode" value="custom"> Custom schedule</label>
               </div>
               <p id="deliveryScheduleSummary" class="constraint-summary" aria-live="polite"></p>
+              <div id="simpleDeliveryTiming">
+                <fieldset class="timing-options"><legend>Delivery Days</legend><label><input id="deliveryWeekdays" type="checkbox" checked> Weekdays (Monday–Friday)</label><label><input id="deliveryWeekend" type="checkbox"> Weekend (Saturday–Sunday)</label></fieldset>
+                <fieldset class="timing-options"><legend>Delivery Hours</legend><label><input type="radio" name="deliveryHours" value="full" checked> Full Day · 09:00–18:00</label><label><input type="radio" name="deliveryHours" value="am"> Half Day AM · 09:00–13:00</label><label><input type="radio" name="deliveryHours" value="pm"> Half Day PM · 13:00–18:00</label></fieldset>
+              </div>
+              <button type="button" id="toggleAdvancedTimingBtn" class="clear-btn" aria-expanded="false">Advanced Timing</button>
               <div id="customDeliverySchedule" class="schedule-editor" hidden></div>
               <button type="button" id="resetDeliveryScheduleBtn" class="clear-btn constraint-reset" hidden>Return to default</button>
             </fieldset>
+            <details id="customerAdvancedDetails"><summary>Advanced details · Service time</summary>
             <fieldset id="customerServiceTime" class="form-section customer-constraints">
               <legend>Service Time</legend>
               <div class="constraint-mode" role="radiogroup" aria-label="Service time">
@@ -802,11 +808,12 @@
               </div>
               <button type="button" id="resetServiceTimeBtn" class="clear-btn constraint-reset" hidden>Return to default</button>
             </fieldset>
+            </details>
             <p id="customerConstraintErrors" class="schedule-errors" role="alert"></p>
             <div class="form-actions">
-              <button type="submit" id="submitStopBtn" class="submit-btn">Add Customer</button>
-              <button type="button" id="cancelEditStopBtn" class="submit-btn" style="display:none;">Cancel Edit</button>
-              <button type="button" id="clearFormBtn" class="clear-btn">Clear Form</button>
+              <button type="submit" id="submitStopBtn" class="submit-btn">Save Customer</button>
+              <button type="button" id="cancelEditStopBtn" class="submit-btn" style="display:none;">Cancel</button>
+              <button type="button" id="clearFormBtn" class="clear-btn">Cancel</button>
             </div>
           </form>
 
@@ -12764,10 +12771,12 @@
 
     function setAddStopFormMode(isEditing) {
         const submitBtn = document.getElementById('submitStopBtn');
-        if (submitBtn) submitBtn.textContent = isEditing ? 'Save Changes' : 'Add Customer';
+        if (submitBtn) submitBtn.textContent = isEditing ? 'Save Changes' : 'Save Customer';
         const createHeading = document.getElementById('addStopCreateHeading');
         if (createHeading) createHeading.textContent = isEditing ? 'Edit Customer' : 'Add Customer';
         if (cancelEditStopBtn) cancelEditStopBtn.style.display = isEditing ? 'inline-flex' : 'none';
+        const clearBtn = document.getElementById('clearFormBtn');
+        if (clearBtn) clearBtn.hidden = isEditing;
     }
 
     function clearAddStopForm(resetStatus = false) {

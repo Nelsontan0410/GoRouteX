@@ -14,6 +14,12 @@
     const block = entry.breaks?.[0] || {};
     const id = (field) => `${prefix}-${day}-${field}`;
     const disabled = entry.open ? '' : ' disabled';
+    const extra = (kind, entries) => entries.slice(1).map((range, index) => `<span class="schedule-range" data-extra="${kind}">
+      <label for="${id(`${kind}-${index}-start`)}">${kind === 'windows' ? 'Receiving' : 'Break'} ${index + 2}</label>
+      <input type="time" id="${id(`${kind}-${index}-start`)}" data-extra-start value="${range.start}"${disabled}>
+      <span aria-hidden="true">–</span><label class="visually-hidden" for="${id(`${kind}-${index}-end`)}">End</label>
+      <input type="time" id="${id(`${kind}-${index}-end`)}" data-extra-end value="${range.end}"${disabled}>
+    </span>`).join('');
     return `<fieldset class="schedule-day" data-day="${day}">
       <legend class="schedule-day-name">${C().DAY_LABELS[day]}</legend>
       <label class="schedule-open"><input type="checkbox" id="${id('open')}" data-field="open"${entry.open ? ' checked' : ''}> Open</label>
@@ -31,6 +37,7 @@
         <label class="visually-hidden" for="${id('breakEnd')}">Break end</label>
         <input type="time" id="${id('breakEnd')}" data-field="breakEnd" value="${block.end || ''}"${disabled}>
       </span>
+      ${extra('windows', entry.windows || [])}${extra('breaks', entry.breaks || [])}
     </fieldset>`;
   }
 
@@ -73,11 +80,15 @@
       }
       const breakStart = get('breakStart')?.value || '';
       const breakEnd = get('breakEnd')?.value || '';
+      const extra = (kind) => [...fieldset.querySelectorAll(`[data-extra="${kind}"]`)].map((range) => ({
+        start: range.querySelector('[data-extra-start]').value,
+        end: range.querySelector('[data-extra-end]').value
+      })).filter((range) => range.start || range.end);
       schedule[day] = {
         open: true,
-        windows: [{ start: get('start')?.value || '', end: get('end')?.value || '' }],
+        windows: [{ start: get('start')?.value || '', end: get('end')?.value || '' }, ...extra('windows')],
         // A break is optional; a half-filled break is kept so validation can explain it.
-        breaks: breakStart || breakEnd ? [{ start: breakStart, end: breakEnd }] : []
+        breaks: [...(breakStart || breakEnd ? [{ start: breakStart, end: breakEnd }] : []), ...extra('breaks')]
       };
     });
     return schedule;
