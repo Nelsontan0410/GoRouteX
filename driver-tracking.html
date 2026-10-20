@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GoRouteX Driver</title>
   <meta name="description" content="GoRouteX route execution and live location for drivers.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="driver-tracking.css?v=20260928-2">
   <link rel="stylesheet" href="styles/typography.css">
   <link rel="stylesheet" href="driver/live-view.css">
+  <link rel="stylesheet" href="driver/companion.css?v=20261020">
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -51,9 +52,8 @@
     <main id="trackingWorkspace" class="tracking-workspace" hidden>
       <header class="tracking-hero">
         <div class="tracking-hero-copy">
-          <span class="tracking-eyebrow">Driver Companion</span>
-          <h1>Your delivery route</h1>
-          <p>Follow your saved stop sequence, record delivery outcomes, and share location while your route is active.</p>
+          <h1>GoRouteX <span>Driver Companion</span></h1>
+          <p>Your route. One stop at a time.</p>
         </div>
         <div class="tracking-hero-meta">
           <span id="driverStatusChip" class="tracking-status-chip is-ready">Ready</span>
@@ -141,19 +141,48 @@
         <div id="driverNotice" class="driver-notice" role="status" aria-live="polite">Loading assigned routes…</div>
         <div id="driverLocationAlert" class="driver-location-alert" role="alert" hidden><p id="driverLocationAlertText"></p><button id="driverLocationRetry" class="driver-primary" type="button">Retry location</button></div>
         <section id="driverInvites" class="driver-notice" hidden><strong>Workspace invitations</strong><div id="driverInviteList"></div></section>
-        <div class="driver-route-toolbar"><h2>Assigned routes</h2><button id="driverRefreshBtn" type="button" class="driver-secondary">Refresh</button></div>
-        <div id="driverRouteList" class="driver-route-list"></div>
-        <div id="driverRouteView" hidden>
-          <div class="driver-route-head"><div><span id="driverRouteDate" class="driver-overline"></span><h2 id="driverRouteName"></h2><p id="driverRouteMeta"></p></div><span id="driverRouteStatus" class="driver-route-status"></span></div>
-          <div id="driverProgress" class="driver-progress"></div>
-          <section id="driverNavigateAll" class="driver-navigate-all" hidden aria-label="Navigate all stops"></section>
-          <div id="driverRouteControls" class="driver-actions" hidden><button id="driverPauseBtn" class="driver-secondary" type="button">Pause navigation</button><button id="driverResumeBtn" class="driver-primary" type="button" hidden>Resume navigation</button><button id="driverStopBtn" class="driver-secondary" type="button">Stop route</button></div>
-          <div id="driverStartArea" class="driver-start-area" hidden><button id="driverStartBtn" class="driver-primary" type="button">Start route</button></div>
-          <div id="driverNextStop" class="driver-next-stop" hidden><span id="driverStopSequence" class="driver-overline"></span><h3 id="driverStopName"></h3><p id="driverStopCustomer"></p><address id="driverStopAddress"></address><p id="driverStopContact"></p><div id="driverStopOrders" class="driver-orders"></div><p id="driverStopNotes"></p><div class="driver-actions"><a id="driverNavigate" class="driver-primary driver-link" target="_blank" rel="noopener noreferrer">Navigate</a><a id="driverCall" class="driver-secondary driver-link">Call contact</a></div><div class="driver-actions"><button id="driverArriveBtn" class="driver-primary" type="button">Arrived</button><button id="driverDeliverBtn" class="driver-primary" type="button">Complete delivery</button><button id="driverFailBtn" class="driver-secondary" type="button">Report issue</button></div></div>
-          <form id="driverPodForm" class="driver-form" hidden><h3>Complete delivery</h3><label>Received by<input id="driverRecipient" autocomplete="name" placeholder="Optional recipient name"></label><label>Driver note<textarea id="driverPodNotes" rows="2" placeholder="Optional delivery note"></textarea></label><label>Delivery photo<input id="driverPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></label><img id="driverPhotoPreview" alt="Selected delivery photo preview" hidden><button id="driverPhotoClear" class="driver-secondary" type="button" hidden>Remove photo</button><p>Photo and recipient are optional. The actual receiver can differ from the saved contact.</p><div class="driver-actions"><button id="driverPodSubmit" class="driver-primary" type="submit">Save delivery</button><button id="driverPodCancel" class="driver-secondary" type="button">Cancel</button></div></form>
-          <form id="driverFailureForm" class="driver-form" hidden><h3>Report delivery issue</h3><label>Reason<select id="driverFailureReason" required><option value="">Select reason</option><option>Customer closed</option><option>No one available</option><option>Wrong address</option><option>Unable to access</option><option>Customer rejected</option><option>Goods issue</option><option>Other</option></select></label><label>Notes<textarea id="driverFailureNotes" rows="2" placeholder="Required for Other"></textarea></label><div class="driver-actions"><button id="driverFailureSubmit" class="driver-danger" type="submit">Save failed stop</button><button id="driverFailureCancel" class="driver-secondary" type="button">Cancel</button></div></form>
-          <section class="driver-stop-section"><h3>Stops</h3><div id="driverStopList" class="driver-stop-list"></div><div id="driverStopDetail" class="driver-stop-detail" hidden></div></section>
-          <section id="driverFinishArea" class="driver-finish-area" hidden><h3>All stops processed</h3><p id="driverFinishSummary"></p><button id="driverFinishBtn" class="driver-primary" type="button">Complete route</button></section>
+        <nav class="driver-view-switch" aria-label="Driver views">
+          <button id="driverOverviewTab" type="button" aria-current="page" aria-controls="driverOverviewPane">Today's Route</button>
+          <button id="driverCurrentTab" type="button" aria-controls="driverCurrentPane" disabled>Current Stop</button>
+        </nav>
+        <div class="driver-route-toolbar"><h2>Today's Route</h2><button id="driverRefreshBtn" type="button" class="driver-secondary">Refresh</button></div>
+        <div id="driverRouteList" class="driver-route-list" aria-label="Assigned routes"></div>
+        <div id="driverRouteView" class="driver-route-view" data-screen="route" hidden>
+          <section id="driverOverviewPane" class="driver-overview-pane" aria-label="Today's route overview">
+            <div class="driver-route-summary">
+              <div class="driver-route-head"><div><span id="driverRouteDate" class="driver-route-date"></span><h2 id="driverRouteName"></h2><p id="driverRouteMeta"></p></div><span id="driverRouteStatus" class="driver-route-status"></span></div>
+              <div id="driverProgress" class="driver-progress" aria-live="polite"></div>
+              <progress id="driverProgressBar" max="1" value="0" aria-label="Stops processed"></progress>
+              <div id="driverMetrics" class="driver-metrics"></div>
+              <div id="driverStartArea" class="driver-start-area" hidden><button id="driverStartBtn" class="driver-primary" type="button">Start Route</button><p>Starts your route and location sharing.</p></div>
+              <div id="driverRouteControls" hidden>
+                <button id="driverContinueBtn" class="driver-primary" type="button">Continue Route</button>
+                <button id="driverResumeBtn" class="driver-primary" type="button" hidden>Continue Route</button>
+                <details class="driver-route-options"><summary>Route options</summary><div class="driver-actions"><button id="driverPauseBtn" class="driver-secondary" type="button">Pause route</button><button id="driverStopBtn" class="driver-secondary" type="button">Stop route</button></div><p>Pausing stops location sharing until you continue.</p></details>
+              </div>
+              <p id="driverEndedSummary" class="driver-muted" hidden></p>
+            </div>
+            <section id="driverNavigateAll" class="driver-navigate-all" hidden aria-label="Google Maps navigation"></section>
+            <section class="driver-stop-section" aria-labelledby="driverStopsHeading"><div class="driver-section-heading"><h3 id="driverStopsHeading">Stops</h3><span id="driverStopsCount"></span></div><div id="driverStopList" class="driver-stop-list"></div><div id="driverStopDetail" class="driver-stop-detail" tabindex="-1" hidden></div></section>
+          </section>
+          <section id="driverCurrentPane" class="driver-current-pane" aria-labelledby="driverCurrentHeading">
+            <div class="driver-section-heading"><h2 id="driverCurrentHeading" tabindex="-1">Current Stop</h2><button id="driverBackToRoute" class="driver-text-button" type="button">View route</button></div>
+            <div id="driverCurrentEmpty" class="driver-current-empty"><h3>Ready when you are</h3><p>Start your route to navigate to your first stop and record deliveries.</p></div>
+            <div id="driverNextStop" class="driver-next-stop" hidden>
+              <div class="driver-stop-topline"><span id="driverStopSequence"></span><span id="driverStopState" class="driver-stop-state"></span></div>
+              <h3 id="driverStopName"></h3><p id="driverStopCustomer"></p>
+              <address id="driverStopAddress"></address>
+              <p id="driverStopContact"></p><div id="driverStopOrders" class="driver-orders"></div><p id="driverStopNotes"></p>
+              <div class="driver-contact-actions"><a id="driverNavigate" class="driver-primary driver-link" target="_blank" rel="noopener noreferrer">Navigate</a><a id="driverCall" class="driver-secondary driver-link">Call</a><a id="driverWhatsApp" class="driver-secondary driver-link" target="_blank" rel="noopener noreferrer">WhatsApp</a></div>
+              <p id="driverContactHint" class="driver-helper"></p>
+              <div class="driver-outcome-actions"><button id="driverArriveBtn" class="driver-primary" type="button">Mark Arrived</button><button id="driverDeliverBtn" class="driver-primary" type="button">Mark Delivered</button><button id="driverFailBtn" class="driver-issue-button" type="button">Report Issue</button></div>
+              <p id="driverOutcomeHint" class="driver-helper">Mark arrived before recording a delivery.</p>
+            </div>
+            <form id="driverPodForm" class="driver-form" hidden><h3>Delivery confirmation</h3><label>Received by<input id="driverRecipient" autocomplete="name" placeholder="Optional recipient name"></label><label>Driver note<textarea id="driverPodNotes" rows="2" placeholder="Optional delivery note"></textarea></label><label>Delivery photo<input id="driverPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></label><img id="driverPhotoPreview" alt="Selected delivery photo preview" hidden><button id="driverPhotoClear" class="driver-secondary" type="button" hidden>Remove photo</button><p>Photo and recipient are optional. The actual receiver can differ from the saved contact.</p><div class="driver-actions"><button id="driverPodSubmit" class="driver-primary" type="submit">Save delivery</button><button id="driverPodCancel" class="driver-secondary" type="button">Cancel</button></div></form>
+            <form id="driverFailureForm" class="driver-form" hidden><h3>Report delivery issue</h3><label>Reason<select id="driverFailureReason" required><option value="">Select reason</option><option>Customer closed</option><option>No one available</option><option>Wrong address</option><option>Unable to access</option><option>Customer rejected</option><option>Goods issue</option><option>Other</option></select></label><label>Notes<textarea id="driverFailureNotes" rows="2" placeholder="Required for Other"></textarea></label><p>This records a failed stop. It will remain in the route's results.</p><div class="driver-actions"><button id="driverFailureSubmit" class="driver-danger" type="submit">Save failed stop</button><button id="driverFailureCancel" class="driver-secondary" type="button">Cancel</button></div></form>
+            <button id="driverUpcoming" class="driver-upcoming" type="button" hidden><span>Up next <small>View details</small></span><strong id="driverUpcomingName"></strong><span id="driverUpcomingAddress"></span></button>
+            <section id="driverFinishArea" class="driver-finish-area" hidden><h3>All stops processed</h3><p id="driverFinishSummary"></p><button id="driverFinishBtn" class="driver-primary" type="button">Complete route</button></section>
+          </section>
         </div>
       </section>
 
