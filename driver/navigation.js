@@ -23,3 +23,9 @@ export function navigationParts({origin=null,originLabel='Start',end=null,endLab
   from=destination.place;fromLabel=destination.end?endLabel:`Stop ${destination.sequence}`;index+=chunk.length;}
  return parts;
 }
+
+// Use only an explicitly international saved number; never guess its country. Opening a chat sends no message.
+export function whatsappUrl(stop) {
+ const phone=String(stop?.contactPhone||'').trim().replace(/[\s().-]/g,'');
+ return /^\+[1-9][0-9]{7,14}$/.test(phone)?`https://wa.me/${phone.slice(1)}`:null;
+}
