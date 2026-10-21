@@ -68,7 +68,7 @@ test('the app uses the shared exporter for CSV, the template and Excel', () => {
   assert.match(app, /GoRouteXExport\.downloadCsv\(`goroutex-stops-\$\{today\}\.csv`, CUSTOMER_EXPORT_HEADER/);
   assert.match(app, /GoRouteXExport\.downloadCsv\('goroutex-stops-template\.csv', CUSTOMER_EXPORT_HEADER/);
   assert.match(app, /GoRouteXExport\.downloadXlsx\(`goroutex-stops-\$\{today\}\.xlsx`, 'Customers', CUSTOMER_EXPORT_HEADER/);
-  assert.match(app, /const CUSTOMER_EXPORT_HEADER = \['Customer Name', 'Phone', 'Address', 'Unit', 'Notes'\];/);
+  assert.match(app, /const CUSTOMER_EXPORT_HEADER = \['Customer Name', 'Phone', 'Address', 'Unit', 'Notes', 'Latitude', 'Longitude'\];/);
   assert.match(app, /<script src="csv-export\.js"><\/script>/);
 });
 
