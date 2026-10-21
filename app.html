@@ -13951,7 +13951,10 @@
                 continue;
             }
 
-            if (Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lng))) {
+            // Number(null) is 0, so a missing coordinate must be excluded explicitly or it imports as 0,0.
+            const hasImportCoordinates = (value) => value !== null && value !== undefined && String(value).trim() !== '' && Number.isFinite(Number(value));
+            const importLat = Number(row.lat), importLng = Number(row.lng);
+            if (hasImportCoordinates(row.lat) && hasImportCoordinates(row.lng) && !(importLat === 0 && importLng === 0)) {
                 row.lat = Number(row.lat);
                 row.lng = Number(row.lng);
                 row.status = 'ready';
@@ -14135,8 +14138,8 @@
     }
 
     // Customer export columns: unchanged header, order and meaning.
-    const CUSTOMER_EXPORT_HEADER = ['Customer Name', 'Phone', 'Address', 'Unit', 'Notes'];
-    const customerExportRow = (entry) => [entry.Name || '', entry['Hp No'] || '', entry.Address || '', entry.unit || '', entry.note || ''];
+    const CUSTOMER_EXPORT_HEADER = ['Customer Name', 'Phone', 'Address', 'Unit', 'Notes', 'Latitude', 'Longitude'];
+    const customerExportRow = (entry) => [entry.Name || '', entry['Hp No'] || '', entry.Address || '', entry.unit || '', entry.note || '', entry.lat ?? '', entry.lng ?? ''];
 
     function downloadCsvTemplate() {
         window.GoRouteXExport.downloadCsv('goroutex-stops-template.csv', CUSTOMER_EXPORT_HEADER, []);
