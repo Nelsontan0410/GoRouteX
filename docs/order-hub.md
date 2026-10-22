@@ -27,6 +27,15 @@ Import profiles live at `users/{uid}/importProfiles/{profileId}` and map normali
 6. Add Stop, Add Contact and Add Stop + Contact actions open the existing Saved Stops workspace in `app.html`. The draft and stable `internalId` survive navigation. After saving, the newly created IDs are assigned to that one originating row, the draft is restored and readiness is recalculated. An existing customer ID is reused when adding another delivery stop.
 7. Confirming saves only selected preview rows, then records a batch and optional profile. A partial write is reported as partial; it is never shown as a complete import.
 
+## Changing an order's delivery address
+
+Planning routes by map position, so a changed address on an order linked to a saved stop must be found on the map before saving (Edit order → Find on map). The operator chooses where it applies:
+
+- **This order only** stores `deliveryOverride: {address, lat, lng, matchedAddress, confirmedAt}` on the order. The saved stop is unchanged. Planning sends the order as its own stop `order-address-{internalId}` (the saved stop's name, phone and timing at the new position); it is never saved to the customer list, and route enrichment links the order to it. Typing the saved stop's address again removes the override.
+- **Update the customer's saved stop** writes the new address and position to the stop; later orders use it too.
+
+Order Hub re-checks saved orders against the current saved stops on load. A link to a stop that no longer exists (for example, deleted and imported again) is re-pointed to the one strong match and saved.
+
 ## Limits and next integration
 
 Manual orders use the same normalizer and validator and may be saved with an address even if no master customer/stop exists; the customer/stop resolution workflow currently applies to imports. The Order Hub does not geocode every imported row. A future planning adapter should transform `READY` canonical orders into the existing route planner's stop input without changing the route engine. Cloud Firestore security and production account behavior require deployment/account verification; the local browser acceptance harness uses an isolated mock account.

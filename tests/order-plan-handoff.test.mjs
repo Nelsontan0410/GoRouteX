@@ -102,7 +102,7 @@ test('order handoff loads and selects stops beyond the first 100 saved stops', a
     searchCustomerInput: null, allCustomerEntries: [],
     loadStopsOnce: async options => {requestedLimit = options.limit; return {success:true, stops: options.limit ? stops.slice(0, options.limit) : stops};},
     applyStopsResult(result){context.allCustomerEntries = result.stops.map(stop => ({uniqueId:stop.id, Address:stop.address}));},
-    getCurrentSelectedStopsLimit: () => 25,
+    getCurrentSelectedStopsLimit: () => 25, addOneTimeOrderEntries(){},
     updateSelectedListOnPage1(){}, renderCustomerList(){}, updateManualAssignAccessButton(){}, syncSessionToCloud(){},
     planningDateInput: {value:''}, updatePlanningDateAccess(){},
     selectedCustomers: new Set(), selectedAddresses: new Set()

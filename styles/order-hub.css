@@ -19,3 +19,16 @@ body { color:var(--saas-text); background:var(--saas-bg); }
 .badge { font-weight:700; }
 .topbar nav .active { color:var(--saas-primary); border-bottom-color:var(--saas-primary); }
 ::selection { background:#dbe7ff; color:#193e85; }
+/* Edit order: confirm a changed delivery address on the map */
+.oh-location { border:1px solid #dce3ec; border-radius:10px; background:#f7f9fc; padding:14px 16px; }
+.oh-location .button-row { justify-content:flex-start; margin-top:8px; }
+.oh-location-note,.oh-location-picked { margin:0; color:#536479; font-size:13px; }
+.oh-location-picked:not(:empty) { margin-top:10px; color:#192b40; font-weight:600; }
+.oh-location-results { list-style:none; margin:10px 0 0; padding:0; display:grid; gap:4px; }
+.oh-location-results li { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; }
+.oh-location-results button { text-align:left; padding:6px 0; }
+.oh-address-scope { border:0; margin:12px 0 0; padding:0; display:grid; gap:8px; }
+.oh-address-scope legend { font-weight:700; font-size:13px; color:#334155; margin-bottom:6px; padding:0; }
+.panel .oh-address-scope label { flex-direction:row; align-items:flex-start; gap:8px; font-weight:500; }
+.panel .oh-address-scope input { min-height:0; margin-top:3px; }
+.oh-one-time { display:inline-block; margin-top:4px; border-radius:5px; padding:2px 6px; font-size:11px; font-weight:700; background:#e9efff; color:#1d47a5; }

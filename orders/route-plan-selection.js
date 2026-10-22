@@ -32,10 +32,24 @@
     const match = String(value || '').trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
     return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
   };
+  // An order with a confirmed one-time delivery address is planned as its own stop at that address;
+  // the customer's saved stop is not changed. Keep in step with driver/route-enrichment.js.
+  const ONE_TIME_PREFIX = 'order-address-';
+  function oneTimeAddress(order) {
+    const value = order?.deliveryOverride;
+    const lat = Number(value?.lat), lng = Number(value?.lng);
+    if (!value || !String(value.address || '').trim() || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) return null;
+    return { address: String(value.address).trim(), lat, lng };
+  }
+  function planningStopId(order) {
+    const internalId = String(order?.internalId || '').trim();
+    return oneTimeAddress(order) && internalId ? ONE_TIME_PREFIX + internalId : String(order?.savedStopId || '').trim();
+  }
+
   function stopConstraints(orders) {
     const result = {};
     for (const order of orders) {
-      const id = String(order.savedStopId || '').trim();
+      const id = planningStopId(order);
       if (!id) continue;
       const entry = result[id] || {};
       const start = hhmm(order.timeWindowStart), end = hhmm(order.timeWindowEnd);
@@ -62,15 +76,17 @@
     const stopById = new Map((stops || []).filter(stop => stop?.id).map(stop => [String(stop.id), stop]));
     const orderIds = [...new Set(orders.map(order => String(order.internalId || '').trim()))];
     if (orderIds.some(id => !id)) throw Error('A selected order is missing its saved ID. Refresh Order Hub and try again.');
-    const stopIds = [...new Set(orders.map(order => String(order.savedStopId || '').trim()))];
-    if (stopIds.some(id => !id || !stopById.has(id))) throw Error('A selected order needs a saved delivery stop. Review the order before planning.');
+    if (orders.some(order => !stopById.has(String(order.savedStopId || '').trim()))) throw Error('A selected order needs a saved delivery stop. Review the order before planning.');
+    const stopIds = [...new Set(orders.map(planningStopId))];
     if (Number.isFinite(maxStops) && stopIds.length > maxStops) throw Error('This plan supports ' + maxStops + ' selected stops. Choose fewer orders or change plan.');
-    return { orderIds, stopIds, planningDateTime: selectedSchedule(orders), selectedAddresses: stopIds.map(id => stopById.get(id).address), stopConstraints: stopConstraints(orders) };
+    const oneTimeStops = orders.filter(oneTimeAddress).map(order => ({ id: planningStopId(order), savedStopId: String(order.savedStopId).trim(), orderId: String(order.internalId).trim(), ...oneTimeAddress(order) }));
+    const oneTimeById = new Map(oneTimeStops.map(stop => [stop.id, stop]));
+    return { orderIds, stopIds, oneTimeStops, planningDateTime: selectedSchedule(orders), selectedAddresses: stopIds.map(id => (oneTimeById.get(id) || stopById.get(id)).address), stopConstraints: stopConstraints(orders) };
   }
 
   function save(uid, selection) {
     if (!uid || !selection?.orderIds?.length || !selection?.stopIds?.length) throw Error('Order planning selection is incomplete.');
-    global.sessionStorage.setItem(KEY, JSON.stringify({ uid, orderIds: selection.orderIds, stopIds: selection.stopIds, planningDateTime: selection.planningDateTime, stopConstraints: selection.stopConstraints || {}, createdAt: Date.now() }));
+    global.sessionStorage.setItem(KEY, JSON.stringify({ uid, orderIds: selection.orderIds, stopIds: selection.stopIds, oneTimeStops: selection.oneTimeStops || [], planningDateTime: selection.planningDateTime, stopConstraints: selection.stopConstraints || {}, createdAt: Date.now() }));
   }
 
   function read(uid) {
@@ -89,5 +105,5 @@
     if (!uid || read(uid)) global.sessionStorage.removeItem(KEY);
   }
 
-  global.GoRouteXOrderPlan = { prepare, save, read, clear };
+  global.GoRouteXOrderPlan = { prepare, save, read, clear, planningStopId };
 })(window);
