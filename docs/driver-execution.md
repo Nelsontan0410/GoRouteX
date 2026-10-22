@@ -10,4 +10,35 @@ Start Route starts the existing `driver-tracking.js` geolocation watch. Position
 
 Tracking depends on the web page and browser permitting GPS callbacks. Closing the page, phone lock, battery restrictions, or browser suspension can stop updates. No native background service, service worker offline cache, or durable GPS point queue is implemented. While offline, the page keeps only its latest GPS fix in memory and tries to upload that latest fix when online. Route execution uses Firestore transactions in cloud mode and IndexedDB records in local mode. Firestore SDK offline behavior is separate from this feature; the app does not claim a custom offline mutation queue.
 
+## Live GPS diagnostics (web)
+
+**Limitation.** A web page cannot keep sending GPS while Google Maps is in front: Android Chrome freezes the page in the background. Positions resume when the driver returns to GoRouteX. Continuous tracking during navigation needs the native driver app (planned, `com.goroutex.driver`).
+
+**First fix.** Start Route also takes a one-off high-accuracy reading next to the watch. Android often reports a coarse position first. If no fix within 120 m arrives within `FIRST_FIX_WAIT_MS` (8 s), the best coarse fix within `MAX_APPROX_ACCURACY_METERS` (1500 m) is sent **once** as the live position, with `approximate: true` and its `accuracy`. It is written only to the live document (via `updateSession`), never to `points` or the map trace. Later uploads keep the 120 m rule, and the first accurate upload clears `approximate`.
+
+**Before opening Maps.** During a route, a tap on a "Part N" link first sends the current position (waiting at most 1500 ms), then opens Maps in the same tab. `window.open` after a wait would be blocked as a popup. In the native app (`DriverTrackingPage.isNativeMode()`), Maps opens at once.
+
+**Live document fields** (`users/{driverUid}/drivers_live/{driverUid}`; added, none renamed):
+- `positionAt`: server time of the position itself. `lastUpdatedAt` also moves on status-only writes, so the office uses `positionAt` for age.
+- `approximate`: the position is a coarse first fix.
+- `gpsHint` / `gpsHintAt`: why the office may not see a fresh position, written best effort by the phone:
+  - `OK`: positions are uploading.
+  - `WAITING_FIRST_FIX`: tracking started; no usable fix yet.
+  - `UPLOAD_FAILED`: the phone could not write its position (see the driver's alert for the error).
+  - `PAGE_BACKGROUND`: GoRouteX went to the background, usually Google Maps; updates may stop.
+  - `PERMISSION_DENIED`: location permission is off.
+  - `OFFLINE`: accepted, but a web page cannot send it while offline. The office relies on `networkStatus` and the position age instead.
+
+**Office rules** (`driver/live-view-model.js`, `gpsState`):
+- No position: show the hint, else "Waiting for the driver's first GPS fix".
+- Position at most `LIVE_FRESH_MS` (2 min) old: live, or "Approximate position ±N m".
+- 2–10 min: "Last position N min ago", plus the hint's reason.
+- More than `LIVE_STALE_WARN_MS` (10 min): a warning, "No GPS update for N min".
+
+**Driver alert.** `DriverTrackingPage.getProblem()` returns `PERMISSION_DENIED`, `PERMISSION_PROMPT`, `OFFLINE`, `UPLOAD_FAILED`, `WAITING_FIRST_FIX` or `ERROR`. The driver page shows it with Retry.
+
+**Screen wake lock.** It keeps the screen on while the driver page is in front during an active route, and is released on pause, stop or finish. It does not help while Maps is in front, because the browser releases it when the page is hidden.
+
+**Field debugging.** On the phone, run `localStorage.debugTracking = '1'` and reload. Each fix (accepted or rejected, with its accuracy), each upload result and each hint is then logged to the console. On Android, inspect it from a computer at `chrome://inspect` with USB debugging on. Set the value back to `'0'` to stop.
+
 The existing full-data deletion action now removes the signed-in account’s local Driver execution/POD/photo records; the Firebase account deletion helper removes the three corresponding cloud collections.

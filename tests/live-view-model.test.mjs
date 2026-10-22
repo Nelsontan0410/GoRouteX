@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildLiveView, gpsState, matchesSearch, GPS_FRESH_MS } from '../driver/live-view-model.js';
+import { buildLiveView, gpsState, matchesSearch, GPS_FRESH_MS, LIVE_FRESH_MS, LIVE_STALE_WARN_MS } from '../driver/live-view-model.js';
 import { startExecution, arrive, deliver, fail, finish, stopRoute } from '../driver/execution.js';
 
 const NOW = Date.parse('2026-10-19T03:00:00Z');
@@ -116,4 +116,34 @@ test('the page is read only and draws the driver only for a known GPS state', ()
   assert.match(page, /view\.started && gps\.position && \['live', 'stale', 'offline', 'paused'\]\.includes\(gps\.state\)/);
   assert.match(page, /if \(auto\.checked && !document\.hidden && !\$\('trackingWorkspace'\)\.hidden\) load\(\);/);
   assert.match(page, /if \(state\.loading\) return;/, 'no overlapping refreshes');
+});
+
+test('Phase 0: the office sees why GPS is missing, and how old the position is', () => {
+  const ago = (ms) => new Date(NOW - ms).toISOString();
+  assert.equal(LIVE_FRESH_MS, 120000);
+  assert.equal(LIVE_STALE_WARN_MS, 600000);
+  const waiting = gpsState(live({ lat: null, lng: null }), NOW);
+  assert.equal(waiting.state, 'none');
+  assert.match(waiting.label, /first GPS fix/);
+  for (const [hint, pattern] of [['UPLOAD_FAILED', /could not upload/], ['PAGE_BACKGROUND', /background/], ['WAITING_FIRST_FIX', /first GPS fix/]]) {
+    assert.match(gpsState(live({ lat: null, lng: null, gpsHint: hint }), NOW).label, pattern, hint);
+  }
+  assert.equal(gpsState(live({ gpsHint: 'PERMISSION_DENIED', status: 'error' }), NOW).state, 'denied');
+  assert.equal(gpsState(live({ gpsHint: 'NOT_A_HINT', lat: null, lng: null }), NOW).hint, null);
+
+  // positionAt is the position's own time: a later status-only write (lastUpdatedAt) does not make it fresh.
+  const old = gpsState(live({ positionAt: ago(5 * 60000), lastUpdatedAt: ago(1000), gpsHint: 'PAGE_BACKGROUND' }), NOW);
+  assert.equal(old.state, 'stale');
+  assert.equal(old.warn, false);
+  assert.match(old.label, /^Last position 5 min ago · .*background/);
+  const lost = gpsState(live({ positionAt: ago(15 * 60000) }), NOW);
+  assert.equal(lost.state, 'stale');
+  assert.equal(lost.warn, true);
+  assert.match(lost.label, /^No GPS update for 15 min/);
+  assert.equal(gpsState(live({ positionAt: ago(LIVE_FRESH_MS - 1000) }), NOW).state, 'live');
+
+  const approx = gpsState(live({ positionAt: ago(10000), approximate: true, accuracy: 640 }), NOW);
+  assert.equal(approx.state, 'live');
+  assert.equal(approx.approximate, true);
+  assert.equal(approx.label, 'Approximate position ±640 m');
 });
