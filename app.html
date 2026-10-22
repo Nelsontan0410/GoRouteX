@@ -926,7 +926,7 @@
             </div>
           </div>
           <div id="csvImportPreviewSection" class="csv-import-stage" hidden>
-            <div class="stop-import-stage-heading"><span class="stop-import-step-number">3</span><div><h4>Preview before importing</h4><p class="form-description">Fix any highlighted address before confirming. No stop is saved until every row is ready.</p></div></div>
+            <div class="stop-import-stage-heading"><span class="stop-import-step-number">3</span><div><h4>Preview before importing</h4><p class="form-description">Ready rows are imported; highlighted rows are skipped and stay here so you can fix them, recheck and import them afterwards.</p></div></div>
             <div id="csvImportPreviewSummary" class="csv-import-preview-summary"></div>
             <div class="csv-import-preview-table-wrap">
               <table class="csv-import-preview-table">
@@ -946,6 +946,7 @@
             </div>
             <div class="form-actions">
               <button type="button" id="revalidateImportPreviewBtn" class="action-button-secondary">Recheck Preview</button>
+              <button type="button" id="downloadFailedImportRowsBtn" class="action-button-secondary" hidden>Download rows not imported (CSV)</button>
               <button type="button" id="runStopsImportBtn" class="submit-btn">Confirm Import</button>
             </div>
           </div>
@@ -1346,6 +1347,26 @@
     const STORAGE_KEY_SELECTED_CUSTOMERS = 'bjsSelectedCustomers'; // Store customer uniqueIds
     const STORAGE_KEY_ROUTE_HISTORY = 'bjsRouteHistory';
     
+    // Saved customer stops only: excludes one-time order addresses (see addOneTimeOrderEntries).
+    function getSavedCustomerEntries() {
+        return allCustomerEntries.filter((entry) => !entry.isOneTimeAddress);
+    }
+
+    // An Order Hub order with a one-time delivery address is planned as its own stop: the customer's
+    // saved stop (name, phone, timing) at the order's confirmed address. It lives only for this
+    // planning selection and is never saved to the customer list.
+    function addOneTimeOrderEntries(selection) {
+        const saved = getSavedCustomerEntries();
+        const plan = selection || window.GoRouteXOrderPlan?.read?.(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
+        const oneTime = (Array.isArray(plan?.oneTimeStops) ? plan.oneTimeStops : []).map((item) => {
+            const base = saved.find((entry) => entry.uniqueId === item.savedStopId);
+            if (!base || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lng))) return null;
+            const lat = Number(item.lat), lng = Number(item.lng);
+            return { ...base, id: item.id, uniqueId: item.id, Address: item.address, postalCode: '', lat, lng, coordinate: `${lat},${lng}`, isOneTimeAddress: true, baseStopId: base.uniqueId };
+        }).filter(Boolean);
+        allCustomerEntries = [...saved, ...oneTime];
+    }
+
     // Helper function to get customer data by uniqueId
     function getCustomerById(uniqueId) {
         return allCustomerEntries.find(e => e.uniqueId === uniqueId);
@@ -1411,6 +1432,7 @@
 
     function applyOrderPlanSelection(selection) {
         const notice = document.getElementById('orderPlanNotice');
+        addOneTimeOrderEntries(selection);
         const stopById = new Map(allCustomerEntries.map(entry => [entry.uniqueId, entry]));
         const missing = selection.stopIds.filter(id => !stopById.has(id));
         if (missing.length || selection.stopIds.length > getCurrentSelectedStopsLimit()) {
@@ -2522,7 +2544,7 @@
     }
 
     function getCurrentUsageSnapshot() {
-      const savedStopsUsed = Array.isArray(allCustomerEntries) ? allCustomerEntries.length : 0;
+      const savedStopsUsed = Array.isArray(allCustomerEntries) ? getSavedCustomerEntries().length : 0;
       // Automatic plans used today (entries into Review & Assign), not saved routes.
       const todaySavedRoutes = getTodayUsage(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
       const usersUsed = Number.isFinite(Number(window.currentUserProfile?.teamMembersCount))
@@ -7118,6 +7140,7 @@
         allCustomerEntries = (result?.stops || [])
             .map((stop, index) => mapStopToEntry(stop, index))
             .filter((entry) => entry && entry.Address);
+        addOneTimeOrderEntries();
 
         allCustomerEntries.forEach((entry) => {
             if (entry.Address && (!addressNameMap[entry.Address] || entry.Address !== currentLocationOrigin)) {
@@ -7491,7 +7514,7 @@
         desc.className = 'customer-item-center';
         desc.innerHTML = `
             <div class="customer-item-name">${escapeHtml(entry.Name || 'Unknown Name')}</div>
-            <div class="customer-item-address">${escapeHtml(entry.Address || 'Address not available')}</div>
+            <div class="customer-item-address">${entry.isOneTimeAddress ? '<strong>One-time address (this order only):</strong> ' : ''}${escapeHtml(entry.Address || 'Address not available')}</div>
             <div class="customer-item-phone">${escapeHtml(String(entry['Hp No'] || '').trim() || 'No phone')}</div>
         `;
 
@@ -12937,7 +12960,7 @@
             });
             return;
         }
-        const entry = allCustomerEntries.find((item) => item.uniqueId === stopId);
+        const entry = allCustomerEntries.find((item) => item.uniqueId === stopId && !item.isOneTimeAddress);
         if (!entry) return;
 
         editingReturnToSearch = activeStopWorkspaceMode === 'edit';
@@ -12998,7 +13021,7 @@
             });
             return;
         }
-        const entry = allCustomerEntries.find((item) => item.uniqueId === stopId);
+        const entry = allCustomerEntries.find((item) => item.uniqueId === stopId && !item.isOneTimeAddress);
         if (!entry) return;
 
         const confirmed = confirm(`Delete stop "${entry.Name || 'Unnamed stop'}"? This cannot be undone.`);
@@ -13654,7 +13677,12 @@
         if (previewTable) previewTable.innerHTML = '';
         if (previewSummary) previewSummary.textContent = '';
         const runBtn = document.getElementById('runStopsImportBtn');
-        if (runBtn) runBtn.disabled = true;
+        if (runBtn) {
+            runBtn.disabled = true;
+            runBtn.textContent = 'Confirm Import';
+        }
+        const failedBtn = document.getElementById('downloadFailedImportRowsBtn');
+        if (failedBtn) failedBtn.hidden = true;
     }
 
     function renderImportMappingUi() {
@@ -13780,15 +13808,21 @@
             const skippedText = parsedImportPreview.skipped.length
                 ? ` ${parsedImportPreview.skipped.length} row(s) were skipped during mapping.`
                 : '';
-            previewSummary.textContent = `${readyCount} row(s) ready to import.${unresolvedCount > 0 ? ` ${unresolvedCount} row(s) still need attention.` : ''}${skippedText}`;
+            previewSummary.textContent = `${readyCount} row(s) ready to import.${unresolvedCount > 0 ? ` ${unresolvedCount} row(s) need attention and will be skipped.` : ''}${skippedText}`;
         }
 
         if (runBtn) {
             const canConfirmImport = hasRolePermission('stops.view')
                 && hasRolePermission('stops.manage')
                 && getProductFeatureAccess('csvImport').allowed;
-            runBtn.disabled = !canConfirmImport || readyCount === 0 || unresolvedCount > 0;
+            // Ready rows import on their own; rows that need attention are skipped, not blocking.
+            runBtn.disabled = !canConfirmImport || readyCount === 0;
+            runBtn.textContent = unresolvedCount > 0 && readyCount > 0
+                ? `Import ${readyCount} ready, skip ${unresolvedCount}`
+                : 'Confirm Import';
         }
+        const failedBtn = document.getElementById('downloadFailedImportRowsBtn');
+        if (failedBtn) failedBtn.hidden = unresolvedCount === 0;
     }
 
     function handleImportPreviewFieldEdit(event) {
@@ -14044,35 +14078,38 @@
     }
 
     function buildFinalImportedStops(existingStops, readyRows, mode) {
+        const toStop = (row) => ({
+            name: row.name,
+            phone: row.phone,
+            address: row.address,
+            unit: row.unit,
+            note: row.note,
+            lat: row.lat,
+            lng: row.lng
+        });
+        const hasPosition = (stop) => Number.isFinite(stop?.lat) && Number.isFinite(stop?.lng) && !(stop.lat === 0 && stop.lng === 0);
+        // A row that matches an existing stop keeps that stop's id, customer link and timing,
+        // so orders linked to the stop stay linked after the import.
+        const existingByKey = new Map((existingStops || []).map((stop) => [getImportDedupKey(stop), stop]));
+
         if (mode === 'overwrite') {
-            return readyRows.map((row) => ({
-                name: row.name,
-                phone: row.phone,
-                address: row.address,
-                unit: row.unit,
-                note: row.note,
-                lat: row.lat,
-                lng: row.lng
-            }));
+            return readyRows.map((row) => {
+                const imported = toStop(row);
+                const existing = existingByKey.get(getImportDedupKey(imported));
+                return existing ? { ...existing, ...imported } : imported;
+            });
         }
 
-        const dedupMap = new Map();
-        (existingStops || []).forEach((stop) => {
-            dedupMap.set(getImportDedupKey(stop), stop);
-        });
+        const dedupMap = new Map(existingByKey);
         readyRows.forEach((row) => {
-            const normalizedRow = {
-                name: row.name,
-                phone: row.phone,
-                address: row.address,
-                unit: row.unit,
-                note: row.note,
-                lat: row.lat,
-                lng: row.lng
-            };
-            const key = getImportDedupKey(normalizedRow);
-            if (!dedupMap.has(key)) {
-                dedupMap.set(key, normalizedRow);
+            const imported = toStop(row);
+            const key = getImportDedupKey(imported);
+            const existing = dedupMap.get(key);
+            if (!existing) {
+                dedupMap.set(key, imported);
+            } else if (!hasPosition(existing) && hasPosition(imported)) {
+                // The existing stop has no usable map position (e.g. saved at 0,0): take the imported one.
+                dedupMap.set(key, { ...existing, lat: imported.lat, lng: imported.lng, coordinate: `${imported.lat},${imported.lng}` });
             }
         });
         return Array.from(dedupMap.values());
@@ -14094,14 +14131,17 @@
         }
 
         const unresolvedRows = parsedImportPreview.rows.filter((row) => row.status !== 'ready');
-        if (unresolvedRows.length > 0) {
-            setImportStatus('❌ Some rows still need attention. Fix the highlighted addresses and click Recheck Preview before confirming import.', 'error');
+        const readyRows = parsedImportPreview.rows.filter((row) => row.status === 'ready');
+        if (readyRows.length === 0) {
+            setImportStatus('❌ No rows are ready to import. Fix the highlighted addresses and click Recheck Preview.', 'error');
             renderImportPreviewTable();
             return;
         }
-
-        const readyRows = parsedImportPreview.rows.filter((row) => row.status === 'ready');
         const mode = document.getElementById('importModeSelect')?.value || 'merge';
+        if (mode === 'overwrite' && unresolvedRows.length > 0) {
+            const replaceConfirmed = confirm(`Replace all existing saved stops with ${readyRows.length} imported row(s)?\n\n${unresolvedRows.length} row(s) need attention and will NOT be imported. Existing stops not in this import will be removed.`);
+            if (!replaceConfirmed) return;
+        }
         setImportStatus('📤 Confirming import...', 'loading');
 
         try {
@@ -14130,11 +14170,32 @@
             if (!saveResult.success) throw new Error(saveResult.error || 'Import save failed');
 
             await refreshStopsFromCloudAndRender();
-            setImportStatus(`✅ Imported ${readyRows.length} row(s). Total saved stops: ${finalStops.length}.`, 'success');
+            if (unresolvedRows.length > 0) {
+                // Keep only the rows that were not imported, so they can be fixed and imported next.
+                // Switch to merge so importing them later cannot replace the stops just saved.
+                parsedImportPreview = { ...parsedImportPreview, rows: unresolvedRows, skipped: [] };
+                const modeSelect = document.getElementById('importModeSelect');
+                if (modeSelect) modeSelect.value = 'merge';
+                renderImportPreviewTable();
+                setImportStatus(`✅ Imported ${readyRows.length} row(s). Total saved stops: ${finalStops.length}. ⚠️ ${unresolvedRows.length} row(s) were not imported and are listed below: fix them and click Recheck Preview, or download them.`, 'error');
+            } else {
+                setImportStatus(`✅ Imported ${readyRows.length} row(s). Total saved stops: ${finalStops.length}.`, 'success');
+            }
         } catch (error) {
             console.error('Import stops error:', error);
             setImportStatus(`❌ Import failed: ${error.message}`, 'error');
         }
+    }
+
+    function downloadFailedImportRows() {
+        const failedRows = parsedImportPreview.rows.filter((row) => row.status !== 'ready');
+        if (!failedRows.length) return;
+        const today = new Date().toISOString().slice(0, 10);
+        window.GoRouteXExport.downloadCsv(
+            `goroutex-stops-not-imported-${today}.csv`,
+            ['Row', 'Customer Name', 'Phone', 'Address', 'Unit', 'Notes', 'Reason'],
+            failedRows.map((row) => [row.sourceLine ?? '', row.name || '', row.phone || '', row.address || '', row.unit || '', row.note || '', row.statusMessage || ''])
+        );
     }
 
     // Customer export columns: unchanged header, order and meaning.
@@ -14153,7 +14214,7 @@
             });
             return null;
         }
-        const rows = Array.isArray(allCustomerEntries) ? allCustomerEntries : [];
+        const rows = Array.isArray(allCustomerEntries) ? getSavedCustomerEntries() : [];
         if (rows.length === 0) {
             setImportStatus('No saved stops to export.', 'error');
             return null;
@@ -14192,7 +14253,7 @@
             return;
         }
 
-        const currentEntries = Array.isArray(allCustomerEntries) ? [...allCustomerEntries] : [];
+        const currentEntries = Array.isArray(allCustomerEntries) ? getSavedCustomerEntries() : [];
         if (currentEntries.length === 0) {
             setImportStatus('No saved stops to delete.', 'error');
             return;
@@ -14225,6 +14286,7 @@
     document.getElementById('buildImportPreviewBtn')?.addEventListener('click', buildImportPreviewFromMapping);
     document.getElementById('revalidateImportPreviewBtn')?.addEventListener('click', revalidateImportPreview);
     document.getElementById('runStopsImportBtn')?.addEventListener('click', runStopsImport);
+    document.getElementById('downloadFailedImportRowsBtn')?.addEventListener('click', downloadFailedImportRows);
     document.getElementById('downloadCsvTemplateBtn')?.addEventListener('click', downloadCsvTemplate);
     document.getElementById('exportStopsCsvBtn')?.addEventListener('click', exportStopsCsv);
     document.getElementById('exportStopsXlsxBtn')?.addEventListener('click', exportStopsXlsx);
