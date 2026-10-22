@@ -465,6 +465,13 @@ function sanitizeTrackingId(value, { maxLength = 80, fallback = '' } = {}) {
     return cleanValue || fallback;
 }
 
+// Why the office may not see a fresh position (written by the driver page, shown on Live view).
+const TRACKING_GPS_HINTS = ['OK', 'WAITING_FIRST_FIX', 'UPLOAD_FAILED', 'PAGE_BACKGROUND', 'PERMISSION_DENIED', 'OFFLINE'];
+function sanitizeTrackingGpsHint(value) {
+    const hint = String(value || '').trim().toUpperCase();
+    return TRACKING_GPS_HINTS.includes(hint) ? hint : '';
+}
+
 function sanitizeTrackingStatus(value, fallback = 'active') {
     const normalized = sanitizeTrackingText(value, { maxLength: 24, fallback: '' }).toLowerCase();
     return TRACKING_STATUS_ALLOWLIST.has(normalized) ? normalized : fallback;
@@ -1924,8 +1931,19 @@ async function startDriverTrackingSession(sessionData = {}) {
             lng,
             accuracy: typeof sessionData.accuracy === 'number' ? sessionData.accuracy : null,
             speed: typeof sessionData.speed === 'number' ? sessionData.speed : null,
-            heading: typeof sessionData.heading === 'number' ? sessionData.heading : null
+            heading: typeof sessionData.heading === 'number' ? sessionData.heading : null,
+            approximate: false
         };
+        // positionAt: server time of the position itself (lastUpdatedAt also moves on status-only writes).
+        if (typeof sessionData.lat === 'number' && typeof sessionData.lng === 'number') {
+            livePayload.positionAt = now;
+            livePayload.gpsHint = 'OK';
+            livePayload.gpsHintAt = now;
+        } else if (lat === null) {
+            livePayload.positionAt = null;
+            livePayload.gpsHint = 'WAITING_FIRST_FIX';
+            livePayload.gpsHintAt = now;
+        }
 
         await Promise.all([
             sessionRef.set(sessionPayload, { merge: true }),
@@ -2000,6 +2018,18 @@ async function updateDriverTrackingSession(sessionId, updateData = {}) {
         if (typeof updateData.lat === 'number') {
             sessionPayload.lastKnownLat = updateData.lat;
             livePayload.lat = updateData.lat;
+        }
+        if (typeof updateData.lat === 'number' && typeof updateData.lng === 'number' && updateData.positionIsNew === true) {
+            livePayload.positionAt = now;
+        }
+        if (typeof updateData.approximate === 'boolean') {
+            livePayload.approximate = updateData.approximate;
+        }
+        const gpsHint = sanitizeTrackingGpsHint(updateData.gpsHint);
+        if (gpsHint) {
+            sessionPayload.gpsHint = gpsHint;
+            livePayload.gpsHint = gpsHint;
+            livePayload.gpsHintAt = now;
         }
         if (typeof updateData.lng === 'number') {
             sessionPayload.lastKnownLng = updateData.lng;
@@ -2130,6 +2160,10 @@ async function recordDriverTrackingPoint(pointData = {}) {
             networkStatus,
             lastUpdatedAt: now,
             lastUploadedClientAt: recordedAt,
+            positionAt: now,
+            approximate: false,
+            gpsHint: 'OK',
+            gpsHintAt: now,
             staleAfterMs: 90000
         };
 

@@ -8,6 +8,12 @@
   const UPLOAD_TIME_THRESHOLD_MS = 25000;
   const STALE_AFTER_MS = 90000;
   const MAX_ACCEPTED_ACCURACY_METERS = 120;
+  // First fix: Android often reports a coarse position first. If no fix within 120 m arrives in
+  // FIRST_FIX_WAIT_MS, the best coarse one (within MAX_APPROX_ACCURACY_METERS) is sent once as the
+  // office's approximate current position. It never enters the trace or the uploaded points.
+  const FIRST_FIX_WAIT_MS = 8000;
+  const MAX_APPROX_ACCURACY_METERS = 1500;
+  const FIRST_FIX_OPTIONS = { enableHighAccuracy: true, timeout: FIRST_FIX_WAIT_MS, maximumAge: 30000 };
   const SESSION_STORAGE_KEY = 'grxDriverTracking.currentSession';
   const MAP_TRACE_LIMIT = 600;
   const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -64,8 +70,22 @@
     routeUnlocked: false,
     uploadPending: false,
     uploadPromise: null,
-    pendingStopSync: false
+    pendingStopSync: false,
+    trackingStartedAt: 0,
+    firstFixTimer: null,
+    bestCoarseFix: null,
+    approximateSent: false,
+    lastHint: '',
+    wakeLock: null
   };
+
+  // Field diagnostics: localStorage.debugTracking = '1' logs every fix and upload to the console
+  // (Android: chrome://inspect). Off by default.
+  function debugLog(...args) {
+    try {
+      if (global.localStorage?.getItem('debugTracking') === '1') console.debug('[GoRouteX tracking]', ...args);
+    } catch (error) { /* storage unavailable */ }
+  }
 
   function byId(id) {
     return document.getElementById(id);
@@ -425,6 +445,85 @@
     state.watchId = null;
   }
 
+  function clearFirstFixTimer() {
+    if (state.firstFixTimer !== null) clearTimeout(state.firstFixTimer);
+    state.firstFixTimer = null;
+  }
+
+  // Screen Wake Lock keeps the screen on while the driver page is in front. Browsers release it when the
+  // page is hidden, so it does not help while Google Maps is in front. Best effort.
+  async function acquireWakeLock() {
+    if (state.wakeLock || state.runtimeStatus !== 'active' || document.hidden || !navigator.wakeLock?.request) return;
+    try {
+      const lock = await navigator.wakeLock.request('screen');
+      if (state.runtimeStatus !== 'active') { void lock.release?.(); return; }
+      state.wakeLock = lock;
+      lock.addEventListener?.('release', () => { if (state.wakeLock === lock) state.wakeLock = null; });
+    } catch (error) {
+      debugLog('wake lock unavailable', error?.message);
+    }
+  }
+
+  function releaseWakeLock() {
+    const lock = state.wakeLock;
+    state.wakeLock = null;
+    try { void lock?.release?.(); } catch (error) { /* already released */ }
+  }
+
+  /** Sends why the office may not see a fresh position. Best effort; repeated hints are skipped. */
+  function sendGpsHint(hint) {
+    if (state.lastHint === hint) return;
+    if (state.networkState !== 'online' || !state.sessionId || !state.sessionCreatedInCloud || !global.FirebaseApp?.tracking?.updateSession) return;
+    state.lastHint = hint;
+    debugLog('gps hint', hint);
+    void global.FirebaseApp.tracking.updateSession(state.sessionId, {
+      driverId: state.trackingContext.driverId,
+      driverName: state.trackingContext.driverName,
+      routeId: state.trackingContext.routeId || '',
+      routeName: state.trackingContext.routeName || '',
+      status: 'active',
+      networkStatus: state.networkState,
+      gpsHint: hint
+    }).then((result) => {
+      if (!result?.success && state.lastHint === hint) state.lastHint = '';
+    });
+  }
+
+  /** The best coarse fix, once, as the office's approximate current position (no trace point). */
+  async function sendApproximatePosition() {
+    const fix = state.bestCoarseFix;
+    if (!fix || state.approximateSent || state.lastUploadedAt || state.runtimeStatus !== 'active') return false;
+    if (state.networkState !== 'online' || !global.FirebaseApp?.tracking?.updateSession) return false;
+    state.approximateSent = true;
+    if (!await ensureCloudSession('active')) { state.approximateSent = false; return false; }
+    const result = await global.FirebaseApp.tracking.updateSession(state.sessionId, {
+      driverId: state.trackingContext.driverId,
+      driverName: state.trackingContext.driverName,
+      routeId: state.trackingContext.routeId || '',
+      routeName: state.trackingContext.routeName || '',
+      status: 'active',
+      networkStatus: state.networkState,
+      lat: fix.lat,
+      lng: fix.lng,
+      accuracy: fix.accuracy,
+      approximate: true,
+      positionIsNew: true,
+      gpsHint: 'WAITING_FIRST_FIX'
+    });
+    debugLog('approximate position sent', fix.accuracy, result?.success ? 'ok' : result?.error);
+    if (!result?.success) { state.approximateSent = false; return false; }
+    state.lastHint = 'WAITING_FIRST_FIX';
+    return true;
+  }
+
+  function onFirstFixWait() {
+    state.firstFixTimer = null;
+    if (state.runtimeStatus !== 'active' || state.lastUploadedAt) return;
+    if (state.bestCoarseFix) void sendApproximatePosition();
+    else sendGpsHint('WAITING_FIRST_FIX');
+    renderAll();
+  }
+
   function appendTracePoint(position) {
     if (!position || typeof position.lat !== 'number' || typeof position.lng !== 'number') return;
     const lastPoint = state.tracePoints.length ? state.tracePoints[state.tracePoints.length - 1] : null;
@@ -609,11 +708,14 @@
         if (!sessionReady) return false;
         const payload = createPointPayload(position, statusValue || 'active', uploadDecision.distanceMeters);
         const result = await global.FirebaseApp.tracking.recordLocation(payload);
+        debugLog('upload', payload.accuracy, result.success ? 'ok' : result.error);
         if (!result.success) {
           state.lastUploadError = `Live upload failed: ${sanitizeText(result.error || 'Unknown error', 'Unknown error', 180)}`;
+          sendGpsHint('UPLOAD_FAILED');
           renderAll();
           return false;
         }
+        state.lastHint = 'OK';
         state.lastUploadedAt = toDate(payload.recordedAt);
         state.lastUploadedPosition = { lat: payload.lat, lng: payload.lng };
         state.sessionCreatedInCloud = true;
@@ -623,6 +725,8 @@
         return true;
       } catch (error) {
         state.lastUploadError = `Live upload failed: ${sanitizeText(error.message, 'Unknown error', 180)}`;
+        debugLog('upload failed', error?.message);
+        sendGpsHint('UPLOAD_FAILED');
         renderAll();
         return false;
       } finally {
@@ -673,6 +777,17 @@
       handlePositionError,
       GEO_OPTIONS
     );
+    // A one-off reading alongside the watch: on many phones it answers sooner than the first watch callback.
+    state.trackingStartedAt = Date.now();
+    state.bestCoarseFix = null;
+    state.approximateSent = false;
+    state.lastHint = '';
+    clearFirstFixTimer();
+    if (!state.lastUploadedAt) {
+      state.firstFixTimer = setTimeout(onFirstFixWait, FIRST_FIX_WAIT_MS);
+      navigator.geolocation.getCurrentPosition((position) => { handlePositionSuccess(position, true); }, () => {}, FIRST_FIX_OPTIONS);
+    }
+    void acquireWakeLock();
 
     renderAll();
     return true;
@@ -690,11 +805,14 @@
         handlePositionError,
         GEO_OPTIONS
       );
+      void acquireWakeLock();
       renderAll();
       return;
     }
 
     stopGeoWatch();
+    clearFirstFixTimer();
+    releaseWakeLock();
     if (state.uploadPromise) await state.uploadPromise;
     if (state.lastKnownPosition) {
       await uploadCurrentPosition(true, 'active');
@@ -728,6 +846,8 @@
 
   async function stopTrackingFlow() {
     stopGeoWatch();
+    clearFirstFixTimer();
+    releaseWakeLock();
     if (state.uploadPromise) await state.uploadPromise;
     if (state.lastKnownPosition && state.networkState === 'online') {
       await uploadCurrentPosition(true, 'active');
@@ -771,10 +891,20 @@
     if (state.runtimeStatus !== 'active' || !state.routeUnlocked) return;
     const {latitude,longitude,accuracy}=position.coords;
     if (!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180||!Number.isFinite(accuracy)||accuracy>MAX_ACCEPTED_ACCURACY_METERS) {
+      debugLog('fix rejected', accuracy);
+      // Before the first accurate upload, keep the best coarse fix for the one approximate position.
+      if (!state.lastUploadedAt && Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
+        && Number.isFinite(accuracy) && accuracy <= MAX_APPROX_ACCURACY_METERS && !(latitude === 0 && longitude === 0)
+        && (!state.bestCoarseFix || accuracy < state.bestCoarseFix.accuracy)) {
+        state.bestCoarseFix = { lat: latitude, lng: longitude, accuracy };
+        if (state.trackingStartedAt && Date.now() - state.trackingStartedAt >= FIRST_FIX_WAIT_MS) void sendApproximatePosition();
+      }
       state.statusMessage = 'Waiting for a usable GPS fix (within 120 m accuracy).';
       renderAll();
       return;
     }
+    debugLog('fix accepted', accuracy);
+    clearFirstFixTimer();
     const nextPosition = {
       lat: position.coords.latitude,
       lng: position.coords.longitude,
@@ -791,7 +921,7 @@
       state.statusMessage = 'Tracking is active and GPS is available.';
     }
     renderAll();
-    void uploadCurrentPosition(force === true, 'active');
+    return uploadCurrentPosition(force === true, 'active');
   }
 
   function geolocationErrorMessage(error) {
@@ -821,6 +951,8 @@
     state.runtimeStatus = 'error';
     state.statusMessage = geolocationErrorMessage(error);
     stopGeoWatch();
+    clearFirstFixTimer();
+    releaseWakeLock();
     if (state.networkState === 'online' && state.sessionId && global.FirebaseApp?.tracking?.updateSession) {
       void global.FirebaseApp.tracking.updateSession(state.sessionId, {
         driverId: state.trackingContext.driverId,
@@ -831,6 +963,7 @@
         networkStatus: state.networkState,
         errorCode: error && typeof error.code !== 'undefined' ? String(error.code) : 'unknown',
         errorMessage: state.statusMessage,
+        gpsHint: state.permissionState === 'denied' ? 'PERMISSION_DENIED' : '',
         lat: state.lastKnownPosition?.lat,
         lng: state.lastKnownPosition?.lng,
         accuracy: state.lastKnownPosition?.accuracy
@@ -891,7 +1024,8 @@
       const pointsResult = await global.FirebaseApp.tracking.loadSessionPoints(state.sessionId, { limitCount: 150 });
       if (pointsResult.success && Array.isArray(pointsResult.points) && pointsResult.points.length) {
         state.tracePoints = pointsResult.points
-          .filter((point) => typeof point.lat === 'number' && typeof point.lng === 'number')
+          // Coarse points (native uploads over 120 m, flagged approximate) are kept in storage, not drawn.
+          .filter((point) => typeof point.lat === 'number' && typeof point.lng === 'number' && point.approximate !== true)
           .map((point) => ({ lat: point.lat, lng: point.lng }));
 
         const lastPoint = pointsResult.points[pointsResult.points.length - 1];
@@ -1040,6 +1174,8 @@
 
   async function handleAuthStateChanged(user) {
     stopGeoWatch();
+    clearFirstFixTimer();
+    releaseWakeLock();
     state.runtimeStatus = 'ready';
     state.lastUploadError = '';
     state.sessionSnapshot = null;
@@ -1113,6 +1249,9 @@
     window.addEventListener('offline', handleOffline);
     document.addEventListener('visibilitychange', () => {
       state.pageVisible = !document.hidden;
+      // Hidden (e.g. Google Maps in front): the office should know why updates may stop. Best effort.
+      if (document.hidden && state.runtimeStatus === 'active') sendGpsHint('PAGE_BACKGROUND');
+      if (!document.hidden) void acquireWakeLock();
       renderAll();
     });
   }
@@ -1213,15 +1352,38 @@
    * Phones pause web pages in the background, so the watch is also restarted.
    */
   function refreshNow() {
-    if (state.runtimeStatus !== 'active' || !state.routeUnlocked || !navigator.geolocation) return false;
+    if (state.runtimeStatus !== 'active' || !state.routeUnlocked || !navigator.geolocation) return Promise.resolve(false);
     stopGeoWatch();
     state.watchId = navigator.geolocation.watchPosition(handlePositionSuccess, handlePositionError, GEO_OPTIONS);
-    navigator.geolocation.getCurrentPosition((position) => {
-      handlePositionSuccess(position, true);
-    }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
-    return true;
+    void acquireWakeLock();
+    // Resolves when this reading has been uploaded (or could not be), so callers can wait briefly.
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition((position) => {
+        Promise.resolve(handlePositionSuccess(position, true)).then((uploaded) => resolve(uploaded === true), () => resolve(false));
+      }, () => resolve(false), { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    });
   }
-  global.DriverTrackingPage = { onMapApiReady, setRouteContext, refreshNow, getProblem: () => (getDisplayStatus() === 'error' ? { denied: state.permissionState === 'denied', message: state.statusMessage } : null), startTracking: startTrackingFlow, stopTracking: stopTrackingFlow, getLatestPosition: () => state.lastKnownPosition, getStatus: () => getDisplayStatus(), isReady: () => state.bootstrapComplete };
+
+  /**
+   * A location problem the driver must see (driver-page.js shows it with Retry), or null.
+   * code: PERMISSION_DENIED | PERMISSION_PROMPT | OFFLINE | UPLOAD_FAILED | WAITING_FIRST_FIX | ERROR
+   */
+  function getProblem() {
+    if (state.runtimeStatus === 'error') {
+      const denied = state.permissionState === 'denied';
+      return { code: denied ? 'PERMISSION_DENIED' : 'ERROR', denied, message: state.statusMessage };
+    }
+    if (state.runtimeStatus !== 'active') return null;
+    if (state.permissionState === 'denied') return { code: 'PERMISSION_DENIED', denied: true, message: 'Location permission is denied.' };
+    if (state.networkState === 'offline') return { code: 'OFFLINE', denied: false, message: 'No internet connection. Your position uploads automatically when it returns.' };
+    if (state.permissionState === 'prompt' && !state.lastKnownPosition) return { code: 'PERMISSION_PROMPT', denied: false, message: 'Allow location access when the browser asks.' };
+    if (state.lastUploadError) return { code: 'UPLOAD_FAILED', denied: false, message: `Location upload failed: ${sanitizeText(state.lastUploadError.replace(/^Live upload failed:\s*/, ''), 'Unknown error', 120)}` };
+    if (!state.lastUploadedAt && state.trackingStartedAt && Date.now() - state.trackingStartedAt >= FIRST_FIX_WAIT_MS) {
+      return { code: 'WAITING_FIRST_FIX', denied: false, message: 'Waiting for a GPS fix… Move near a window or outdoors and keep this page open for a moment.' };
+    }
+    return null;
+  }
+  global.DriverTrackingPage = { onMapApiReady, setRouteContext, refreshNow, getProblem, isNativeMode: () => false, startTracking: startTrackingFlow, stopTracking: stopTrackingFlow, getLatestPosition: () => state.lastKnownPosition, getStatus: () => getDisplayStatus(), isReady: () => state.bootstrapComplete };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { void bootstrap(); }, { once: true });
   else void bootstrap();

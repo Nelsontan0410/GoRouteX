@@ -62,11 +62,11 @@ function renderHeader(view) {
 function renderGpsLine(view) {
   const line = $('liveGpsLine');
   const { gps } = view;
-  const tone = gps.state === 'live' ? 'is-live' : ['stale', 'offline', 'paused'].includes(gps.state) ? 'is-warn' : ['denied', 'error'].includes(gps.state) ? 'is-bad' : 'is-none';
+  const tone = gps.state === 'live' ? (gps.approximate ? 'is-warn' : 'is-live') : gps.state === 'stale' && gps.warn ? 'is-bad' : ['stale', 'offline', 'paused'].includes(gps.state) ? 'is-warn' : ['denied', 'error'].includes(gps.state) ? 'is-bad' : 'is-none';
   line.className = `live-gps-line ${tone}`;
   if (!view.started) line.textContent = 'Live GPS unavailable: the driver has not started this route.';
-  else if (gps.state === 'live') line.textContent = `GPS live · updated ${Math.max(1, Math.round(gps.ageMs / 1000))}s ago`;
-  else if (gps.state === 'stale') line.textContent = `GPS stale · last position ${clock(gps.updatedAt)} (shown grey). Phones pause web pages while Google Maps is open; it updates when the driver opens GoRouteX.`;
+  else if (gps.state === 'live') line.textContent = `${gps.approximate ? gps.label : 'GPS live'} · updated ${Math.max(1, Math.round(gps.ageMs / 1000))}s ago`;
+  else if (gps.state === 'stale') line.textContent = `${gps.label} · last position ${clock(gps.updatedAt)} (shown grey).${gps.hint ? '' : ' A browser pauses GoRouteX while Google Maps is open; it updates when the driver opens GoRouteX again.'}`;
   else line.textContent = gps.updatedAt ? `${gps.label} · last update ${clock(gps.updatedAt)}` : gps.label;
 }
 

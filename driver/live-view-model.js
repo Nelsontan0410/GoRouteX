@@ -5,8 +5,19 @@
  */
 import { snapshotRouteStops } from './route-model.js';
 
-/** Freshness used by the driver tracking contract (firebase-config.js staleAfterMs, driver-tracking.js). */
-export const GPS_FRESH_MS = 90000;
+/** A position at most this old is live; older is stale; older than LIVE_STALE_WARN_MS is a warning. */
+export const LIVE_FRESH_MS = 120000;
+export const LIVE_STALE_WARN_MS = 600000;
+export const GPS_FRESH_MS = LIVE_FRESH_MS;
+
+/** Why the driver's phone may not be sending (gpsHint, written by driver-tracking.js). */
+export const GPS_HINT_LABELS = {
+  WAITING_FIRST_FIX: 'Waiting for the driver’s first GPS fix',
+  UPLOAD_FAILED: 'The driver’s phone could not upload its position',
+  PAGE_BACKGROUND: 'The driver’s phone has GoRouteX in the background (probably using Google Maps)',
+  PERMISSION_DENIED: 'Location permission denied on the driver’s phone',
+  OFFLINE: 'Driver’s phone is offline'
+};
 
 const text = (value) => String(value ?? '').trim();
 const time = (value) => {
@@ -26,25 +37,37 @@ function scheduleById(route) {
 
 /**
  * GPS state, from the live document only when it belongs to this route (the server already checks routeId).
- * live: fresh position while tracking is active. stale: active but no update within GPS_FRESH_MS.
- * offline / paused / stopped / denied / error: as reported by the driver's phone. none: no record.
+ * Age is the position's own time (positionAt; older documents: lastUploadedClientAt / lastUpdatedAt).
+ * live: within LIVE_FRESH_MS. stale: older; warn: older than LIVE_STALE_WARN_MS. none: no position yet.
+ * offline / paused / stopped / denied / error: as reported by the driver's phone. hint: gpsHint reason.
  */
 export function gpsState(gps, now = Date.now()) {
   if (!gps) return { state: 'none', label: 'Live GPS unavailable', position: null, updatedAt: null };
-  const updatedAt = time(gps.lastUpdatedAt) || time(gps.lastUploadedClientAt);
+  const updatedAt = time(gps.positionAt) || time(gps.lastUploadedClientAt) || time(gps.lastUpdatedAt);
   const lat = finite(gps.lat), lng = finite(gps.lng);
-  const position = lat !== null && lng !== null ? { lat, lng, accuracy: finite(gps.accuracy) } : null;
+  const accuracy = finite(gps.accuracy);
+  const approximate = gps.approximate === true;
+  const position = lat !== null && lng !== null ? { lat, lng, accuracy, approximate } : null;
   const age = updatedAt ? now - updatedAt.getTime() : Infinity;
-  const denied = String(gps.lastErrorCode) === '1' || /denied/i.test(text(gps.lastErrorMessage));
+  const hint = GPS_HINT_LABELS[text(gps.gpsHint)] ? text(gps.gpsHint) : null;
+  const reason = hint ? GPS_HINT_LABELS[hint] : null;
+  const denied = String(gps.lastErrorCode) === '1' || /denied/i.test(text(gps.lastErrorMessage)) || (hint === 'PERMISSION_DENIED' && gps.status !== 'active');
   if (gps.status === 'error' || (denied && gps.status !== 'active')) {
-    return { state: denied ? 'denied' : 'error', label: denied ? 'Location permission denied on the driver’s phone' : `GPS error: ${text(gps.lastErrorMessage) || 'location unavailable'}`, position, updatedAt };
+    return { state: denied ? 'denied' : 'error', label: denied ? GPS_HINT_LABELS.PERMISSION_DENIED : `GPS error: ${text(gps.lastErrorMessage) || 'location unavailable'}`, position, updatedAt, hint };
   }
-  if (gps.status === 'stopped') return { state: 'stopped', label: 'Tracking stopped', position, updatedAt };
-  if (gps.status === 'paused') return { state: 'paused', label: 'Tracking paused by the driver', position, updatedAt };
-  if (gps.networkStatus === 'offline') return { state: 'offline', label: 'Driver’s phone is offline', position, updatedAt };
-  if (!position) return { state: 'none', label: 'Live GPS unavailable', position: null, updatedAt };
-  if (age >= 0 && age <= GPS_FRESH_MS) return { state: 'live', label: 'Live', position, updatedAt, ageMs: age };
-  return { state: 'stale', label: 'GPS stale', position, updatedAt, ageMs: age };
+  if (gps.status === 'stopped') return { state: 'stopped', label: 'Tracking stopped', position, updatedAt, hint };
+  if (gps.status === 'paused') return { state: 'paused', label: 'Tracking paused by the driver', position, updatedAt, hint };
+  if (gps.networkStatus === 'offline') return { state: 'offline', label: GPS_HINT_LABELS.OFFLINE, position, updatedAt, hint };
+  if (!position) return { state: 'none', label: reason || GPS_HINT_LABELS.WAITING_FIRST_FIX, position: null, updatedAt: null, hint };
+  if (age >= 0 && age <= LIVE_FRESH_MS) {
+    const label = approximate ? `Approximate position ±${Math.round(accuracy ?? 0)} m` : 'Live';
+    return { state: 'live', label, position, updatedAt, ageMs: age, approximate, hint };
+  }
+  const minutes = Number.isFinite(age) ? Math.max(1, Math.round(age / 60000)) : null;
+  const warn = !Number.isFinite(age) || age > LIVE_STALE_WARN_MS;
+  const base = minutes === null ? 'GPS stale' : warn ? `No GPS update for ${minutes} min` : `Last position ${minutes} min ago`;
+  const why = hint && hint !== 'WAITING_FIRST_FIX' ? reason : null;
+  return { state: 'stale', label: why ? `${base} · ${why}` : base, position, updatedAt, ageMs: age, warn, approximate, hint };
 }
 
 /** Builds everything the Live Route View renders. */
