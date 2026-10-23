@@ -406,14 +406,28 @@
       <div id="messageBar">Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.</div>
       <div id="currentOriginDisplay" hidden>Origin: ...</div>
       <div id="topBarButtonsPage2">
-        <!-- === ADDED NEW BUTTON HERE === -->
+        <button id="backToSelectStopsBtnPg2" class="action-button-secondary" aria-label="Back to Selection" title="Back to Selection">Back to Selection</button>
         <button id="applySuggestionBtn" class="action-button-success" style="display: none;">Apply Suggestion</button>
+        <button id="raSettingsBtn" type="button" class="action-button-secondary" aria-haspopup="dialog" aria-controls="raSettingsDialog">Route settings</button>
+        <details id="raMoreActions" class="ra-more-actions">
+          <summary aria-label="More route actions">More <span aria-hidden="true">⋯</span></summary>
+          <div class="ra-more-menu">
+            <button id="retrieveStopsBtn" class="action-button-secondary" type="button" disabled>Retrieve Stops</button>
+            <button type="button" class="action-button-secondary" onclick="goToDashboardPage()">Dashboard</button>
+          </div>
+        </details>
+        <div class="ra-confirm-bar">
+        <span id="raAssignmentStatus" class="ra-assignment-status" aria-live="polite"></span>
         <button id="confirmRouteBtn" class="action-button-success" disabled>Confirm Route</button>
-        <button id="retrieveStopsBtn" class="action-button-secondary" type="button" disabled>Retrieve Stops</button>
-        <button type="button" class="action-button-secondary" onclick="goToDashboardPage()">Dashboard</button>
-        <button id="backToSelectStopsBtnPg2" class="action-button-secondary">Back to Selection</button>
+        </div>
       </div>
     </div>
+    <div class="ra-view-switch" role="tablist" aria-label="Assignment view">
+      <button id="raStopsView" type="button" role="tab" data-ra-view="stops" aria-selected="true" aria-controls="routePanel">Stops</button>
+      <button id="raMapView" type="button" role="tab" data-ra-view="map" aria-selected="false" aria-controls="mapContainer">Map</button>
+    </div>
+    <dialog id="raSettingsDialog" class="ra-settings-dialog" aria-labelledby="raSettingsTitle">
+    <div class="ra-settings-heading"><h3 id="raSettingsTitle">Route settings</h3><button type="button" data-ra-close-settings aria-label="Close route settings">×</button></div>
     <div class="manual-route-tools-row">
     <div id="manualLtaOptions"></div>
     <div id="manualDetourToolbar" class="map-detour-toolbar is-collapsed">
@@ -432,13 +446,20 @@
       </div>
     </div>
     </div>
+    </dialog>
     <div id="mobileLayout" class="map-content-area">
         <div id="mapContainer" class="manual-assign-panel">
+            <div class="ra-map-heading"><strong>Route overview</strong><button id="raExpandMapBtn" type="button" aria-expanded="false">Expand map</button></div>
             <div id="map"></div>
         </div>
         <div id="routePanel" class="manual-assign-panel">
         <button id="toggleRoutePanel" type="button" aria-label="Toggle route panel">&#9650;</button>
+        <div class="ra-list-heading">
+          <label class="ra-group-picker" for="raGroupSelect"><span class="ra-sr-only">Route group</span><select id="raGroupSelect" aria-label="Route group"></select></label>
+          <button id="raReorderBtn" type="button" aria-pressed="false">Reorder</button>
+        </div>
         <div id="raTabs" class="ra-tabs" role="tablist" aria-label="Route groups"></div>
+        <p id="raReorderHint" class="ra-reorder-hint" hidden>Drag stops between routes, or use Up / Down to change the order.</p>
         <div id="stop-assignment-lists-container">
             <div id="unassignedSection">
                 <div class="route-list-wrapper">
