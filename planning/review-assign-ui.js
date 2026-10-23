@@ -21,6 +21,7 @@
     global.requestAnimationFrame(() => {
       if (typeof mapPage2 === 'undefined' || !mapPage2) return;
       global.MapHandler?.triggerResize(mapPage2);
+      if (fitStops && global.GoRouteXRouteOverviewUi?.fit()) return;
       if (fitStops && typeof masterListPreviewMarkers !== 'undefined' && masterListPreviewMarkers.length && typeof fitMapToMarkers === 'function') {
         fitMapToMarkers(mapPage2, masterListPreviewMarkers);
       }
@@ -233,6 +234,7 @@
       }
       picker.value = activeKey || '';
     }
+    global.dispatchEvent(new CustomEvent('goroutex:review-group', { detail: { key: activeKey } }));
   }
 
   function refresh() {
@@ -288,6 +290,20 @@
       global.requestAnimationFrame(() => { activeKey = 'unassigned'; setView('stops'); refresh(); });
     });
     $('raGroupSelect')?.addEventListener('change', (event) => { closeStop(false); activeKey = event.target.value; refresh(); });
+    global.addEventListener('goroutex:map-group', (event) => {
+      if (!groups().some((group) => group.key === event.detail.key)) return;
+      closeStop(false); activeKey = event.detail.key; refresh();
+    });
+    // Keep the original action nodes and listeners; expose them in the wide toolbar.
+    const more = $('raMoreActions');
+    const actionMenu = more.querySelector('.ra-more-menu');
+    const actionButtons = [...actionMenu.children];
+    const placeActions = () => {
+      actionButtons.forEach((button) => phone() ? actionMenu.append(button) : more.before(button));
+      more.hidden = !phone();
+    };
+    placeActions();
+    global.addEventListener('resize', placeActions);
     $('raReorderBtn')?.addEventListener('click', () => {
       closeStop();
       const on = page.dataset.raReorder !== 'true';

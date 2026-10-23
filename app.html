@@ -450,7 +450,22 @@
     <div id="mobileLayout" class="map-content-area">
         <div id="mapContainer" class="manual-assign-panel">
             <div class="ra-map-heading"><strong>Route overview</strong><button id="raExpandMapBtn" type="button" aria-expanded="false">Expand map</button></div>
+            <div class="ra-map-tools">
+              <label for="raMapRoute">Viewing <select id="raMapRoute" aria-label="Map route"></select></label>
+              <button id="raFitRoute" type="button">Fit route</button>
+            </div>
             <div id="map"></div>
+            <div id="raRoutePreview" class="ra-route-preview">
+              <div class="ra-preview-caption"><strong>Route preview</strong><span>Not live GPS</span></div>
+              <p id="raPreviewStatus" role="status">Waiting for a calculated route.</p>
+              <div class="ra-preview-controls">
+                <button id="raPreviewPlay" type="button" disabled aria-pressed="false">Play</button>
+                <label class="ra-sr-only" for="raPreviewProgress">Route preview progress</label>
+                <input id="raPreviewProgress" type="range" min="0" max="1000" value="0" disabled>
+                <select id="raPreviewSpeed" aria-label="Preview speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select>
+                <button id="raPreviewLoop" type="button" aria-pressed="true" title="Loop route preview">Loop on</button>
+              </div>
+            </div>
         </div>
         <div id="routePanel" class="manual-assign-panel">
         <button id="toggleRoutePanel" type="button" aria-label="Toggle route panel">&#9650;</button>
@@ -1355,6 +1370,7 @@
   <script src="planning/manual-assignment-dnd.js?v=20261003-1"></script>
   <script src="planning/manual-map-preview.js?v=20261003-1"></script>
   <script src="planning/review-assign-ui.js"></script>
+  <script src="planning/route-overview-ui.js"></script>
   <script>
     // ===== STATE =====
     // Global app state, selected stops, route plan state, map instances, UI flags, and runtime caches.
