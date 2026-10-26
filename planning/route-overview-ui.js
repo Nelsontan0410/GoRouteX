@@ -63,11 +63,20 @@
     const heading = Math.atan2((b.lng - a.lng) * Math.cos(a.lat * Math.PI / 180), b.lat - a.lat) * 180 / Math.PI;
     return { position: { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t }, heading, next: model.arrivals.findIndex((n) => n > target + .01) };
   }
-  global.GoRouteXRoutePreviewGeometry = { point, distance, geometry, sample };
+  // The preview is generated only once every stop is assigned; while stops are still being
+  // assigned it stays off so the map is not redrawn and refitted after every single change.
+  function previewGate(unassigned, routeCount) {
+    const waiting = Math.max(0, Number(unassigned) || 0);
+    if (!routeCount) return { ready: false, message: 'Assign stops to a route to preview it.' };
+    if (waiting > 0) return { ready: false, message: `Finish assigning stops to preview the route · ${waiting} unassigned` };
+    return { ready: true, message: '' };
+  }
+  global.GoRouteXRoutePreviewGeometry = { point, distance, geometry, sample, previewGate };
   if (!global.document) return;
 
   const geometryCache = new WeakMap();
   let root, map, selected = null, models = [], layers = [], hiddenMarkers = new Map(), fadedLines = new Map();
+  let lastFitKey = '';
   let refs = [], lineRefs = [], markerRefs = [], playing = false, progress = 0, lastFrame = 0, frame = 0, van, currentModel;
   const $ = (id) => document.getElementById(id) || root?.querySelector(`#${id}`);
   const sameRefs = (a, b) => a.length === b.length && a.every((value, i) => value === b[i]);
@@ -177,7 +186,9 @@
       van = new google.maps.Marker({ map, position: currentModel.geometry.start, title: 'Route preview — not live GPS', clickable: false, zIndex: 120 });
       layers.push(van); paintProgress();
     } else text($('raPreviewStatus'), 'All routes · Select a route to play its preview.');
-    fit();
+    // Refit only when the viewed routes change, not after every reorder inside them.
+    const fitKey = `${selected}|${ready.map((m) => m.key).join(',')}`;
+    if (fitKey !== lastFitKey) { lastFitKey = fitKey; fit(); }
   }
   function refresh() {
     if (!root?.isConnected || !root.classList.contains('active-page')) { if (layers.length) clear(); refs = []; return; }
@@ -206,6 +217,15 @@
     }
     if (!next.some((m) => m.key === selected) && selected !== 'all') selected = next[0]?.key || 'all';
     picker.value = selected;
+    const gate = previewGate(root.querySelectorAll('#unassignedStopsList .draggable-item').length, next.length);
+    if (!gate.ready) {
+      if (layers.length || hiddenMarkers.size || fadedLines.size) clear();
+      refs = []; lineRefs = []; markerRefs = []; models = next; lastFitKey = '';
+      map = typeof mapPage2 !== 'undefined' ? mapPage2 : null;
+      $('raPreviewPlay').disabled = true; $('raPreviewProgress').disabled = true; $('raPreviewProgress').value = '0';
+      text($('raPreviewStatus'), gate.message);
+      return;
+    }
     const nextMap = typeof mapPage2 !== 'undefined' ? mapPage2 : null;
     const nextRefs = next.flatMap((m) => [m.route?.directionsResult, m.geometry ? true : false, ...m.slots]);
     const changed = map !== nextMap || !sameRefs(refs, nextRefs) || !sameRefs(lineRefs, nativeLines()) || !sameRefs(markerRefs, nativeMarkers());

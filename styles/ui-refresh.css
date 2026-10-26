@@ -4286,3 +4286,64 @@ body:has(#page-manual-assign.active-page[data-ra-sheet="open"]) { overflow: hidd
   #import-panel #preview-stage:has(.oh-import-profile[open]) { padding-bottom: calc(48dvh + 24px); }
   #import-panel .oh-import-profile input:not([type="checkbox"]) { font-size: 16px; }
 }
+
+/* 2026-10-26 Review & Assign: desktop map 70% / stop list 30%. */
+@media (min-width: 981px) {
+  #page-manual-assign[data-ra-init] #mobileLayout { grid-template-columns: minmax(320px, 3fr) minmax(0, 7fr) !important; }
+  #page-manual-assign[data-ra-init] #mapContainer { height: max(460px, calc(100dvh - 235px)) !important; }
+  #page-manual-assign[data-ra-init][data-ra-map-expanded="true"] #mobileLayout { grid-template-columns: minmax(0, 1fr) !important; }
+  #page-manual-assign[data-ra-init] .ra-tabs { flex-wrap: wrap; overflow-x: visible; height: auto !important; flex-shrink: 0; }
+}
+
+/* 2026-10-26 Stop quick actions: move up / move down / remove as small icon buttons beside the chevron.
+   Desktop: shown when the pointer comes near the chevron. Touch: shown after tapping the chevron. */
+#page-manual-assign[data-ra-init] .route-slot.filled { position: relative; }
+#page-manual-assign[data-ra-init] .ra-stop-toggle { padding-right: 48px; }
+#page-manual-assign[data-ra-init] .ra-stop-toggle::after { content: none !important; }
+#page-manual-assign[data-ra-init] .ra-quick {
+  position: absolute; top: 10px; right: 6px; z-index: 4;
+  display: flex; flex-direction: row-reverse; align-items: center; gap: 6px;
+  padding: 6px 4px 6px 18px;
+}
+#page-manual-assign[data-ra-init] .ra-quick-chevron {
+  display: grid; place-items: center; width: 36px; height: 36px; min-height: 0 !important; padding: 0 !important; margin: 0;
+  border: 0; border-radius: 9px; background: transparent; color: var(--ui-muted); cursor: pointer;
+}
+#page-manual-assign[data-ra-init] .ra-quick-chevron svg { width: 20px; height: 20px; transition: transform .15s ease; }
+#page-manual-assign[data-ra-init] .ra-quick-actions { display: none; align-items: center; gap: 6px; padding: 4px; margin: -4px 0; border-radius: 12px; background: #fff; box-shadow: 0 0 0 6px #fff; }
+#page-manual-assign[data-ra-init] .ra-quick-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; min-width: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0;
+  border: 1px solid var(--ui-border-strong); border-radius: 9px; background: #fff; color: var(--ui-ink-2);
+  box-shadow: 0 2px 8px #1020401a; cursor: pointer;
+}
+#page-manual-assign[data-ra-init] .ra-quick-btn svg { width: 18px; height: 18px; }
+#page-manual-assign[data-ra-init] .ra-quick-btn:hover:not(:disabled) { border-color: var(--ui-blue-line); background: var(--ui-blue-soft); color: var(--ui-blue); }
+#page-manual-assign[data-ra-init] .ra-quick-btn.is-danger { color: #b42318; }
+#page-manual-assign[data-ra-init] .ra-quick-btn.is-danger:hover:not(:disabled) { border-color: #f3b8b2; background: #fdecea; color: #b42318; }
+#page-manual-assign[data-ra-init] .ra-quick-btn:disabled { background: #f3f5f8; border-color: var(--ui-border); color: #b7c0cc; cursor: not-allowed; box-shadow: none; }
+#page-manual-assign[data-ra-init] .ra-quick-btn:focus-visible,
+#page-manual-assign[data-ra-init] .ra-quick-chevron:focus-visible { outline: 2px solid var(--ui-blue); outline-offset: 2px; }
+#page-manual-assign[data-ra-init] .route-slot.ra-quick-open .ra-quick-actions,
+#page-manual-assign[data-ra-init] .ra-quick:focus-within .ra-quick-actions { display: flex; }
+#page-manual-assign[data-ra-init] .route-slot.ra-quick-open .ra-quick-chevron svg { transform: rotate(180deg); }
+#page-manual-assign[data-ra-init] .route-slot.ra-quick-open { border-color: var(--ui-blue-line) !important; }
+@media (hover: hover) and (pointer: fine) {
+  #page-manual-assign[data-ra-init] .ra-quick:hover .ra-quick-actions { display: flex; }
+  #page-manual-assign[data-ra-init] .ra-quick:hover .ra-quick-chevron { color: var(--ui-blue); background: var(--ui-blue-soft); }
+}
+/* The detail view keeps Stay + Done only; moving and removing live in the quick actions. */
+#page-manual-assign[data-ra-init] .route-slot.ra-detail-open .slot-move-btn,
+#page-manual-assign[data-ra-init] .route-slot.ra-detail-open .slot-remove-btn { display: none !important; }
+#page-manual-assign[data-ra-init] .route-slot.ra-detail-open .ra-close-stop { grid-row: 2; }
+@media (max-width: 980px) {
+  #page-manual-assign[data-ra-init] .route-slot.ra-detail-open .ra-quick { display: none; }
+  #page-manual-assign[data-ra-init] .ra-quick { top: 6px; right: 4px; }
+  #page-manual-assign[data-ra-init] .ra-quick-btn,
+  #page-manual-assign[data-ra-init] .ra-quick-chevron { width: 42px; height: 42px; }
+}
+
+/* 2026-10-26 Order Hub: Manage customers button and permanent address delete. */
+#workspace .oh-delete-stop { color: #b42318 !important; border-color: #f3b8b2 !important; }
+#workspace .oh-delete-stop:hover { background: #fdecea !important; }
+/* Where the header actions become a 2-column grid (phones), Manage customers takes its own row. */
+#workspace .oh-head-actions #open-customers { grid-column: 1 / -1; }

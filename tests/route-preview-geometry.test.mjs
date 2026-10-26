@@ -31,3 +31,10 @@ test('encoded paths and Google LatLng objects use the same computed geometry', (
  const model=geometry(result,()=>[latlng(a),latlng(b),latlng(c)]);
  assert.equal(model.path.length,3);assert.ok(distance(model.end,c)<.01);
 });
+test('route preview is generated only after every stop is assigned', () => {
+ const { previewGate } = context.GoRouteXRoutePreviewGeometry;
+ assert.equal(previewGate(3, 2).ready, false);
+ assert.match(previewGate(3, 2).message, /3 unassigned/);
+ assert.equal(previewGate(0, 0).ready, false);
+ assert.equal(previewGate(0, 2).ready, true);
+});

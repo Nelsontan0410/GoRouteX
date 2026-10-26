@@ -12,6 +12,16 @@
   let scheduled = false;
   let openCustomer = null;
   let focusBeforeSheet = null;
+  // Stop whose quick actions stay visible (after tapping the chevron or after a move).
+  let quickCustomer = null;
+  let pendingQuickFocus = null;
+  const ICONS = {
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>',
+    remove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>'
+  };
+  const QUICK_LABELS = { up: 'Move stop up', down: 'Move stop down', remove: 'Remove stop from route' };
   const phone = () => global.matchMedia('(max-width: 980px)').matches;
   const pageNode = () => pageRoot || $('page-manual-assign');
   const defaultNotice = 'Routes generated. Adjust stops or use map detours if needed, then click Confirm Route.';
@@ -91,6 +101,74 @@
     focusStopOnMap(slot);
   }
 
+  function nativeControl(slot, action) {
+    return action === 'remove'
+      ? slot.querySelector('.slot-remove-btn')
+      : slot.querySelector(`.slot-move-btn[data-direction="${action}"]`);
+  }
+
+  function buildQuickActions() {
+    const quick = document.createElement('div');
+    quick.className = 'ra-quick';
+    const actions = document.createElement('div');
+    actions.className = 'ra-quick-actions';
+    actions.setAttribute('role', 'group');
+    actions.setAttribute('aria-label', 'Stop actions');
+    ['up', 'down', 'remove'].forEach((action) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `ra-quick-btn${action === 'remove' ? ' is-danger' : ''}`;
+      button.dataset.raQuickAction = action;
+      button.title = QUICK_LABELS[action].replace(' stop', '');
+      button.setAttribute('aria-label', QUICK_LABELS[action]);
+      button.innerHTML = ICONS[action];
+      actions.append(button);
+    });
+    const chevron = document.createElement('button');
+    chevron.type = 'button';
+    chevron.className = 'ra-quick-chevron';
+    chevron.setAttribute('aria-label', 'Show stop actions');
+    chevron.setAttribute('aria-expanded', 'false');
+    chevron.innerHTML = ICONS.chevron;
+    // row-reverse keeps the chevron at the right edge; the actions open to its left.
+    quick.append(chevron, actions);
+    quick.addEventListener('dragstart', (event) => { event.preventDefault(); event.stopPropagation(); });
+    quick.addEventListener('mousedown', (event) => event.stopPropagation());
+    return quick;
+  }
+
+  function syncQuickActions(slot) {
+    const quick = slot.querySelector('.ra-quick');
+    if (!quick) return;
+    quick.querySelectorAll('[data-ra-quick-action]').forEach((button) => {
+      const native = nativeControl(slot, button.dataset.raQuickAction);
+      const disabled = !native || native.disabled;
+      if (button.disabled !== disabled) button.disabled = disabled;
+    });
+    const open = Boolean(quickCustomer) && slot.dataset.customerId === quickCustomer;
+    slot.classList.toggle('ra-quick-open', open);
+    quick.querySelector('.ra-quick-chevron')?.setAttribute('aria-expanded', String(open));
+  }
+
+  function setQuick(customer) {
+    quickCustomer = customer || null;
+    document.querySelectorAll('#routePanel .route-slot.filled').forEach(syncQuickActions);
+  }
+
+  function runQuickAction(button) {
+    const slot = button.closest('.route-slot');
+    const action = button.dataset.raQuickAction;
+    const native = slot && nativeControl(slot, action);
+    if (!native || native.disabled) return;
+    const customer = slot.dataset.customerId;
+    if (customer === openCustomer) closeStop(false);
+    // Keep the moved stop's actions open so it can be moved again; a removed stop leaves the route.
+    quickCustomer = action === 'remove' ? null : customer;
+    pendingQuickFocus = action === 'remove' ? null : { customer, action };
+    native.click();
+    schedule();
+  }
+
   function enhanceSlots() {
     document.querySelectorAll('#routePanel .route-slot.filled').forEach((slot) => {
       const label = slot.querySelector('.slot-content');
@@ -133,6 +211,8 @@
       const summary = slot.querySelector('.ra-stay-summary');
       const text = `Stay ${stayLabel || ''}`.trim();
       if (summary.textContent !== text) summary.textContent = text;
+      if (!slot.querySelector('.ra-quick')) slot.append(buildQuickActions());
+      syncQuickActions(slot);
       if (slot.dataset.customerId === openCustomer) presentOpenStop(slot);
       else {
         slot.classList.remove('ra-detail-open');
@@ -142,6 +222,17 @@
       }
     });
     if (openCustomer && ![...document.querySelectorAll('#routePanel .route-slot.filled')].some((slot) => slot.dataset.customerId === openCustomer)) closeStop(false);
+    if (quickCustomer && ![...document.querySelectorAll('#routePanel .route-slot.filled')].some((slot) => slot.dataset.customerId === quickCustomer)) quickCustomer = null;
+    if (pendingQuickFocus) {
+      const slot = [...document.querySelectorAll('#routePanel .route-slot.filled')].find((node) => node.dataset.customerId === pendingQuickFocus.customer);
+      const keyboard = document.activeElement === document.body || !document.activeElement?.isConnected;
+      if (slot && keyboard) {
+        const same = slot.querySelector(`[data-ra-quick-action="${pendingQuickFocus.action}"]`);
+        const target = same && !same.disabled ? same : slot.querySelector('[data-ra-quick-action]:not(:disabled)');
+        target?.focus({ preventScroll: true });
+      }
+      if (slot) pendingQuickFocus = null;
+    }
     document.querySelectorAll('#routesSection .route-slots-container').forEach((container) => {
       const empty = container.querySelectorAll('.route-slot.empty');
       let toggle = container.parentElement.querySelector('.ra-empty-toggle');
@@ -320,6 +411,14 @@
       resizeMap(true);
     });
     $('routePanel')?.addEventListener('click', (event) => {
+      const quickButton = event.target.closest('[data-ra-quick-action]');
+      if (quickButton) { event.preventDefault(); event.stopPropagation(); return runQuickAction(quickButton); }
+      const chevron = event.target.closest('.ra-quick-chevron');
+      if (chevron) {
+        event.preventDefault(); event.stopPropagation();
+        const customer = chevron.closest('.route-slot')?.dataset.customerId;
+        return setQuick(customer === quickCustomer ? null : customer);
+      }
       if (event.target.closest('.ra-close-stop')) return closeStop();
       const toggle = event.target.closest('.ra-stop-toggle');
       if (toggle) return openStop(toggle.closest('.route-slot'));
@@ -340,12 +439,14 @@
     page.addEventListener('dragend', endDrag, true);
     page.addEventListener('drop', endDrag, true);
     document.addEventListener('pointerdown', (event) => {
+      if (quickCustomer && !event.target.closest?.('.ra-quick')) setQuick(null);
       const more = $('raMoreActions');
       if (more.open && !more.contains(event.target)) more.open = false;
     });
     document.addEventListener('keydown', (event) => {
       if (!page.classList.contains('active-page')) return;
       if (event.key === 'Escape') {
+        if (quickCustomer) setQuick(null);
         if (openCustomer) { event.preventDefault(); closeStop(); }
         if (page.dataset.raMapExpanded === 'true') $('raExpandMapBtn').click();
         $('raMoreActions').open = false;
@@ -371,6 +472,7 @@
       const tab = event.target.closest('[data-ra-tab]');
       if (!tab) return;
       closeStop(false);
+      quickCustomer = null;
       activeKey = tab.dataset.raTab;
       refresh();
       $('raTabs').querySelector(`[data-ra-tab="${activeKey}"]`)?.focus({ preventScroll: true });

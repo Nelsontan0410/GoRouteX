@@ -3307,6 +3307,16 @@
 
     function goBackToPreviousPage() {
       const currentPageId = document.querySelector('.page.active-page')?.id || 'page-history-dashboard';
+      // Opened from Order Hub's "Manage customers": Back returns there when there is no in-app page to go back to.
+      const openedFromOrderHub = new URLSearchParams(window.location.search).get('from') === 'order-hub';
+      const hasInAppHistory = appPageHistoryStack.some((pageId) => {
+        const normalized = normalizePageId(pageId);
+        return normalized && normalized !== normalizePageId(currentPageId);
+      });
+      if (openedFromOrderHub && currentPageId === 'page-add-stop' && !hasInAppHistory) {
+        window.location.href = 'order-hub.html';
+        return;
+      }
       const targetPageId = getPreviousPageFromHistory(currentPageId);
       suppressNextPageHistoryPush = true;
       showPage(targetPageId);
