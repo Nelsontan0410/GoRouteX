@@ -101,9 +101,17 @@
     }
   }
 
+  // The order stops are applied to Stops Selection once. After that the planner may add or remove
+  // stops, and coming back to Stops Selection keeps their selection instead of resetting it.
+  function markApplied(uid) {
+    const value = read(uid);
+    if (!value || value.applied) return;
+    global.sessionStorage.setItem(KEY, JSON.stringify({ ...value, applied: true }));
+  }
+
   function clear(uid) {
     if (!uid || read(uid)) global.sessionStorage.removeItem(KEY);
   }
 
-  global.GoRouteXOrderPlan = { prepare, save, read, clear, planningStopId };
+  global.GoRouteXOrderPlan = { prepare, save, read, markApplied, clear, planningStopId };
 })(window);

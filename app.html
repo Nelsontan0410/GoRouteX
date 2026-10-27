@@ -1509,6 +1509,7 @@
             const endText = known && routeEndMode === 'custom' && customEndAddress ? (customEndLabel || customEndAddress) : 'Same as Start';
             notice.textContent = selection.orderIds.length + ' selected orders are ready across ' + selection.stopIds.length + ' saved stops. Start: ' + startText + ' · End: ' + endText + '. Check Route settings if needed, then click Review & Assign.';
         }
+        return true;
     }
 
     function getSelectedStopObjects() {
@@ -5106,8 +5107,25 @@
         const orderPlan = window.GoRouteXOrderPlan?.read(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
         const orderPlanNotice = document.getElementById('orderPlanNotice');
         if (orderPlanNotice && !orderPlan) orderPlanNotice.hidden = true;
-        fetchInitialCustomerData({ forceReload: Boolean(orderPlan), loadAll: Boolean(orderPlan), restoreSessionAfterLoad: !orderPlan })
-          .then(() => { if (orderPlan) applyOrderPlanSelection(orderPlan); })
+        // Order Hub stops are applied only on the first visit; later visits keep stops the planner added.
+        const firstOrderPlanVisit = Boolean(orderPlan && !orderPlan.applied);
+        const keepPlannerSelection = Boolean(orderPlan && orderPlan.applied);
+        fetchInitialCustomerData({
+          forceReload: firstOrderPlanVisit,
+          loadAll: Boolean(orderPlan),
+          restoreSessionAfterLoad: !orderPlan || (keepPlannerSelection && selectedCustomers.size === 0)
+        })
+          .then(() => {
+            if (firstOrderPlanVisit) {
+              if (applyOrderPlanSelection(orderPlan)) window.GoRouteXOrderPlan.markApplied(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
+            } else if (keepPlannerSelection) {
+              // Loading stops replaces the list; put the orders' one-time addresses back, keep the selection.
+              addOneTimeOrderEntries(orderPlan);
+              updateSelectedListOnPage1();
+              renderCustomerList(searchCustomerInput?.value || '');
+              updateManualAssignAccessButton();
+            }
+          })
           .catch((error) => {
             console.warn('Stops page load failed:', error);
             if (orderPlanNotice && orderPlan) {

@@ -173,3 +173,25 @@ test('unified master search finds exact-field records and keeps stop-contact rel
  assert.equal(search(master,'phone','000000').length,0);
  assert.equal(search(master,'customer','Other').length,0);
 });
+
+test('order stops are applied to Stops Selection once, so stops added later are kept', async () => {
+  const values = new Map();
+  const window = { sessionStorage: {
+    setItem: (key, value) => values.set(key, value),
+    getItem: key => values.get(key) || null,
+    removeItem: key => values.delete(key)
+  }};
+  const source = await readFile(new URL('../orders/route-plan-selection.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window, Date, Error, Map, Set, Number, String, JSON });
+  const plan = window.GoRouteXOrderPlan;
+  const selected = plan.prepare([{ internalId: 'order-1', savedStopId: 'stop-1', status: 'READY' }], [{ id: 'stop-1', address: '12 Main Street' }], 16);
+  plan.save('owner-1', selected);
+  assert.equal(plan.read('owner-1').applied, undefined);
+  plan.markApplied('owner-2');
+  assert.equal(plan.read('owner-1').applied, undefined);
+  plan.markApplied('owner-1');
+  assert.equal(plan.read('owner-1').applied, true);
+  assert.equal(plan.read('owner-1').orderIds.length, 1);
+  plan.save('owner-1', selected);
+  assert.equal(plan.read('owner-1').applied, undefined, 'a new hand-off from Order Hub is applied again');
+});
