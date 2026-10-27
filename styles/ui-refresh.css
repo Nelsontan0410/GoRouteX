@@ -4347,3 +4347,9 @@ body:has(#page-manual-assign.active-page[data-ra-sheet="open"]) { overflow: hidd
 #workspace .oh-delete-stop:hover { background: #fdecea !important; }
 /* Where the header actions become a 2-column grid (phones), Manage customers takes its own row. */
 #workspace .oh-head-actions #open-customers { grid-column: 1 / -1; }
+
+/* 2026-10-27 Review map: no Route overview / Viewing / Fit route bars, so the map gets the space.
+   The route player shows only once every stop is assigned (route-overview-ui.js sets data-ra-preview). */
+#page-manual-assign[data-ra-init] .ra-map-heading,
+#page-manual-assign[data-ra-init] .ra-map-tools { display: none !important; }
+#page-manual-assign[data-ra-init]:not([data-ra-preview="on"]) .ra-route-preview { display: none !important; }

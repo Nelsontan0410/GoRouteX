@@ -191,7 +191,7 @@
     if (fitKey !== lastFitKey) { lastFitKey = fitKey; if (!global.GoRouteXManualMapView?.locked()) fit(); }
   }
   function refresh() {
-    if (!root?.isConnected || !root.classList.contains('active-page')) { if (layers.length) clear(); refs = []; return; }
+    if (!root?.isConnected || !root.classList.contains('active-page')) { if (layers.length) clear(); refs = []; if (root) root.dataset.raPreview = 'off'; return; }
     const routes = typeof manualPreviewRoutes !== 'undefined' ? manualPreviewRoutes : [];
     const sections = [...root.querySelectorAll('#routesSection [data-ra-key]')];
     const next = sections.map((section) => {
@@ -218,6 +218,7 @@
     if (!next.some((m) => m.key === selected) && selected !== 'all') selected = next[0]?.key || 'all';
     picker.value = selected;
     const gate = previewGate(root.querySelectorAll('#unassignedStopsList .draggable-item').length, next.length);
+    root.dataset.raPreview = gate.ready ? 'on' : 'off';
     if (!gate.ready) {
       if (layers.length || hiddenMarkers.size || fadedLines.size) clear();
       refs = []; lineRefs = []; markerRefs = []; models = next; lastFitKey = '';
