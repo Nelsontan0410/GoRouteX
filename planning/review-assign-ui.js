@@ -21,6 +21,14 @@
     remove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>'
   };
+  // Once the person zooms or drags the Review map, automatic refits stop until they leave the page,
+  // so assigning or moving stops never throws the map back to the default view.
+  let mapViewLocked = false;
+  global.GoRouteXManualMapView = {
+    locked: () => mapViewLocked,
+    lock: () => { mapViewLocked = true; },
+    reset: () => { mapViewLocked = false; }
+  };
   const QUICK_LABELS = { up: 'Move stop up', down: 'Move stop down', remove: 'Remove stop from route' };
   const phone = () => global.matchMedia('(max-width: 980px)').matches;
   const pageNode = () => pageRoot || $('page-manual-assign');
@@ -155,6 +163,14 @@
     document.querySelectorAll('#routePanel .route-slot.filled').forEach(syncQuickActions);
   }
 
+  function scrollParent(node) {
+    for (let el = node?.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+      const overflow = global.getComputedStyle(el).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
   function runQuickAction(button) {
     const slot = button.closest('.route-slot');
     const action = button.dataset.raQuickAction;
@@ -165,8 +181,16 @@
     // Keep the moved stop's actions open so it can be moved again; a removed stop leaves the route.
     quickCustomer = action === 'remove' ? null : customer;
     pendingQuickFocus = action === 'remove' ? null : { customer, action };
+    // The list is re-rendered on every move; remember where the stop sat on screen so the view follows it.
+    const scroller = scrollParent(slot);
+    const scrollTop = scroller.scrollTop;
+    const screenTop = slot.getBoundingClientRect().top;
     native.click();
-    schedule();
+    refresh();
+    scroller.scrollTop = scrollTop;
+    const moved = action === 'remove' ? null
+      : [...document.querySelectorAll('#routePanel .route-slot.filled')].find((node) => node.dataset.customerId === customer);
+    if (moved) scroller.scrollTop += moved.getBoundingClientRect().top - screenTop;
   }
 
   function enhanceSlots() {
@@ -485,9 +509,12 @@
       });
       new MutationObserver(() => {
         if (page.classList.contains('active-page')) { schedule(); resizeMap(); }
-        else { closeStop(false); settings?.close(); delete page.dataset.raMapExpanded; }
+        else { closeStop(false); settings?.close(); delete page.dataset.raMapExpanded; mapViewLocked = false; }
       }).observe(page, { attributes: true, attributeFilter: ['class'] });
     }
+    // Any zoom, pinch, drag or control click on the map counts as the person choosing the view.
+    const lockView = (event) => { if (event.target.closest?.('#map')) mapViewLocked = true; };
+    ['wheel', 'pointerdown', 'touchstart'].forEach((type) => page.addEventListener(type, lockView, { capture: true, passive: true }));
     refresh();
   }
 

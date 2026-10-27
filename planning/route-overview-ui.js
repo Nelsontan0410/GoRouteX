@@ -188,7 +188,7 @@
     } else text($('raPreviewStatus'), 'All routes · Select a route to play its preview.');
     // Refit only when the viewed routes change, not after every reorder inside them.
     const fitKey = `${selected}|${ready.map((m) => m.key).join(',')}`;
-    if (fitKey !== lastFitKey) { lastFitKey = fitKey; fit(); }
+    if (fitKey !== lastFitKey) { lastFitKey = fitKey; if (!global.GoRouteXManualMapView?.locked()) fit(); }
   }
   function refresh() {
     if (!root?.isConnected || !root.classList.contains('active-page')) { if (layers.length) clear(); refs = []; return; }

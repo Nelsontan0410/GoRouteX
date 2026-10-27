@@ -426,7 +426,9 @@ async function addSimpleMarkersForMasterList(stops) {
             }
         }
 
-        if (markers.length > 0 || (currentPositionMarkerPage2 && currentPositionMarkerPage2.position)) {
+        if (window.GoRouteXManualMapView?.locked()) {
+            // The person zoomed or moved the map: keep their view while stops are assigned or moved.
+        } else if (markers.length > 0 || (currentPositionMarkerPage2 && currentPositionMarkerPage2.position)) {
             fitMapToMarkers(mapPage2, markers.concat(currentPositionMarkerPage2 ? [currentPositionMarkerPage2] : []));
         } else if (currentLatLng) {
             MapHandler.setCenter(mapPage2, currentLatLng);
