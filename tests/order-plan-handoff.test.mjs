@@ -195,3 +195,50 @@ test('order stops are applied to Stops Selection once, so stops added later are 
   plan.save('owner-1', selected);
   assert.equal(plan.read('owner-1').applied, undefined, 'a new hand-off from Order Hub is applied again');
 });
+
+// Confirm must not fail just because the planner removed or left out stops after sending orders from Order Hub.
+import { reconcileOrderPlan } from '../driver/route-enrichment.js';
+const reconcileOrders = [
+  { internalId: 'o1', orderId: 'DO-1', savedStopId: 'stop-1', status: 'READY' },
+  { internalId: 'o2', orderId: 'DO-2', savedStopId: 'stop-2', status: 'READY' },
+  { internalId: 'o3', orderId: 'DO-3', savedStopId: 'stop-3', status: 'READY' }
+];
+const reconcileOptions = (selected, orderIds = ['o1', 'o2', 'o3']) => ({ orderIds, selectedStopIds: new Set(selected), stopIdForOrder: order => order.savedStopId });
+
+test('an unassigned order stop does not block confirm; its order is reported as not linked', () => {
+  const routes = [{ id: 1, customerStops: [{ uniqueId: 'stop-1' }, { uniqueId: 'stop-2' }] }];
+  const result = reconcileOrderPlan(routes, reconcileOrders, '2026-11-10', reconcileOptions(['stop-1', 'stop-2', 'stop-3']));
+  assert.equal(result.linkedCount, 2);
+  assert.deepEqual(result.ambiguousStopIds, []);
+  assert.deepEqual(result.unlinked.map(item => [item.id, item.reason]), [['o3', 'stop-not-assigned']]);
+});
+
+test('a stop removed from the selection after Order Hub does not block confirm', () => {
+  const routes = [{ id: 1, customerStops: [{ uniqueId: 'stop-1' }, { uniqueId: 'stop-2' }] }];
+  const result = reconcileOrderPlan(routes, reconcileOrders, '2026-11-10', reconcileOptions(['stop-1', 'stop-2']));
+  assert.equal(result.linkedCount, 2);
+  assert.deepEqual(result.linkedOrderIds.sort(), ['o1', 'o2']);
+  assert.deepEqual(result.unlinked.map(item => [item.id, item.orderNumber, item.reason]), [['o3', 'DO-3', 'stop-removed']]);
+});
+
+test('every order links when all stops are assigned', () => {
+  const routes = [{ id: 1, customerStops: [{ uniqueId: 'stop-1' }, { uniqueId: 'stop-2' }] }, { id: 2, customerStops: [{ uniqueId: 'stop-3' }] }];
+  const result = reconcileOrderPlan(routes, reconcileOrders, '2026-11-10', reconcileOptions(['stop-1', 'stop-2', 'stop-3']));
+  assert.equal(result.linkedCount, 3);
+  assert.deepEqual(result.unlinked, []);
+});
+
+test('a stop placed on two routes is reported so confirm can stop with a clear message', () => {
+  const routes = [{ id: 1, customerStops: [{ uniqueId: 'stop-1' }] }, { id: 2, customerStops: [{ uniqueId: 'stop-1' }, { uniqueId: 'stop-2' }] }];
+  const result = reconcileOrderPlan(routes, reconcileOrders, '2026-11-10', reconcileOptions(['stop-1', 'stop-2'], ['o1', 'o2']));
+  assert.deepEqual(result.ambiguousStopIds, ['stop-1']);
+  assert.equal(result.unlinked.find(item => item.id === 'o1').reason, 'stop-on-multiple-routes');
+});
+
+test('an order deleted or already processed is reported, not fatal', () => {
+  const routes = [{ id: 1, customerStops: [{ uniqueId: 'stop-1' }, { uniqueId: 'stop-2' }] }];
+  const orders = [reconcileOrders[0], { ...reconcileOrders[1], executionStatus: 'DISPATCHED' }];
+  const result = reconcileOrderPlan(routes, orders, '2026-11-10', reconcileOptions(['stop-1', 'stop-2'], ['o1', 'o2', 'gone']));
+  assert.equal(result.linkedCount, 1);
+  assert.deepEqual(result.unlinked.map(item => [item.id, item.reason]), [['o2', 'order-not-ready'], ['gone', 'order-not-found']]);
+});

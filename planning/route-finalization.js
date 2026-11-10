@@ -458,9 +458,21 @@ async function handleProceedToOptimizeRoutes(options = {}) {
                 return { success: false, error: 'Finalized route has no saved plan ID.' };
             }
             try { performance.mark('grx:planningFinalizeEnd'); performance.measure('grx:planningFinalize', 'grx:planningFinalizeStart', 'grx:planningFinalizeEnd'); } catch {}
-            openDispatchPage(dynamicSaveResult.id);
-        } else if (!dynamicSaveResult?.success && messageBarPg2) {
-            messageBarPg2.textContent = dynamicSaveResult?.error || 'Route save failed. Please retry.';
+            const unlinkedOrders = Array.isArray(dynamicSaveResult.unlinkedOrders) ? dynamicSaveResult.unlinkedOrders : [];
+            if (unlinkedOrders.length && typeof showToast === 'function') {
+                // The route is saved. Orders whose stops were removed or left unassigned stay in Order Hub.
+                const numbers = unlinkedOrders.map(order => order.orderNumber || order.id).slice(0, 5).join(', ');
+                const more = unlinkedOrders.length > 5 ? ` and ${unlinkedOrders.length - 5} more` : '';
+                showToast(`Route saved. ${unlinkedOrders.length} order(s) not on this route (${numbers}${more}) stay in Order Hub.`, 'warning', 4000);
+                setTimeout(() => openDispatchPage(dynamicSaveResult.id), 2500);
+            } else {
+                openDispatchPage(dynamicSaveResult.id);
+            }
+        } else if (!dynamicSaveResult?.success) {
+            const failure = dynamicSaveResult?.error || 'Route save failed. Please retry.';
+            console.error('Confirm route did not complete:', failure);
+            if (messageBarPg2) messageBarPg2.textContent = failure;
+            if (typeof showToast === 'function') showToast(failure, 'error', 6000);
         }
         return dynamicSaveResult?.skipped
             ? { success: dynamicBuildState.plannedRoutes.length > 0 && dynamicBuildState.plannedRoutes.some(r => r.directionsResult) }

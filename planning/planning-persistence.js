@@ -258,15 +258,16 @@ async function saveCurrentRouteToHistory(options = {}) {
         let driverPlannedRoutes = JSON.parse(JSON.stringify(AppState.plannedRoutes));
         let orderLinkStatus = 'NONE';
         let linkedOrderCount = 0;
+        let linkedOrderIds = [];
+        let unlinkedOrders = [];
         if (authUser && window.firebase?.firestore) {
             try {
                 try { performance.mark('grx:orderEnrichmentStart'); } catch {}
                 const ordersRef = firebase.firestore().collection('users').doc(authUser.uid).collection('orders');
                 let ordersForRoute = [];
                 if (orderPlan) {
-                    if (orderPlan.stopIds.some(id => !selectedCustomers.has(id))) {
-                        throw new Error('The selected order stops changed. Return to Order Hub and select the orders again.');
-                    }
+                    // The order plan is a snapshot from Order Hub. Stops the planner removed or left unassigned
+                    // are reconciled below (those orders stay in Order Hub); they no longer block Confirm.
                     for (let offset = 0; offset < orderPlan.orderIds.length; offset += 20) {
                         const ids = orderPlan.orderIds.slice(offset, offset + 20);
                         const snapshots = await Promise.all(ids.map(id => ordersRef.doc(id).get()));
@@ -276,18 +277,34 @@ async function saveCurrentRouteToHistory(options = {}) {
                     const ordersSnapshot = await ordersRef.where('deliveryDate', '==', selectedPlanningDate).get();
                     ordersForRoute = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 }
-                const { enrichPlannedRoutes } = await import('../driver/route-enrichment.js');
-                const linked = enrichPlannedRoutes(driverPlannedRoutes, ordersForRoute, selectedPlanningDate,
-                    { selectedOrderIds: orderPlan?.orderIds || null });
-                if (orderPlan && (linked.linkedCount !== orderPlan.orderIds.length || linked.ambiguousCount)) {
-                    throw new Error('Not all selected orders could be linked to this route. Return to Order Hub and review the saved stops.');
+                const { enrichPlannedRoutes, reconcileOrderPlan } = await import('../driver/route-enrichment.js');
+                if (orderPlan) {
+                    const reconciled = reconcileOrderPlan(driverPlannedRoutes, ordersForRoute, selectedPlanningDate, {
+                        orderIds: orderPlan.orderIds,
+                        selectedStopIds: selectedCustomers,
+                        stopIdForOrder: order => window.GoRouteXOrderPlan.planningStopId(order)
+                    });
+                    if (reconciled.ambiguousStopIds.length) {
+                        const names = reconciled.ambiguousStopIds.map(id => (typeof getCustomerById === 'function' && getCustomerById(id)?.Name) || id);
+                        console.error('Confirm blocked: stop on more than one route', { stopIds: reconciled.ambiguousStopIds, unlinked: reconciled.unlinked });
+                        throw new Error('These stops are on more than one route: ' + names.join(', ') + '. Keep each stop on one route, then confirm again.');
+                    }
+                    driverPlannedRoutes = reconciled.plannedRoutes;
+                    linkedOrderCount = reconciled.linkedCount;
+                    linkedOrderIds = reconciled.linkedOrderIds;
+                    unlinkedOrders = reconciled.unlinked;
+                    if (unlinkedOrders.length) console.warn('Orders not linked to the confirmed route (they stay in Order Hub):', unlinkedOrders);
+                    orderLinkStatus = unlinkedOrders.length ? 'PARTIAL' : linkedOrderCount ? 'LINKED' : 'NONE';
+                } else {
+                    const linked = enrichPlannedRoutes(driverPlannedRoutes, ordersForRoute, selectedPlanningDate, { selectedOrderIds: null });
+                    driverPlannedRoutes = linked.plannedRoutes;
+                    linkedOrderCount = linked.linkedCount;
+                    orderLinkStatus = linked.ambiguousCount ? 'AMBIGUOUS' : linked.linkedCount ? 'LINKED' : 'NONE';
                 }
-                driverPlannedRoutes = linked.plannedRoutes;
-                linkedOrderCount = linked.linkedCount;
-                orderLinkStatus = linked.ambiguousCount ? 'AMBIGUOUS' : linked.linkedCount ? 'LINKED' : 'NONE';
                 try { performance.mark('grx:orderEnrichmentEnd'); performance.measure('grx:orderEnrichment', 'grx:orderEnrichmentStart', 'grx:orderEnrichmentEnd'); } catch {}
             } catch (error) {
                 if (orderPlan) {
+                    console.error('Confirm route could not link Order Hub orders:', error);
                     if (messageBarOptimizedPg3) messageBarOptimizedPg3.textContent = error.message;
                     return { success: false, error: error.message };
                 }
@@ -342,7 +359,8 @@ async function saveCurrentRouteToHistory(options = {}) {
             plannedRoutes: driverPlannedRoutes,
             orderLinkStatus,
             linkedOrderCount,
-            selectedOrderIds: orderPlan?.orderIds || [],
+            selectedOrderIds: orderPlan ? linkedOrderIds : [],
+            unlinkedOrderIds: unlinkedOrders.map(order => order.id),
             addressNameMap: { ...addressNameMap },
             totalStops: selectedCustomers.size,
             routePlanUsageCount: 1,
@@ -399,7 +417,7 @@ async function saveCurrentRouteToHistory(options = {}) {
                     console.warn('Background route history refresh failed:', error);
                 });
             }, 0);
-            return { success: true, id: historyEntry.id };
+            return { success: true, id: historyEntry.id, unlinkedOrders };
         } catch (error) {
             appLog("❌ Error saving route:", error);
             if (!silent && messageBarOptimizedPg3) {

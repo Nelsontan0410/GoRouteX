@@ -36,7 +36,7 @@ function render() {
  const active=execution?.status==='IN_PROGRESS', paused=execution?.status==='PAUSED';
  $('driverRouteName').textContent=label(route.routeName,`Route ${route.id}`);
  $('driverRouteDate').textContent=label(route.date||route.planningDate,'Saved route');
- $('driverRouteMeta').textContent=[route.vehicleDriver||'',`${p.total} stops`,route.orderLinkStatus==='UNAVAILABLE'?'Order Hub links unavailable when saved':route.orderLinkStatus==='AMBIGUOUS'?'Some orders need route review':null].filter(Boolean).join(' · ');
+ $('driverRouteMeta').textContent=[route.vehicleDriver||'',`${p.total} stops`,route.orderLinkStatus==='UNAVAILABLE'?'Order Hub links unavailable when saved':route.orderLinkStatus==='AMBIGUOUS'?'Some orders need route review':route.orderLinkStatus==='PARTIAL'?'Some selected orders are not on this route':null].filter(Boolean).join(' · ');
  $('driverRouteStatus').textContent=statusLabel(execution?.status||'ASSIGNED');
  $('driverRouteStatus').dataset.status=execution?.status||'ASSIGNED';
  $('driverProgress').replaceChildren();
