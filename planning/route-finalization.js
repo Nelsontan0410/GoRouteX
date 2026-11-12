@@ -262,25 +262,25 @@ function renderPlannedRoutes(routes, routeBuildState = {}, options = {}) {
                 finalMessage += `Done: ${successfulDynamicRoutes.length} dynamic ${successfulDynamicRoutes.length === 1 ? 'route' : 'routes'} planned successfully. Viewing Route ${viewingRouteId}.`;
             } else if (manualRoute1Waypoints.length > 0 && manualRoute2Waypoints.length > 0) {
                 if (route1Success && route2Success) {
-                    finalMessage += `âœ… Both routes planned successfully. Viewing Route ${viewingRouteId}.`;
+                    finalMessage += `✅ Both routes planned successfully. Viewing Route ${viewingRouteId}.`;
                 } else if (route1Success && !route2Success) {
-                    finalMessage += `âœ… Route 1 planned. Route 2 failed: ${route2ErrorMessage}. Viewing Route 1.`;
+                    finalMessage += `✅ Route 1 planned. Route 2 failed: ${route2ErrorMessage}. Viewing Route 1.`;
                 } else if (!route1Success && route2Success) {
-                    finalMessage += `âœ… Route 2 planned. Route 1 failed: ${route1ErrorMessage}. Viewing Route 2.`;
+                    finalMessage += `✅ Route 2 planned. Route 1 failed: ${route1ErrorMessage}. Viewing Route 2.`;
                 } else {
-                    finalMessage += `âŒ Both routes failed. R1: ${route1ErrorMessage}. R2: ${route2ErrorMessage}.`;
+                    finalMessage += `❌ Both routes failed. R1: ${route1ErrorMessage}. R2: ${route2ErrorMessage}.`;
                 }
             } else if (manualRoute1Waypoints.length > 0) {
                 if (route1Success) {
-                    finalMessage += `âœ… Route 1 planned successfully. Viewing Route 1.`;
+                    finalMessage += `✅ Route 1 planned successfully. Viewing Route 1.`;
                 } else {
-                    finalMessage += `âŒ Route 1 failed: ${route1ErrorMessage}.`;
+                    finalMessage += `❌ Route 1 failed: ${route1ErrorMessage}.`;
                 }
             } else if (manualRoute2Waypoints.length > 0) {
                  if (route2Success) {
-                    finalMessage += `âœ… Route 2 planned successfully. Viewing Route ${routes.find(r => r.directionsResult)?.id || 'N/A'}.`;
+                    finalMessage += `✅ Route 2 planned successfully. Viewing Route ${routes.find(r => r.directionsResult)?.id || 'N/A'}.`;
                 } else {
-                    finalMessage += `âŒ Route 2 failed: ${route2ErrorMessage}.`;
+                    finalMessage += `❌ Route 2 failed: ${route2ErrorMessage}.`;
                 }
             }
             finalMessage += saveAfterPlan
@@ -290,7 +290,7 @@ function renderPlannedRoutes(routes, routeBuildState = {}, options = {}) {
             return { success: true };
         }
 
-        let failMessage = 'âŒ No routes could be planned.';
+        let failMessage = '❌ No routes could be planned.';
         if (hasDynamicTestRoutes) {
             if (route1ErrorMessage) failMessage += `<br>${route1ErrorMessage}`;
             if (route2ErrorMessage) failMessage += `<br>${route2ErrorMessage}`;

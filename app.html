@@ -4624,17 +4624,28 @@
         updateRouteSettingsSummary();
     }
 
+    // #messageBar sits on Review & Assign. A planning check that fails on another page (Stops Selection)
+    // would otherwise write to a hidden bar and the click would appear to do nothing, so also raise a toast.
+    let planningWaitingForOrigin = false;
+    function announcePlanningMessage(message, type = 'warning') {
+        messageBarPg2.textContent = message;
+        if (!document.getElementById('page-manual-assign')?.classList.contains('active-page')) {
+            showToast(message, type, 6000);
+        }
+    }
+
     function ensureOriginReadyForPlanning() {
         if (currentLocationOrigin) {
             return true;
         }
 
         if (routeOriginMode === 'custom') {
-            messageBarPg2.textContent = 'Select a custom start address in Route settings before planning routes.';
+            announcePlanningMessage('Select a custom start address in Route settings before planning routes.');
             window.openRouteSettingsPanel?.();
             if (customOriginInput) customOriginInput.focus();
         } else {
-            messageBarPg2.textContent = 'Waiting for current location. You can switch to a custom address if GPS is unavailable.';
+            planningWaitingForOrigin = true;
+            announcePlanningMessage('Getting your current location for the route start. Continue once it is ready, or enter a start address in Route settings.', 'info');
             requestCurrentLocation();
         }
 
@@ -4650,7 +4661,7 @@
                 return true;
             }
 
-            messageBarPg2.textContent = 'Start location must be ready before using the same end location.';
+            announcePlanningMessage('Start location must be ready before using the same end location.');
             return false;
         }
 
@@ -4659,7 +4670,7 @@
             return true;
         }
 
-        messageBarPg2.textContent = 'Select a custom end address in Route settings or turn off the required end location option.';
+        announcePlanningMessage('Select a custom end address in Route settings or turn off the required end location option.');
         window.openRouteSettingsPanel?.();
         if (customEndInput) customEndInput.focus();
         return false;
@@ -6717,7 +6728,7 @@
         const queryPage = getUrlPageParam();
         if (queryPage === 'page-optimized-routes') return queryPage;
         if (queryPage && isValidPage(queryPage)) {
-            console.log("ðŸ“ Restoring from URL page parameter:", queryPage);
+            console.log("📍 Restoring from URL page parameter:", queryPage);
             return queryPage;
         }
         
@@ -7106,6 +7117,10 @@
                     'current'
                 );
                 messageBarPg2.textContent = 'Current location set. You can now assign stops or switch to a custom start address.';
+                if (planningWaitingForOrigin) {
+                    planningWaitingForOrigin = false;
+                    announcePlanningMessage('Start location ready. Click Review & Assign again to continue.', 'success');
+                }
               } else {
                 throw new Error("No results for reverse geocoding current location.");
               }
@@ -7117,6 +7132,10 @@
               const fallbackOrigin = `${gpsLatLng.lat.toFixed(6)},${gpsLatLng.lng.toFixed(6)}`;
               setSelectedOrigin(fallbackOrigin, gpsLatLng, "Current Coordinates", 'current');
               messageBarPg2.textContent = 'Could not reverse-geocode your location, so coordinates will be used as the route origin.';
+              if (planningWaitingForOrigin) {
+                  planningWaitingForOrigin = false;
+                  announcePlanningMessage('Start location ready. Click Review & Assign again to continue.', 'success');
+              }
             });
         },
         (error) => {
@@ -7133,6 +7152,10 @@
           clearOriginMarker();
           updateOriginDisplays(`Origin: ${userMessage}`);
           messageBarPg2.textContent = `${userMessage} Switch to "Enter Address" to continue planning.`;
+          if (planningWaitingForOrigin) {
+              planningWaitingForOrigin = false;
+              announcePlanningMessage(`${userMessage} Enter a start address in Route settings to continue planning.`);
+          }
           updateManualAssignAccessButton();
         }
       );
@@ -13432,6 +13455,19 @@
         delete stopData.constraintErrors;
 
         if (!isEditing) {
+            // Manual add had no duplicate check (import has one): ask before saving the same name and address twice.
+            const sameText = (value) => String(value || '').trim().toLowerCase();
+            const alreadySaved = allCustomerEntries.some((entry) => sameText(entry.Name) === sameText(stopName)
+                && normalizeStopAddress(entry.Address || '') === normalizeStopAddress(stopAddress));
+            if (alreadySaved && !confirm(`"${stopName}" is already saved with this address. Save another copy anyway?`)) {
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'add-stop-status error';
+                statusDiv.textContent = 'Not saved: this customer and address already exist.';
+                return;
+            }
+        }
+
+        if (!isEditing) {
             const customerLimitStatus = getUsageStatus('customers');
             if (customerLimitStatus.reached) {
                 openAccessUpgradeModal({
@@ -14149,6 +14185,8 @@
             address: row.address,
             unit: row.unit,
             note: row.note,
+            // The Postal Code column was read into the preview but dropped here, so it was never saved.
+            ...(row.postalCode ? { postalCode: row.postalCode } : {}),
             lat: row.lat,
             lng: row.lng
         });

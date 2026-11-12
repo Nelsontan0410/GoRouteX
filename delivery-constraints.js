@@ -182,7 +182,7 @@
     if (serviceMinutes > longest) {
       return { ok: false, reason: 'service-too-long', message: `The ${serviceMinutes}-minute service does not fit in any receiving period.` };
     }
-    return { ok: false, reason: 'after-hours', message: `Arrives at ${fromMinutes(arrivalMinutes)}, too late to finish ${serviceMinutes} minutes of service before receiving closes.` };
+    return { ok: false, reason: 'after-hours', message: `Arrives at ${fromMinutes(Math.floor(arrivalMinutes + 1e-6))}, too late to finish ${serviceMinutes} minutes of service before receiving closes.` };
   }
 
   function dayKeyFromDate(date) {
