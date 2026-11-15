@@ -98,3 +98,24 @@ test('customer import keeps existing stop ids and replaces a 0,0 position', asyn
   assert.equal(replaced[0].customerId, 'c1');
   assert.equal(replaced[1].id, undefined);
 });
+
+test('an order with no saved customer is planned at its own located address, without a saved stop', async () => {
+  const plan = await loadPlan();
+  const walkIn = { internalId: 'ord-walk', orderId: 'DO9', customerName: 'Predators', phone: '86189984', status: 'READY', deliveryDate: '2026-11-13', deliveryOverride: { address: '18 Coronation Rd West', lat: 1.3305, lng: 103.7791 } };
+  const selection = plan.prepare([walkIn], [jurong], 10);
+  assert.equal(JSON.stringify(selection.stopIds), '["order-address-ord-walk"]');
+  assert.equal(JSON.stringify(selection.selectedAddresses), '["18 Coronation Rd West"]');
+  assert.equal(selection.oneTimeStops[0].savedStopId, '');
+  assert.equal(selection.oneTimeStops[0].name, 'Predators');
+  assert.equal(selection.oneTimeStops[0].phone, '86189984');
+  // Without a located address it still cannot be planned.
+  assert.throws(() => plan.prepare([{ ...walkIn, deliveryOverride: undefined }], [jurong], 10), /needs a saved delivery stop/);
+});
+
+test('Order Hub locates unlinked orders on the map; Planning builds the stop from the order', async () => {
+  const hub = await readFile(new URL('../orders/order-hub.js', import.meta.url), 'utf8');
+  assert.match(hub, /locateOneTime\(order,previous\)/);
+  assert.match(hub, /Address not found on the map/);
+  const app = await readFile(new URL('../app.html', import.meta.url), 'utf8');
+  assert.match(app, /No saved customer: a stop built from the order itself/);
+});
