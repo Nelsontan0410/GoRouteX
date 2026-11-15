@@ -1,9 +1,4 @@
 const UI = (() => {
-    function clearContainer(container) {
-        if (container) {
-            container.innerHTML = '';
-        }
-    }
 
     function getActiveRouteIndex() {
         const routeIndex = AppState.plannedRoutes.findIndex((route) => route && route.id === activeRouteId);
@@ -281,10 +276,6 @@ const UI = (() => {
         updateActiveTabUI();
     }
 
-    function onRouteClick(routeId) {
-        MapHandler.focusRoute(routeId);
-    }
-
     function updateNavigationButtonsPage3() {
         navigationButtonContainerPage3.innerHTML = '';
     }
@@ -292,7 +283,6 @@ const UI = (() => {
     function disablePage3ActionButtons() {
         showEstimatesBtnPage3.disabled = true;
         mapsPreviewBtn.disabled = true;
-        startGPSTrackingBtn.disabled = true;
         shareRoute1Btn.disabled = true;
         shareRoute2Btn.disabled = true;
 
@@ -305,7 +295,6 @@ const UI = (() => {
         const hasAnySuccessfulRoute = AppState.plannedRoutes.some(r => r && r.directionsResult);
         showEstimatesBtnPage3.disabled = !hasAnySuccessfulRoute;
         mapsPreviewBtn.disabled = !hasAnySuccessfulRoute;
-        startGPSTrackingBtn.disabled = !hasAnySuccessfulRoute;
 
         const activeRoute = AppState.plannedRoutes.find(r => r && r.id === activeRouteId);
         const activeRouteSuccess = activeRoute && activeRoute.directionsResult && activeRoute.directionsResult.routes && activeRoute.directionsResult.routes.length > 0;
@@ -320,24 +309,9 @@ const UI = (() => {
         return populateOptimizedRouteLists();
     }
 
-    function renderStopsList(...args) {
-        if (typeof renderCustomerList === 'function') {
-            return renderCustomerList(...args);
-        }
-        return undefined;
-    }
-
-    function updateButtons() {
-        return enablePage3ActionButtonsAfterPlan();
-    }
-
     return {
         renderRouteList,
-        renderStopsList,
-        updateButtons,
-        clearContainer,
         renderActiveRoute,
-        onRouteClick,
         updateActiveTabUI,
         setupRouteSwitcherPage3,
         updateNavigationButtonsPage3,

@@ -7,7 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -36,6 +35,8 @@
       window.addEventListener('orientationchange', updateViewportVar, { passive: true });
     })();
   </script>
+  <!-- Tailwind (prebuilt). Keep this last in <head>: its reset and utilities must follow the app styles, as the CDN build did. -->
+  <link rel="stylesheet" href="styles/tailwind.css?v=20261115-1">
 </head>
 <body>
   <div id="appShellLayout">
@@ -612,9 +613,6 @@
       <button id="confirmRouteBtnPage3" class="modern-action-btn success" disabled hidden>
         <span>✅</span> CONFIRM ROUTE
       </button>
-      <button id="startGPSTrackingBtn" class="modern-action-btn success" disabled onclick="insertRouteToGPS()" style="display:none;">
-        <span>📍</span> INSERT TO GPS
-      </button>
       <div id="navigationButtonContainerPage3" style="display:none;"></div>
       <button id="backToDashboardBtnPg3" class="modern-action-btn" onclick="showPage('page-history-dashboard')" style="background-color: #6c757d;">
         <span>🏠</span> DASHBOARD
@@ -677,92 +675,6 @@
       </div>
     </div>
     <div id="mapFullscreen"></div>
-  </div>
-
-  <!-- GPS Tracking Page -->
-  <div id="page-gps-tracking" class="page mobile-core-page">
-    <div class="gps-tracking-header">
-    <div class="gps-tracking-title">📍 Live Route Tracking</div>
-      <div class="gps-header-controls">
-        <button id="backToDashboardFromGPSBtn" class="gps-nav-btn" onclick="showPage('page-history-dashboard')">
-          <span>🏠</span> Dashboard
-        </button>
-        <button id="backToRoutesFromGPSBtn" class="gps-nav-btn" onclick="openDispatchPage()">
-          <span>📋</span> Routes
-        </button>
-      </div>
-    </div>
-
-    <div class="gps-main-layout">
-      <!-- Left Panel: Controls & Route Progress -->
-      <div class="gps-left-panel">
-        <!-- GPS Controls Section -->
-        <div class="gps-section tracking-controls-section">
-          <h3>🛰️ Tracking Controls</h3>
-          <div class="tracking-controls">
-            <button id="startTrackingBtn" class="gps-action-btn start-btn">▶️ Start</button>
-            <button id="stopTrackingBtn" class="gps-action-btn stop-btn" disabled>⏹️ Stop</button>
-            <button id="pauseTrackingBtn" class="gps-action-btn pause-btn" disabled>⏸️ Pause</button>
-          </div>
-          <div class="tracking-controls" style="margin-top: 8px;">
-            <button id="locateMeBtn" class="gps-action-btn" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">📍 Locate Me</button>
-            <button id="finishTrackingBtn" class="gps-action-btn finish-btn" disabled style="display: none;">🏁 Finish & Report</button>
-          </div>
-          <div id="gpsStatus" class="status-message">Tracking Status: Ready</div>
-          <div id="currentLocationDisplay" class="location-display">
-            <strong>Current Position:</strong> <span id="currentCoords">Not available</span>
-          </div>
-        </div>
-
-        <!-- Today's Tracking Stats -->
-        <div class="gps-section performance-section">
-          <h3>📊 Today's Stats</h3>
-          <div class="performance-grid">
-            <div class="performance-card">
-              <div class="performance-label">Status</div>
-              <div id="tripStatus" class="performance-value">Not Started</div>
-            </div>
-            <div class="performance-card">
-              <div class="performance-label">Time</div>
-              <div id="timeEfficiency" class="performance-value">0 min</div>
-            </div>
-            <div class="performance-card">
-              <div class="performance-label">Distance</div>
-              <div id="fuelEfficiency" class="performance-value">0.0 km</div>
-            </div>
-            <div class="performance-card">
-              <div class="performance-label">On-Time</div>
-              <div id="performanceRating" class="performance-value">--</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Route Progress Section -->
-        <div class="gps-section route-progress-section" style="flex: 1; display: flex; flex-direction: column;">
-          <h3>🗺️ Route Progress</h3>
-          <div id="routeInfoBar" class="route-info-bar" style="display: none;">
-            <span class="route-name" id="loadedRouteName">No Route</span>
-            <span class="route-stops-count" id="loadedRouteStops">0 stops</span>
-          </div>
-          <div id="routeProgressContainer" style="flex: 1; display: flex; flex-direction: column;">
-            <div class="progress-header">
-              <span><span id="completedStops">0</span> of <span id="totalStops">0</span> stops</span>
-              <div class="progress-bar">
-                <div id="progressFill" class="progress-fill"></div>
-              </div>
-            </div>
-            <div id="stopsList" class="stops-list" style="flex: 1; overflow-y: auto;">
-              <p class="no-route-message">Loading planned routes...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Panel: Map -->
-      <div class="gps-right-panel">
-        <div id="mapGPSTracking"></div>
-      </div>
-    </div>
   </div>
 
   <!-- Page 5: Add New Stop -->
@@ -1577,7 +1489,6 @@
     let activeMapsInitialized = false;
     let appRuntimeMountPromise = null;
     let appRuntimeGeneration = 0;
-    let gpsPageInitTimeoutId = null;
     let sessionRestorePromise = null;
     let lastLocalSessionUpdateMs = 0;
     let lastAppliedCloudSessionUpdateMs = 0;
@@ -1586,7 +1497,6 @@
 
 
     const MAX_WAYPOINTS_PER_ROUTE = 10; // stops per route (one driver runs Route 1, 2, 3 in turn)
-    const MAX_SELECTED_STOPS = 16;  
     const DEFAULT_ROUTE_START_TIME = '09:00';
     const PREFERRED_PLANNING_TIME_STORAGE_KEY = 'preferredPlanningTime';
     const PREFERRED_ROUTE_PLANNING_TIMES_STORAGE_KEY = 'preferredPlanningTimesByRoute';
@@ -1618,7 +1528,7 @@
     function getDefaultStayMinutesForStop(customerId) {
         return customerId ? getCustomerDeliveryConstraints(customerId).serviceMinutes : getDefaultStayMinutes();
     }
-    const DEFAULT_VEHICLE_DRIVER = 'YQ3896B';
+    const DEFAULT_VEHICLE_DRIVER = 'Vehicle 1';
     const VEHICLE_DRIVER_STORAGE_KEY = 'goroutexVehicleDriver';
     const VEHICLE_DRIVER_LIST_STORAGE_KEY = 'goroutexVehicleDriverList';
     const ROUTE_COLORS = [
@@ -1640,7 +1550,6 @@
         route1: 'Route Group 1',
         route2: 'Route Group 2'
     };
-    let appState = { sentNotifications: {} };  // For tracking sent notifications, if needed later
 
     initializePlanningDraftState();
     window.addEventListener('goroutex:settings-ready', event => {
@@ -1677,7 +1586,6 @@
     let route1DirectionsRenderer = null;
     let route2DirectionsRenderer = null;
     let dynamicRouteRenderersPage2 = [];
-    let legacyRouteDirectionsCache = {};
     let previewDirectionsService = null;
     let optimizedRouteRenderer = null;
     let manualPreviewRoutes = [];
@@ -1728,7 +1636,6 @@
 
     let draggedItemElement = null;
     let draggedItemOriginalListType = null; 
-    let debounceTimer; 
     const STOP_RENDER_CHUNK_SIZE = 30;
     const STOP_INITIAL_RENDER_LIMIT = 100;
     let customerListRenderToken = 0;
@@ -1862,8 +1769,6 @@
     const currentOriginDisplayPg2 = document.getElementById('currentOriginDisplay'); 
     const messageBarPg2 = document.getElementById('messageBar'); 
     const unassignedStopsListDiv = document.getElementById('unassignedStopsList');
-    const manualRoute1ListDiv = document.getElementById('manualRoute1ListContainer');
-    const manualRoute2ListDiv = document.getElementById('manualRoute2ListContainer');
     const routeOriginModeInputs = document.querySelectorAll('input[name="routeOriginMode"]');
     const routeEndRequirementInputs = document.querySelectorAll('input[name="routeEndRequirement"]');
     const routeEndModeInputs = document.querySelectorAll('input[name="routeEndMode"]');
@@ -1906,7 +1811,6 @@
     const optimizedRoute1Wrapper = document.getElementById('optimizedRoute1Wrapper');
     const optimizedRoute1ListDiv = document.getElementById('optimizedRoute1List');
     const optimizedRoute2Wrapper = document.getElementById('optimizedRoute2Wrapper');
-    const optimizedRoute2ListDiv = document.getElementById('optimizedRoute2List');
     const schedulePreviewPage3Div = document.getElementById('schedulePreviewPage3');
     const timeListDisplayPage3Div = document.getElementById('timeListDisplayPage3');
     const routeSharePreviewTitleEl = document.getElementById('routeSharePreviewTitle');
@@ -1922,7 +1826,6 @@
     const showEstimatesBtnPage3 = document.getElementById('showEstimatesBtnPage3');
     const printSummaryBtnPage3 = document.getElementById('printSummaryBtnPage3');
     const confirmRouteBtn = document.getElementById('confirmRouteBtn');
-    const startGPSTrackingBtn = document.getElementById('startGPSTrackingBtn');
     const navigationButtonContainerPage3 = document.getElementById('navigationButtonContainerPage3');
     const backToManualAssignBtnPg3 = document.getElementById('backToManualAssignBtnPg3');
     
@@ -2003,30 +1906,10 @@
       return getAccessContext().roleKey === 'admin';
     }
 
-    function isDriverUser() {
-      return getAccessContext().roleKey === 'driver';
-    }
-
-    function getFeatureAccess(featureKey) {
-      const toolkit = getAccessToolkit();
-      if (!toolkit?.canAccessFeature) {
-        return { allowed: true, context: getAccessContext(), feature: null };
-      }
-      return toolkit.canAccessFeature({
-        profile: window.currentUserProfile || {},
-        featureKey
-      });
-    }
-
     function getProductToolkit() {
       return window.RoutePlannerProduct || null;
     }
 
-    const PRODUCT_PLAN_RANK = {
-      basic: 0,
-      goplan: 1,
-      proplan: 2
-    };
 
     const PRODUCT_PLAN_FALLBACKS = {
       basic: {
@@ -2074,24 +1957,6 @@
       if (['goplan', 'go', 'go-plan', 'go plan', 'go_plan'].includes(candidate)) return 'goplan';
       if (['proplan', 'pro', 'pro-plan', 'pro plan', 'pro_plan', 'professional', 'professional plan', 'team', 'business', 'enterprise'].includes(candidate)) return 'proplan';
       return fallback;
-    }
-
-    function getHighestProductPlanKey(planKeys = []) {
-      return planKeys
-        .map((planKey) => normalizeProductPlanKey(planKey, ''))
-        .filter(Boolean)
-        .sort((left, right) => (PRODUCT_PLAN_RANK[right] ?? 0) - (PRODUCT_PLAN_RANK[left] ?? 0))[0] || 'basic';
-    }
-
-    function getRawProfileProductPlanKey(profile = window.currentUserProfile || {}) {
-      const candidates = [
-        profile.productPlanKey,
-        profile.productPlan,
-        profile.permanentPlanLabel,
-        profile.planKey,
-        profile.planName
-      ].map((planKey) => normalizeProductPlanKey(planKey, '')).filter(Boolean);
-      return getHighestProductPlanKey(candidates);
     }
 
     function getPlanExpiryValue(profile = window.currentUserProfile || {}) {
@@ -2484,23 +2349,10 @@
         : fallbackLimit;
     }
 
-    function getCurrentStopsPerRouteLimit() {
-      const limits = getCurrentProductLimits();
-      return Number.isFinite(Number(limits.maxStopsPerRoute))
-        ? Number(limits.maxStopsPerRoute)
-        : MAX_WAYPOINTS_PER_ROUTE;
-    }
-
     function getTodayRouteUsageKey(dateLike = new Date(), userId = '') {
       const dateKey = getDateKey(dateLike);
       const cleanUserId = String(userId || '').trim().replace(/[^a-zA-Z0-9_-]+/g, '_');
       return cleanUserId ? `routeUsage_${cleanUserId}_${dateKey}` : `routeUsage_${dateKey}`;
-    }
-
-    function getTodayHistoryUsage() {
-      return typeof getTodayHistoryEntries === 'function'
-        ? getTodayHistoryEntries().reduce((sum, entry) => sum + getRoutePlanUsageCount(entry?.route), 0)
-        : 0;
     }
 
     function getTodayUsage(userId) {
@@ -2711,16 +2563,6 @@
       accessUpgradeModal.hidden = false;
     }
 
-    
-
-    
-
-    
-
-    
-
-    
-
     function openRouteLimitReachedModal(routeStatus = getUsageStatus('activeRoutes')) {
       const toolkit = getProductToolkit();
       const nextPlanKey = toolkit?.getNextPlanKey?.(getCurrentProductPlan()) || null;
@@ -2737,46 +2579,6 @@
           openAccountAccessPage();
         }
       });
-    }
-
-    
-
-    
-
-    
-
-    function promptForFeatureUpgrade(featureKey, options = {}) {
-      const featureAccess = getFeatureAccess(featureKey);
-      if (featureAccess.allowed) return true;
-
-      const feature = featureAccess.feature;
-      if (featureAccess.blockedByPermission && !featureAccess.blockedByPlan) {
-        openAccessUpgradeModal({
-          eyebrow: 'Role restriction',
-          title: options.permissionTitle || `${feature?.name || 'Action'} is limited by role`,
-          message: options.permissionMessage || 'Your current role can view this area but cannot perform this action. Ask your admin to update access.',
-          requiredPlanLabel: featureAccess.context.role?.name || 'Admin',
-          primaryLabel: 'View Access',
-          onPrimary: () => {
-            hideAccessUpgradeModal();
-            openAccountAccessPage();
-          }
-        });
-        return false;
-      }
-
-      openAccessUpgradeModal({
-        eyebrow: 'Upgrade needed',
-        title: feature?.upgradeTitle || options.title || 'Upgrade to continue',
-        message: options.message || feature?.upgradeMessage || 'This feature is not available on your current plan.',
-        requiredPlanKey: featureAccess.requiredPlanKey,
-        primaryLabel: 'View Plan Options',
-        onPrimary: () => {
-          hideAccessUpgradeModal();
-          openAccountAccessPage();
-        }
-      });
-      return false;
     }
 
     function promptForRoleRestriction(options = {}) {
@@ -3138,7 +2940,6 @@
         if (dashboardPlanSubtitleEl) dashboardPlanSubtitleEl.textContent = 'Plan information is unavailable. Retry loading your account.';
         return;
       }
-      const toolkit = getAccessToolkit();
       const context = getAccessContext();
       const productToolkit = getProductToolkit();
       const productPlan = getCurrentProductPlanDefinition();
@@ -3211,15 +3012,6 @@
       }
       if (dashboardUpgradeBtn) {
         dashboardUpgradeBtn.textContent = billingState.key === 'expired' ? 'Renew Pro' : 'Upgrade Plan';
-      }
-
-      const finishTrackingButton = document.getElementById('finishTrackingBtn');
-      const kpiAccess = getProductFeatureAccess('kpiPrintSummary');
-      if (finishTrackingButton) {
-        finishTrackingButton.textContent = kpiAccess.allowed ? 'Finish & Report' : 'Finish Tracking';
-        finishTrackingButton.title = kpiAccess.allowed
-          ? ''
-          : 'KPI reporting is available on ProPlan.';
       }
 
       renderAccountUsageCards(context);
@@ -3453,45 +3245,9 @@
         return lastLocalSessionUpdateMs;
     }
 
-    
-
     function normalizeStayMinutes(value) {
         const parsed = parseInt(value, 10);
         return Number.isFinite(parsed) && parsed > 0 ? parsed : getDefaultStayMinutes();
-    }
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    function getManualMapStopIds() {
-        return Array.from(new Set([...(unassignedStops || []), ...getAssignedStopIds()].filter(Boolean)));
     }
 
     function getStopMapMarkerNumber(customerId) {
@@ -3583,17 +3339,6 @@
         return directionsResult;
     }
 
-    async function getCachedDirections(cacheKey, request, service = directionsService) {
-        if (cacheKey && legacyRouteDirectionsCache[cacheKey]) {
-            return legacyRouteDirectionsCache[cacheKey];
-        }
-        const result = await MapHandler.route(service, request);
-        if (cacheKey) legacyRouteDirectionsCache[cacheKey] = result;
-        return result;
-    }
-
-    
-
     function getFilledRouteStopConfigs(listType) {
         return getRouteSlotKeys()
             .map((slotKey) => {
@@ -3658,13 +3403,6 @@
 
     function getSelectedDriverId() {
         return getSelectedVehicleDriverLabel();
-    }
-
-    function formatDateTimeLocalValue(dateValue = new Date()) {
-        const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
-        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-        const pad = (value) => String(value).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
     }
 
     function getCurrentTimeKey() {
@@ -3759,15 +3497,8 @@
         return routeStartTime || DEFAULT_ROUTE_START_TIME;
     }
 
-    
-
-    
-
-    
-
     function validatePlanningDateForSave() {
         const selectedDate = getSelectedPlanningDate();
-        const todayKey = getDateKey(new Date());
         if (!selectedDate) {
             setPlanningDateStatus('Choose a planning date before confirming this route.', true);
             showToast('Choose a planning date before confirming this route.', 'warning', 3600);
@@ -3961,14 +3692,6 @@
         return match ? normalizeStayMinutes(match.stayMinutes) : getDefaultStayMinutesForStop(stopId);
     }
 
-    
-
-    function testDynamicRouteEngineFromSelectedStops() {
-        const selectedStopsCount = getSelectedStopObjects().length;
-        const routeCount = selectedStopsCount > 0 ? Math.ceil(selectedStopsCount / 8) : 0;
-        showToast(`${selectedStopsCount} stops selected → ${routeCount} ${routeCount === 1 ? 'route' : 'routes'} will be generated`, 'info', 3000);
-    }
-
     function updateOriginDisplays(labelOverride = null) {
         const label = labelOverride || (currentLocationOrigin
             ? `Origin: ${addressNameMap[currentLocationOrigin] || currentLocationOrigin}`
@@ -4001,15 +3724,9 @@
         startLocationSummary.textContent = 'Using Current Location';
     }
 
-    
-
     function routeArrangementIsDirectionReturn() {
         return routeArrangementMode === 'direction-return';
     }
-
-    
-
-    
 
     function invalidateDirectionArrangement(message = '') {
         directionPlanRun += 1;
@@ -4088,22 +3805,6 @@
     function isRouteConfiguredEndStop(routeData, stopId) {
         const endStopId = getRouteConfiguredEndStopId(routeData);
         return !!endStopId && stopId === endStopId;
-    }
-
-    function getRouteConfiguredEndLabel(routeData) {
-        if (routeData?.endLocationRequired) {
-            if (routeData.endLocationLabel) return routeData.endLocationLabel;
-            if (routeData.endLocationMode === 'same') {
-                return addressNameMap[fixedDestinationAddress] || 'Same as Start';
-            }
-            return routeData.endLocationAddress || routeData.endLocationId || 'End Location';
-        }
-
-        if (routeUsesLegacyFixedEnd(routeData)) {
-            return addressNameMap[fixedDestinationAddress] || 'Return to Base';
-        }
-
-        return '';
     }
 
     function getRouteFinalArrivalLabel(routeData) {
@@ -4624,17 +4325,28 @@
         updateRouteSettingsSummary();
     }
 
+    // #messageBar sits on Review & Assign. A planning check that fails on another page (Stops Selection)
+    // would otherwise write to a hidden bar and the click would appear to do nothing, so also raise a toast.
+    let planningWaitingForOrigin = false;
+    function announcePlanningMessage(message, type = 'warning') {
+        messageBarPg2.textContent = message;
+        if (!document.getElementById('page-manual-assign')?.classList.contains('active-page')) {
+            showToast(message, type, 6000);
+        }
+    }
+
     function ensureOriginReadyForPlanning() {
         if (currentLocationOrigin) {
             return true;
         }
 
         if (routeOriginMode === 'custom') {
-            messageBarPg2.textContent = 'Select a custom start address in Route settings before planning routes.';
+            announcePlanningMessage('Select a custom start address in Route settings before planning routes.');
             window.openRouteSettingsPanel?.();
             if (customOriginInput) customOriginInput.focus();
         } else {
-            messageBarPg2.textContent = 'Waiting for current location. You can switch to a custom address if GPS is unavailable.';
+            planningWaitingForOrigin = true;
+            announcePlanningMessage('Getting your current location for the route start. Continue once it is ready, or enter a start address in Route settings.', 'info');
             requestCurrentLocation();
         }
 
@@ -4650,7 +4362,7 @@
                 return true;
             }
 
-            messageBarPg2.textContent = 'Start location must be ready before using the same end location.';
+            announcePlanningMessage('Start location must be ready before using the same end location.');
             return false;
         }
 
@@ -4659,7 +4371,7 @@
             return true;
         }
 
-        messageBarPg2.textContent = 'Select a custom end address in Route settings or turn off the required end location option.';
+        announcePlanningMessage('Select a custom end address in Route settings or turn off the required end location option.');
         window.openRouteSettingsPanel?.();
         if (customEndInput) customEndInput.focus();
         return false;
@@ -5083,11 +4795,6 @@
         }
       }
       
-      // Manage logout button visibility
-      if (typeof manageLogoutButton === 'function') {
-        setTimeout(manageLogoutButton, 100); // Small delay to ensure page transition is complete
-      }
-      
       // Render dashboard when switching to history page
       if (pageId === 'page-history-dashboard') {
         renderHistoryDashboard();
@@ -5195,23 +4902,6 @@
         } else if (currentLatLng) {
             MapHandler.setCenter(mapFullscreen, currentLatLng);
         }
-      } else if (pageId === 'page-gps-tracking') {
-        // Load today's tracking data when GPS tracking page opens
-        if (typeof loadTodayTrackingFromCloud === 'function') {
-            loadTodayTrackingFromCloud();
-        }
-        setTimeout(() => {
-            if (typeof initGPSPageIfNeeded === 'function') {
-                initGPSPageIfNeeded();
-            }
-        }, 0);
-        // Resize tracking map if it exists
-        if (typeof trackingMap !== 'undefined' && trackingMap) {
-            MapHandler.triggerResize(trackingMap, 'resize');
-            if (currentPosition) {
-                MapHandler.setCenter(trackingMap, { lat: currentPosition.lat, lng: currentPosition.lng });
-            }
-        }
       } else if (pageId === 'page-add-stop') {
         setTimeout(() => {
             if (typeof initAddStopPageIfNeeded === 'function') {
@@ -5221,7 +4911,6 @@
       }
     }
 
-    function debounce(func, delay) { clearTimeout(debounceTimer); debounceTimer = setTimeout(func, delay); }
     
     function truncateText(text, maxLength) { return !text ? "" : (text.length > maxLength ? text.substring(0, maxLength) + "..." : text); }
     
@@ -5383,43 +5072,7 @@
             && dateA.getDate() === dateB.getDate();
     }
 
-    
-
-    
-
-    
-
-    
-
     window.clearHistoryBrowserFilters = clearHistoryBrowserFilters;
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
 
     function getRouteHistoryStatusText() {
         if (routeHistoryLoadState === 'loading' || routeHistoryLoadState === 'idle') {
@@ -5489,8 +5142,6 @@
         routeHistoryLoadGeneration += 1;
         routeHistoryReloadQueued = false;
     }
-
-    
 
     async function fetchRouteHistoryFromCloud(options = {}) {
         appLog("Loading route history from storage...");
@@ -5658,64 +5309,6 @@
 
     window.loadMoreRouteHistory = loadMoreRouteHistory;
 
-    
-
-    function mergeRoutes(localRoutes, importedRoutes) {
-        const routeMap = new Map();
-        
-        // Add local routes
-        localRoutes.forEach(route => {
-            const key = route.id || route.timestamp;
-            if (key) routeMap.set(key, route);
-        });
-        
-        // Add imported routes (they take precedence if newer)
-        importedRoutes.forEach(route => {
-            const key = route.id || route.timestamp;
-            if (key) {
-                const existing = routeMap.get(key);
-                if (!existing || new Date(route.timestamp) > new Date(existing.timestamp)) {
-                    routeMap.set(key, route);
-                }
-            }
-        });
-        
-                 return Array.from(routeMap.values()).sort((a, b) => 
-             new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
-         );
-     }
-     
-
-
-    // Legacy compatibility wrapper
-    function loadRouteHistoryFromLocalStorage() {
-        // No-op: route history now comes through the centralized storage adapter
-        routeHistory = [];
-    }
-
-    function saveRouteHistory() {
-        // No-op: saving happens directly through the centralized storage adapter
-    }
-
-    
-
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-
-
-    
-
     async function clearAllHistory() {
         if (!hasRolePermission('history.manage')) {
             promptForRoleRestriction({
@@ -5838,46 +5431,6 @@
         }
     }
 
-    // --- Insert Route to GPS Tracking ---
-    function insertRouteToGPS() {
-        // Store current planned routes with directionsResult for GPS tracking to use
-        const validRoutes = AppState.plannedRoutes.filter(r => r && r.directionsResult);
-        if (validRoutes.length === 0) {
-            alert('No routes available. Please plan routes first.');
-            return;
-        }
-        if (RouteSafety.enabled()) {
-            const blockedRoute = AppState.plannedRoutes.find((route) => !RouteSafety.permitted(route));
-            if (blockedRoute) {
-                RouteSafety.gate(blockedRoute);
-                showToast('A usable Google route is required before starting GPS tracking.', 'warning', 4200);
-                return;
-            }
-        }
-
-        // Store in window so GPS tracking page can access it immediately
-        window.gpsRouteData = {
-            plannedRoutes: AppState.plannedRoutes,
-            addressNameMap: addressNameMap || {},
-            origin: currentLocationOrigin || '',
-            endLocationRequired: routeEndRequired,
-            endLocationMode: routeEndMode,
-            customEndAddress,
-            endLocationLabel: getCurrentConfiguredEndLocationLabel(),
-            date: getSelectedPlanningDate(),
-            planningDate: getSelectedPlanningDate(),
-            startTime: routeStartTime,
-            driverId: getSelectedDriverId(),
-            vehicleDriver: getSelectedDriverId(),
-            insertedAt: Date.now()
-        };
-
-        console.log('✅ Route data inserted for GPS tracking:', validRoutes.length, 'routes');
-
-        // Navigate to GPS tracking
-        showPage('page-gps-tracking');
-    }
-
     // ===== MAP =====
     // Google Maps page renderers, preview/fullscreen map rendering, marker drawing, and map viewport helpers.
     // --- Dedicated Maps Preview Functions ---
@@ -5909,38 +5462,6 @@
     async function openMapsPreview() {
         await showPage('page-maps-preview');
         await ensureMapsPreviewReady();
-        return;
-        await (window.waitForMapsReady ? window.waitForMapsReady() : Promise.resolve());
-        
-        // Initialize maps preview if not already done
-        if (!mapPreviewDedicated) {
-            mapPreviewDedicated = MapHandler.initMap(document.getElementById('mapPreviewDedicated'), { 
-                center: {lat: 1.3521, lng: 103.8198}, zoom: 11,
-                mapTypeControl: true, streetViewControl: true, fullscreenControl: true,
-                mapId: 'MAPS_PREVIEW_DEDICATED_V3'
-            });
-            
-            // Create renderers for dedicated preview map
-            route1RendererPreview = MapHandler.initDirectionsRenderer({
-                map: mapPreviewDedicated,
-                suppressMarkers: true,
-                polylineOptions: { strokeColor: getRouteColor(0), strokeOpacity: 0.9, strokeWeight: 6 }
-            });
-            
-            route2RendererPreview = MapHandler.initDirectionsRenderer({
-                map: mapPreviewDedicated,
-                suppressMarkers: true,
-                polylineOptions: { strokeColor: getRouteColor(1), strokeOpacity: 0.9, strokeWeight: 6 }
-            });
-        }
-        
-        // Render current routes on dedicated preview map
-        renderRoutesOnPreviewMap();
-        
-        // Trigger map resize
-        setTimeout(() => {
-            if (mapPreviewDedicated) MapHandler.triggerResize(mapPreviewDedicated, 'resize');
-        }, 100);
     }
 
     window.addEventListener('restriction-route-updated', (event) => {
@@ -6104,43 +5625,6 @@
         }, 100);
     }
 
-    async function enterFullscreenMap() {
-        await showPage('page-fullscreen-map');
-        await ensureFullscreenMapReady();
-        return;
-        await (window.waitForMapsReady ? window.waitForMapsReady() : Promise.resolve());
-        
-        // Initialize fullscreen map if not already done
-        if (!mapFullscreen) {
-            mapFullscreen = MapHandler.initMap(document.getElementById('mapFullscreen'), { 
-                center: {lat: 1.3521, lng: 103.8198}, zoom: 11,
-                mapTypeControl: true, streetViewControl: true, fullscreenControl: true,
-                mapId: 'FULLSCREEN_MAP_ID_V3'
-            });
-            
-            // Create renderers for fullscreen map
-            route1RendererFullscreen = MapHandler.initDirectionsRenderer({
-                map: mapFullscreen,
-                suppressMarkers: true,
-                polylineOptions: { strokeColor: getRouteColor(0), strokeOpacity: 0.9, strokeWeight: 6 }
-            });
-            
-            route2RendererFullscreen = MapHandler.initDirectionsRenderer({
-                map: mapFullscreen,
-                suppressMarkers: true,
-                polylineOptions: { strokeColor: getRouteColor(1), strokeOpacity: 0.9, strokeWeight: 6 }
-            });
-        }
-        
-        // Render current routes on fullscreen map
-        renderRoutesOnFullscreenMap();
-        
-        // Trigger map resize
-        setTimeout(() => {
-            if (mapFullscreen) MapHandler.triggerResize(mapFullscreen, 'resize');
-        }, 100);
-    }
-
     async function exitFullscreenMap() {
         await showPage('page-manual-assign');
     }
@@ -6251,139 +5735,6 @@
     }
 
     // --- Enhanced Communication Functions ---
-    function callRouteClients(routeId) {
-        const routeData = AppState.plannedRoutes.find(r => r && r.id === routeId && r.directionsResult);
-        if (!routeData) {
-            appLog(`Route ${routeId} not found or not successfully planned`);
-            return;
-        }
-
-        // Get all customers in this route with phone numbers
-        const routeClients = [];
-        if (routeData.optimizedStops) {
-            routeData.optimizedStops.slice(1, -1).forEach(address => { // Exclude origin and destination
-                const customerEntry = allCustomerEntries.find(entry => entry.Address === address);
-                if (customerEntry && customerEntry["Hp No"] && customerEntry["Hp No"].trim() !== "") {
-                    routeClients.push({
-                        name: addressNameMap[address] || customerEntry.Name || 'Unknown',
-                        phone: customerEntry["Hp No"].trim(),
-                        address: address
-                    });
-                }
-            });
-        }
-
-        if (routeClients.length === 0) {
-            messageBarOptimizedPg3.textContent = `No clients with phone numbers found in Route ${routeId}.`;
-            return;
-        }
-
-        // Create a contact list for calling
-        let contactList = `Route ${routeId} Client Contact Numbers:\n\n`;
-        routeClients.forEach((client, index) => {
-            const normalizedPhone = normalizeRegionalPhoneNumber(client.phone);
-            const cleanPhone = normalizedPhone.success ? normalizedPhone.phoneE164 : client.phone.trim();
-            
-            contactList += `${index + 1}. ${client.name}\n   📞 ${cleanPhone}\n   📍 ${client.address}\n\n`;
-        });
-
-        // Copy to clipboard and show alert
-        navigator.clipboard.writeText(contactList).then(() => {
-            alert(`Contact list for Route ${routeId} copied to clipboard!\n\nClick on a phone number in your device to call directly.`);
-        }).catch(() => {
-            // Fallback: show the contact list in an alert
-            alert(contactList + "\nNote: Contact list couldn't be copied to clipboard. Please note down the numbers manually.");
-        });
-
-        messageBarOptimizedPg3.textContent = `Contact list for Route ${routeId} prepared.`;
-    }
-
-    function sendVoiceMessage(routeId) {
-        // Ask user about their preferred voice message method
-        const voiceMethod = confirm(
-            "Voice Message Options:\n\n" +
-            "OK = Use Voice Recording Feature (requires microphone)\n" +
-            "Cancel = Use Pre-recorded Message Template\n\n" +
-            "Choose your preferred method:"
-        );
-
-        if (voiceMethod) {
-            startVoiceRecording(routeId);
-        } else {
-            usePrerecordedTemplate(routeId);
-        }
-    }
-
-    function startVoiceRecording(routeId) {
-        // This function would implement voice recording functionality
-        // For now, we'll show instructions to the user
-        alert(
-            `Voice Recording for Route ${routeId}:\n\n` +
-            "This feature would allow you to:\n" +
-            "1. Record a custom message using your microphone\n" +
-            "2. Send it to all clients in the route\n\n" +
-            "Implementation requires additional audio recording libraries.\n" +
-            "For now, please use the pre-recorded template option."
-        );
-        
-        // TODO: Implement actual voice recording functionality
-        // This would require:
-        // 1. MediaRecorder API for recording
-        // 2. Audio file storage/conversion
-        // 3. Integration with messaging service
-    }
-
-    function usePrerecordedTemplate(routeId) {
-        const routeData = AppState.plannedRoutes.find(r => r && r.id === routeId && r.directionsResult);
-        if (!routeData) {
-            appLog(`Route ${routeId} not found or not successfully planned`);
-            return;
-        }
-
-        // Get all customers in this route with phone numbers
-        const routeClients = [];
-        if (routeData.optimizedStops) {
-            routeData.optimizedStops.slice(1, -1).forEach(address => {
-                const customerEntry = allCustomerEntries.find(entry => entry.Address === address);
-                if (customerEntry && customerEntry["Hp No"] && customerEntry["Hp No"].trim() !== "") {
-                    routeClients.push({
-                        name: addressNameMap[address] || customerEntry.Name || 'Unknown',
-                        phone: customerEntry["Hp No"].trim(),
-                        address: address
-                    });
-                }
-            });
-        }
-
-        if (routeClients.length === 0) {
-            messageBarOptimizedPg3.textContent = `No clients with phone numbers found in Route ${routeId}.`;
-            return;
-        }
-
-        // Create voice message instructions
-        let voiceInstructions = `Voice Message Template for Route ${routeId}:\n\n`;
-        voiceInstructions += "Record and send this message to each client:\n\n";
-        voiceInstructions += '"Hello, our team is scheduled to arrive at your location today. ';
-        voiceInstructions += 'Please ensure access details are ready if needed. ';
-        voiceInstructions += `If you need to reschedule or share access notes, ${getDispatchCommsSupportLine()}. Thank you!"\n\n`;
-        voiceInstructions += "Client Numbers:\n";
-        
-        routeClients.forEach((client, index) => {
-            const normalizedPhone = normalizeRegionalPhoneNumber(client.phone);
-            const cleanPhone = normalizedPhone.success ? normalizedPhone.phoneE164 : client.phone.trim();
-            
-            voiceInstructions += `${index + 1}. ${client.name}: ${cleanPhone}\n`;
-        });
-
-        // Copy to clipboard and show instructions
-        navigator.clipboard.writeText(voiceInstructions).then(() => {
-            alert(`Voice message template for Route ${routeId} copied to clipboard!\n\nUse your phone's voice messaging app to record and send the template message to each client.`);
-        }).catch(() => {
-            alert(voiceInstructions + "\n\nNote: Instructions couldn't be copied to clipboard. Please note down manually.");
-        });
-
-        messageBarOptimizedPg3.textContent = `Voice message template for Route ${routeId} prepared.`;
-    }
 
     // --- Per-Stop Communication Functions ---
     function callSpecificStop(customerName, customerAddress, phoneNumber) {
@@ -6717,7 +6068,7 @@
         const queryPage = getUrlPageParam();
         if (queryPage === 'page-optimized-routes') return queryPage;
         if (queryPage && isValidPage(queryPage)) {
-            console.log("ðŸ“ Restoring from URL page parameter:", queryPage);
+            console.log("📍 Restoring from URL page parameter:", queryPage);
             return queryPage;
         }
         
@@ -6771,17 +6122,6 @@
         }
     }
     
-    function clearPageHistory() {
-        // Clear stored page data (useful for logout)
-        appPageHistoryStack = [];
-        suppressNextPageHistoryPush = false;
-        sessionStorage.removeItem('currentPage');
-        const url = Reflect.construct(globalThis.URL, [location.toString()]);
-        url.searchParams.delete('page');
-        url.hash = '';
-        window.history.replaceState({}, '', url);
-        console.log("Cleared page history");
-    }
     function resetActiveMapArtifacts() {
         if (currentPositionMarkerPage2) {
             MapHandler.clearRendererMap(currentPositionMarkerPage2);
@@ -6837,48 +6177,6 @@
         route2RendererFullscreen = null;
     }
 
-    function clearGpsRuntimeState() {
-        if (gpsPageInitTimeoutId) {
-            clearTimeout(gpsPageInitTimeoutId);
-            gpsPageInitTimeoutId = null;
-        }
-        if (gpsWatchId) {
-            navigator.geolocation.clearWatch(gpsWatchId);
-            gpsWatchId = null;
-        }
-        trackingActive = false;
-        trackingPaused = false;
-
-        if (drivenRouteLine) {
-            MapHandler.clearRendererMap(drivenRouteLine);
-            drivenRouteLine = null;
-        }
-        if (plannedRouteLine) {
-            MapHandler.clearRendererMap(plannedRouteLine);
-            plannedRouteLine = null;
-        }
-        if (currentLocationMarker) {
-            MapHandler.clearRendererMap(currentLocationMarker);
-            currentLocationMarker = null;
-        }
-        if (gpsDirectionsRenderer) {
-            MapHandler.clearRendererMap(gpsDirectionsRenderer);
-            gpsDirectionsRenderer = null;
-        }
-        if (gpsDirectionsRenderer2) {
-            MapHandler.clearRendererMap(gpsDirectionsRenderer2);
-            gpsDirectionsRenderer2 = null;
-        }
-        gpsDirectionsService = null;
-
-        MapHandler.clearCluster(stopMarkerCluster);
-        stopMarkerCluster = null;
-        stopMarkers.forEach((marker) => marker?.setMap?.(null));
-        stopMarkers = [];
-        trackedRoutePath = [];
-        isFirstLocationUpdate = true;
-    }
-
     window.AppRuntime = {
         async mount({ initialPage } = {}) {
             if (activeAppMounted) return;
@@ -6928,7 +6226,6 @@
         unmount() {
             appRuntimeGeneration += 1;
             appRuntimeMountPromise = null;
-            clearGpsRuntimeState();
             resetActiveMapArtifacts();
 
             if (pageRoutingInitialized) {
@@ -6945,7 +6242,6 @@
             mapFullscreen = null;
             mapPage2 = null;
             mapPage3 = null;
-            mapGPSTracking = null;
             mapAddStop = null;
             directionsService = null;
             previewDirectionsService = null;
@@ -6955,120 +6251,7 @@
         }
     };
 
-    function resetAppToPage1() {
-        // Clear all state variables
-        selectedAddresses.clear();
-        selectedCustomers.clear(); // Also clear individual customer selections
-        unassignedStops = [];
-        resetManualRouteSlots();
-        AppState.plannedRoutes = []; window.plannedRoutes = AppState.plannedRoutes; currentViewingRouteIndexPage3 = 0; activeRouteId = 1;
-        resetCurrentRouteConfirmationState();
-        addressToInitialIndexMap.clear();
-        hasShownOptimizationSuggestion = false; // Reset optimization suggestion flag
-        suggestedWaypointOrder = []; // Clear suggestion
-        resetPlanningDateToTodayPreferredTime();
-        updatePlanningDateAccess();
-        restoreSavedRouteLocations();
-        setCustomOriginStatus(routeOriginMode === 'custom' ? 'Custom start location restored.' : 'Using browser location when available.');
-        setCustomEndStatus(routeEndMode === 'custom' ? 'Custom end location restored.' : 'End location will match the selected start point once it is ready.');
-        updateRouteOriginControls();
-        // Save cleared session to cloud
-        syncSessionToCloud();
-
-        // Reset UI for Page 1
-        renderCustomerList(""); updateSelectedListOnPage1();
-        
-        // Reset UI for Page 2
-        unassignedStopsListDiv.innerHTML = '';
-        messageBarPg2.textContent = 'Manually assign all selected stops to Route Group 1 or Route Group 2.';
-        applySuggestionBtn.style.display = 'none'; // Hide suggestion button
-        clearMasterListPreviewMarkers();
-        clearRouteLines(); // Clear route lines
-        clearOriginMarker();
-
-
-        // Reset UI for Page 3
-        if(directionsRendererPage3) MapHandler.setDirections(directionsRendererPage3, {routes:[]});
-        clearOptimizedRouteMarkers();
-        routeSwitcherContainerPg3.innerHTML = ''; routeSwitcherContainerPg3.style.display = 'none';
-        optimizedRoute1Wrapper.style.display = 'none'; optimizedRoute1ListDiv.innerHTML = '';
-        optimizedRoute2Wrapper.style.display = 'none'; optimizedRoute2ListDiv.innerHTML = '';
-        schedulePreviewPage3Div.style.display = 'none'; timeListDisplayPage3Div.innerHTML = '';
-        UI.disablePage3ActionButtons(); UI.updateNavigationButtonsPage3(); // Reset nav buttons
-
-        // Reset maps and location
-        if(currentLatLng && mapPage2) MapHandler.setCenter(mapPage2, currentLatLng);
-        if(currentLatLng && mapPage3) MapHandler.setCenter(mapPage3, currentLatLng);
-        requestCurrentLocation(); // Re-fetch location as it might be stale
-        showPage('page-history-dashboard');
-    }
-
     // --- Geolocation ---
-    function requestCurrentLocationLegacy() { 
-      currentOriginDisplayPg2.textContent = '🛰️ Fetching current location...';
-      currentOriginDisplayOptimizedPg3.textContent = '🛰️ Fetching current location...';
-      goToManualAssignBtn.disabled = true; // Keep disabled until location is confirmed
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            currentLatLng = { lat: position.coords.latitude, lng: position.coords.longitude };
-            appLog("Current LatLng:", currentLatLng);
-            if(mapPage2) {MapHandler.setCenter(mapPage2, currentLatLng); MapHandler.setZoom(mapPage2, 15);}
-            if(mapPage3) {MapHandler.setCenter(mapPage3, currentLatLng); MapHandler.setZoom(mapPage3, 15);}
-            
-            // Add or update current position marker on Page 2 map
-            if (currentPositionMarkerPage2) { currentPositionMarkerPage2.map = null; } // Remove old one if exists
-            currentPositionMarkerPage2 = MapHandler.createAdvancedMarker({ 
-                position: currentLatLng, 
-                map: mapPage2, 
-                title: "Your Current Location" 
-            });
-            const pin = MapHandler.createPin({ background: '#007bff', borderColor: '#ffffff', glyphColor: '#ffffff' });
-            currentPositionMarkerPage2.content = pin.element;
-
-            MapHandler.geocode(geocoder, { location: currentLatLng })
-              .then((response) => {
-                if (response.results[0]) {
-                  currentLocationOrigin = response.results[0].formatted_address;
-                  addressNameMap[currentLocationOrigin] = "📍 My Current Location"; // Special name for current location
-                  currentOriginDisplayPg2.textContent = `Origin: ${addressNameMap[currentLocationOrigin]}`;
-                  currentOriginDisplayOptimizedPg3.textContent = `Origin: ${addressNameMap[currentLocationOrigin]}`;
-                  messageBarPg2.textContent = 'Current location set. You can now select stops and assign them.';
-                  goToManualAssignBtn.disabled = selectedAddresses.size === 0; // Enable if stops are also selected
-                } else { throw new Error("No results for reverse geocoding current location."); }
-              })
-              .catch((e) => {
-                appLog("Geocoder failed for current location: " + e);
-                currentLocationOrigin = `${currentLatLng.lat.toFixed(6)},${currentLatLng.lng.toFixed(6)}`; // Fallback to coords
-                addressNameMap[currentLocationOrigin] = "📍 Current Coords";
-                currentOriginDisplayPg2.textContent = `Origin: Coords (${currentLocationOrigin})`;
-                currentOriginDisplayOptimizedPg3.textContent = `Origin: Coords (${currentLocationOrigin})`;
-                messageBarPg2.textContent = 'Could not get address, using coordinates. Assign stops.';
-                goToManualAssignBtn.disabled = selectedAddresses.size === 0; 
-              });
-          },
-          (error) => { 
-            appLog("Error getting geolocation: " + error.message, error);
-            let userMessage = 'Location access denied or unavailable.';
-            if(error.code === 1) userMessage = 'Location permission denied by user.';
-            if(error.code === 2) userMessage = 'Location position unavailable (network issue?).';
-            if(error.code === 3) userMessage = 'Location request timed out.';
-            currentOriginDisplayPg2.textContent = `❌ ${userMessage}`;
-            currentOriginDisplayOptimizedPg3.textContent = `❌ ${userMessage}`;
-            messageBarPg2.textContent = 'Location access is required to plan routes effectively.';
-            goToManualAssignBtn.disabled = true; 
-          }
-        );
-      } else { 
-        appLog("Geolocation not supported by this browser."); 
-        const msg = 'Geolocation not supported by your browser.';
-        currentOriginDisplayPg2.textContent = `❌ ${msg}`; 
-        currentOriginDisplayOptimizedPg3.textContent = `❌ ${msg}`;
-        messageBarPg2.textContent = msg; 
-        goToManualAssignBtn.disabled = true; 
-      }
-    }
 
     function requestCurrentLocation() {
       const requestToken = ++currentLocationRequestToken;
@@ -7106,6 +6289,10 @@
                     'current'
                 );
                 messageBarPg2.textContent = 'Current location set. You can now assign stops or switch to a custom start address.';
+                if (planningWaitingForOrigin) {
+                    planningWaitingForOrigin = false;
+                    announcePlanningMessage('Start location ready. Click Review & Assign again to continue.', 'success');
+                }
               } else {
                 throw new Error("No results for reverse geocoding current location.");
               }
@@ -7117,6 +6304,10 @@
               const fallbackOrigin = `${gpsLatLng.lat.toFixed(6)},${gpsLatLng.lng.toFixed(6)}`;
               setSelectedOrigin(fallbackOrigin, gpsLatLng, "Current Coordinates", 'current');
               messageBarPg2.textContent = 'Could not reverse-geocode your location, so coordinates will be used as the route origin.';
+              if (planningWaitingForOrigin) {
+                  planningWaitingForOrigin = false;
+                  announcePlanningMessage('Start location ready. Click Review & Assign again to continue.', 'success');
+              }
             });
         },
         (error) => {
@@ -7133,6 +6324,10 @@
           clearOriginMarker();
           updateOriginDisplays(`Origin: ${userMessage}`);
           messageBarPg2.textContent = `${userMessage} Switch to "Enter Address" to continue planning.`;
+          if (planningWaitingForOrigin) {
+              planningWaitingForOrigin = false;
+              announcePlanningMessage(`${userMessage} Enter a start address in Route settings to continue planning.`);
+          }
           updateManualAssignAccessButton();
         }
       );
@@ -7428,18 +6623,6 @@
             renderStopsError(error);
             if (options.loadAll) throw error;
             return;
-            const warningMessage = `⚠️ Saved stops could not be loaded: ${error.message}`;
-            showToast(warningMessage, 'warning', 6000);
-            if (messageBarPg2) {
-                messageBarPg2.textContent = warningMessage;
-            }
-            if (allCustomerEntries.length > 0) {
-                renderCustomerList(searchCustomerInput ? (searchCustomerInput.value || '') : '');
-                renderManageStopsList(manageStopsSearchTerm);
-                renderPricingAccessUi();
-                return;
-            }
-            customerListDiv.innerHTML = `<p style="color:#b91c1c; text-align:center;">${warningMessage}</p>`;
         }
     }
     function restoreSelectedCustomersFromAddresses() {
@@ -7789,26 +6972,6 @@
         updateManualAssignAccessButton(); 
     }
 
-    function toggleAddressSelection(address, labelElement, boxElement) { 
-        if (selectedAddresses.has(address)) {
-            selectedAddresses.delete(address); 
-            boxElement.textContent = ""; 
-            labelElement.classList.remove('selected-item');
-        } else {
-            if (selectedAddresses.size >= getCurrentSelectedStopsLimit()) { 
-                messageBarPg2.textContent = `Max ${getCurrentSelectedStopsLimit()} stops.`; // Use message bar on current page if possible
-                setTimeout(() => messageBarPg2.textContent = 'Select stops.', 2000);
-                return; 
-            }
-            selectedAddresses.add(address); 
-            boxElement.textContent = "OK"; 
-            labelElement.classList.add('selected-item');
-        }
-        // Save to cloud
-        syncSessionToCloud();
-        updateSelectedListOnPage1();
-    }
-
     function updateSelectedListOnPage1() { 
       updateSelectionOverview();
       if (selectedCustomers.size === 0) { 
@@ -7883,73 +7046,6 @@
     // ===== CONTROLLER =====
     // Manual assignment page flow and user interactions.
     // --- Page 2: Manual Assignment Logic ---
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
 
     // ===== ROUTE ENGINE =====
     // Dynamic route generation and stop-order helpers.
@@ -8341,53 +7437,12 @@
         return window._activeRoutes;
     }
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    
-
     function clearMapMarker(marker) {
         if (!marker) return;
         marker.map = null;
         if (typeof marker.setMap === 'function') marker.setMap(null);
     }
-    
-    
-    
+
     // === NEW FUNCTION TO APPLY THE SUGGESTION ===
     function applySuggestedRoutes() {
         if (suggestedWaypointOrder.length === 0) {
@@ -8603,103 +7658,7 @@
             </div>`;
         }
     }
-    
-    // Manual trigger function for debugging
-    function forceShowOptimizationSuggestion() {
-        hasShownOptimizationSuggestion = false;
-        applySuggestionBtn.style.display = 'none';
-        if (optimizedRouteRenderer) {
-            MapHandler.setDirections(optimizedRouteRenderer, {routes: []});
-        }
-        showOptimizedRouteSuggestion();
-    }
-    
-    // Diagnostic function to check coordinate data quality
-    function checkCoordinateData() {
-        console.log("=== COORDINATE DATA DIAGNOSTIC ===");
-        console.log(`Total customer entries: ${allCustomerEntries.length}`);
-        
-        let validCoords = 0;
-        let invalidCoords = 0;
-        let missingCoords = 0;
-        
-        allCustomerEntries.forEach((entry, index) => {
-            const addr = entry.Address;
-            const coord = entry.coordinate;
-            
-            if (!coord || coord.trim() === '') {
-                missingCoords++;
-                console.log(`❌ Row ${index + 1}: "${addr}" - No coordinate data`);
-            } else {
-                const coords = coord.split(',');
-                if (coords.length === 2) {
-                    const lat = parseFloat(coords[0].trim());
-                    const lng = parseFloat(coords[1].trim());
-                    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-                        validCoords++;
-                        console.log(`✅ Row ${index + 1}: "${addr}" - Valid coordinates: ${lat}, ${lng}`);
-                    } else {
-                        invalidCoords++;
-                        console.log(`❌ Row ${index + 1}: "${addr}" - Invalid coordinate values: ${coord}`);
-                    }
-                } else {
-                    invalidCoords++;
-                    console.log(`❌ Row ${index + 1}: "${addr}" - Invalid coordinate format: ${coord}`);
-                }
-            }
-        });
-        
-        console.log("=== SUMMARY ===");
-        console.log(`✅ Valid coordinates: ${validCoords}`);
-        console.log(`❌ Invalid coordinates: ${invalidCoords}`);
-        console.log(`⚠️ Missing coordinates: ${missingCoords}`);
-        console.log(`Coordinate coverage: ${((validCoords / allCustomerEntries.length) * 100).toFixed(1)}%`);
-        
-        return { validCoords, invalidCoords, missingCoords, total: allCustomerEntries.length };
-    }
-    
-    // Quick function to check just the currently selected stops
-    function checkSelectedStops() {
-        console.log("🔍 === CHECKING CURRENTLY SELECTED STOPS ===");
-        console.log(`Checking ${unassignedStops.length} unassigned stops...`);
-        
-        unassignedStops.forEach((addr, index) => {
-            console.log(`\n--- Stop ${index + 1}: "${addr}" ---`);
-            const customerEntry = allCustomerEntries.find(entry => entry.Address === addr);
-            
-            if (!customerEntry) {
-                console.error(`❌ NOT FOUND in Firestore stop data`);
-                return;
-            }
-            
-            console.log(`Column B (Address): "${customerEntry.Address || 'EMPTY'}"`);
-            console.log(`Column C (Coordinate): "${customerEntry.coordinate || 'EMPTY'}"`);
-            
-            if (customerEntry.coordinate && customerEntry.coordinate.trim() !== '') {
-                const coords = customerEntry.coordinate.split(',');
-                if (coords.length === 2) {
-                    const lat = parseFloat(coords[0].trim());
-                    const lng = parseFloat(coords[1].trim());
-                    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-                        console.log(`✅ VALID coordinates: ${lat}, ${lng}`);
-                        console.log(`   Will be used by Directions API: {lat: ${lat}, lng: ${lng}}`);
-                    } else {
-                        console.error(`❌ INVALID coordinate values`);
-                    }
-                } else {
-                    console.error(`❌ INVALID coordinate format (should be: lat,lng)`);
-                }
-            } else {
-                console.warn(`⚠️ NO coordinates - will use address string fallback`);
-                console.log(`   Address fallback: "${customerEntry.Address}"`);
-            }
-        });
-        
-        console.log(`\n=== SUMMARY FOR SELECTED STOPS ===`);
-        console.log(`Total selected: ${unassignedStops.length}`);
-        console.log(`Run 'forceShowOptimizationSuggestion()' to test route optimization with detailed logs`);
-    }
-    
+
     // ===== MAP =====
     // Manual assignment map overlays, route polylines, and stop markers.
     function clearManualDetourMarkers() {
@@ -8933,20 +7892,6 @@
         mapPage2?.setOptions?.({ draggableCursor: manualDetourTarget ? 'crosshair' : null });
     }
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
     function getLatLngLiteral(position) {
         if (!position) return null;
         const lat = typeof position.lat === 'function' ? position.lat() : Number(position.lat);
@@ -9008,8 +7953,6 @@
         };
     }
 
-    
-
     function getMarkerPositionLiteral(marker) {
         if (!marker) return null;
         return getLatLngLiteral(marker.position)
@@ -9031,8 +7974,6 @@
         });
         return markers;
     }
-
-    
 
     // Helper function to get location input by customer ID for Directions API
     function getLocationInputByCustomerId(customerId) {
@@ -9097,15 +8038,6 @@
     // ===== CONTROLLER =====
     // Confirm-route orchestration: validate inputs, build plannedRoutes[], render, and save.
     // --- Page 3: Route Planning Logic ---
-    
-
-    
-
-    
-
-    
-
-    
 
     /*
      * Legacy fixed Route 1 / Route 2 planning block removed from execution.
@@ -9481,9 +8413,6 @@
         showEstimatesBtnPage3.disabled = !hasAnyRoutePlotted; 
         // printSummaryBtnPage3.disabled = true; // Disabled until "Show Schedule" is clicked
         mapsPreviewBtn.disabled = !hasAnyRoutePlotted; // Enable maps preview button if routes exist
-        const allRoutesReadyForHandoff = !RouteSafety.enabled()
-            || AppState.plannedRoutes.every((route) => RouteSafety.permitted(route));
-        startGPSTrackingBtn.disabled = !hasAnyRoutePlotted || !allRoutesReadyForHandoff;
         
         // Enable communication buttons for the selected route only.
         const activeRoute = AppState.plannedRoutes.find(r => r && r.id === activeRouteId);
@@ -9509,227 +8438,11 @@
         rendererList.length = 0;
     }
 
-    function renderTestDynamicRoutesOnMap(map, rendererList) {
-        if (!map || !directionsService || !MapHandler.isReady()) return;
-
-        if (Array.isArray(window._testRoutes) && window._testRoutes.length > 0) {
-            window._testRoutes.forEach((route, index) => {
-                const stops = route.stops || [];
-                if (stops.length < 2) return;
-
-                const originLat = Number(stops[0].lat);
-                const originLng = Number(stops[0].lng);
-                const destinationLat = Number(stops[stops.length - 1].lat);
-                const destinationLng = Number(stops[stops.length - 1].lng);
-
-                if (!Number.isFinite(originLat) || !Number.isFinite(originLng) ||
-                    !Number.isFinite(destinationLat) || !Number.isFinite(destinationLng)) {
-                    console.warn('SAFE SKIP: NEW MAP ROUTE missing origin or destination coordinates', index + 1);
-                    return;
-                }
-
-                const origin = { lat: originLat, lng: originLng };
-                const destination = {
-                    lat: destinationLat,
-                    lng: destinationLng
-                };
-
-                const waypoints = stops.slice(1, -1).map((s) => {
-                    const lat = Number(s.lat);
-                    const lng = Number(s.lng);
-                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-                    return {
-                        location: { lat, lng },
-                        stopover: true
-                    };
-                }).filter(Boolean);
-
-                const renderResult = (result) => {
-                    const renderer = MapHandler.initDirectionsRenderer({
-                        suppressMarkers: false,
-                        polylineOptions: {
-                            strokeColor: route.color || getRouteColor(index),
-                            strokeWeight: 5
-                        }
-                    });
-                    MapHandler.setRendererMap(renderer, map);
-                    MapHandler.setDirections(renderer, result);
-                    rendererList.push(renderer);
-                    console.log('NEW MAP ROUTE RENDERED:', index + 1);
-                };
-
-                const routeCacheKey = getRouteCacheKeyFromStops(stops);
-                const cachedResult = getRouteDirectionsFromCache(route, routeCacheKey);
-                if (cachedResult) {
-                    renderResult(cachedResult);
-                    return;
-                }
-
-                MapHandler.route(directionsService, {
-                    origin,
-                    destination,
-                    waypoints,
-                    travelMode: 'DRIVING'
-                }, (result, status) => {
-                    if (status === 'OK') {
-                        setRouteDirectionsCache(route, result, routeCacheKey);
-                        renderResult(result);
-                    } else {
-                        console.warn('SAFE SKIP: NEW MAP ROUTE render failed', index + 1, status);
-                    }
-                });
-            });
-        }
-    }
-
-    function renderBothRoutesOnMap() {
-        if (route1RendererPage3) MapHandler.setDirections(route1RendererPage3, {routes: []});
-        if (route2RendererPage3) MapHandler.setDirections(route2RendererPage3, {routes: []});
-        clearTestDynamicRouteRenderers(testRouteEngineRenderersPage3);
-        MapHandler.clearRoutes();
-        clearOptimizedRouteMarkers();
-        let allMarkers = [];
-
-        assignRouteColors(AppState.plannedRoutes).forEach((routeData, index) => {
-            if (!routeData || !routeData.directionsResult) return;
-            renderRouteLegColors(routeData, mapPage3, testRouteEngineRenderersPage3, {
-                strokeOpacity: 0.9,
-                strokeWeight: 5
-            });
-            allMarkers = allMarkers.concat(addOptimizedRouteMarkersForRoute(routeData, routeData.color || getRouteColor(index)));
-        });
-        jitterMarkerPositions(allMarkers);
-        
-        // Fit map to show all markers
-        if (allMarkers.length > 0) {
-            fitMapToMarkers(mapPage3, allMarkers);
-        } else if (currentLatLng) {
-            MapHandler.setCenter(mapPage3, currentLatLng);
-        }
-        
-        optimizedRouteMarkersPage3 = allMarkers.filter(Boolean);
-        MapHandler.applyMarkerCluster(mapPage3, optimizedRouteMarkersPage3).then((cluster) => {
-            optimizedRouteMarkerCluster = cluster;
-        });
-    }
-
     function clearOptimizedRouteMarkers() {
         MapHandler.clearCluster(optimizedRouteMarkerCluster);
         optimizedRouteMarkerCluster = null;
         optimizedRouteMarkersPage3.forEach((marker) => clearMapMarker(marker));
         optimizedRouteMarkersPage3 = [];
-    }
-
-    function addOptimizedRouteMarkersForRoute(routeData, markerColor) {
-        const markers = [];
-        if (!routeData || !routeData.directionsResult || !routeData.directionsResult.routes || !routeData.directionsResult.routes.length) {
-            return markers;
-        }
-        
-        const route = routeData.directionsResult.routes[0];
-        if (!route.legs || !route.legs.length) {
-            return markers;
-        }
-        
-        // Marker for the start of the current route segment
-        const originMarker = MapHandler.createAdvancedMarker({ 
-            position: route.legs[0].start_location, map: mapPage3, 
-            title: `Start of Route ${routeData.id}: ${addressNameMap[routeData.optimizedStops[0]] || routeData.optimizedStops[0]}` 
-        });
-        const originPin = MapHandler.createPin({ 
-            background: markerColor, borderColor: "#fff", glyphColor: "#fff",
-            glyph: `${routeData.id}S` // S for Start
-        });
-        originMarker.content = originPin.element; 
-        markers.push(originMarker);
-
-        // Markers for waypoints
-        for (let i = 0; i < route.legs.length - 1; i++) {
-             const waypointAddress = routeData.optimizedStops[i+1];
-             const waypointLocation = route.legs[i].end_location; 
-             const waypointMarker = MapHandler.createAdvancedMarker({ 
-                 position: waypointLocation, map: mapPage3, 
-                 title: `Route ${routeData.id} - ${i + 1}. ${addressNameMap[waypointAddress] || waypointAddress}`
-             });
-             const waypointPin = MapHandler.createPin({ 
-                background: markerColor, borderColor: "#fff", glyphColor: "#fff",
-                glyph: `${routeData.id}.${i + 1}`
-             });
-             waypointMarker.content = waypointPin.element; 
-             markers.push(waypointMarker);
-        }
-        
-        // Marker for the end of the current route segment
-        const destMarker = MapHandler.createAdvancedMarker({ 
-            position: route.legs[route.legs.length - 1].end_location, map: mapPage3, 
-            title: `End of Route ${routeData.id}: ${addressNameMap[routeData.optimizedStops[routeData.optimizedStops.length-1]] || routeData.optimizedStops[routeData.optimizedStops.length-1]}`
-        });
-        const destPin = MapHandler.createPin({ 
-            background: markerColor, borderColor: "#fff", glyphColor: "#fff",
-            glyph: `${routeData.id}E` // E for End
-        });
-        destMarker.content = destPin.element; 
-        markers.push(destMarker);
-        
-        return markers;
-    }
-
-    function addOptimizedRouteMarkers(routeIndex) { 
-        clearOptimizedRouteMarkers();
-        const routeData = AppState.plannedRoutes[routeIndex];
-        if (!routeData || !routeData.directionsResult || !routeData.directionsResult.routes || !routeData.directionsResult.routes.length) {
-            appLog("Cannot add markers: No route data or directions result for index", routeIndex);
-            return;
-        }
-        
-        const route = routeData.directionsResult.routes[0]; 
-        const markerColor = routeData.color || getRouteColor(routeIndex);
-        if (!route.legs || !route.legs.length) {
-            appLog("Cannot add markers: No legs in route for index", routeIndex);
-            return;
-        }
-        
-        // Marker for the start of the current route segment
-        const originMarker = MapHandler.createAdvancedMarker({ 
-            position: route.legs[0].start_location, map: mapPage3, 
-            title: `Start of Route ${routeData.id}: ${getStopDisplayName(routeData.optimizedStops[0])}` 
-        });
-        const originPin = MapHandler.createPin({ background: markerColor, borderColor: "#fff", glyphColor: "#fff" });
-        originMarker.content = originPin.element; 
-        optimizedRouteMarkersPage3.push(originMarker);
-
-        // Markers for waypoints (intermediate stops of the current segment)
-        // The optimizedStops array includes origin, waypoints, and destination of the segment.
-        // Legs connect these: leg[0] is origin to waypoint1, leg[1] is waypoint1 to waypoint2, etc.
-        // So, leg[i].end_location is waypoint (i+1) in optimizedStops.
-        for (let i = 0; i < route.legs.length -1; i++) { // Iterate up to second to last leg for waypoints
-             const waypointStop = routeData.optimizedStops[i+1]; // Waypoints start from index 1 in optimizedStops
-             const waypointLocation = route.legs[i].end_location; 
-             const waypointMarker = MapHandler.createAdvancedMarker({ 
-                 position: waypointLocation, map: mapPage3, 
-                 title: `${i + 1}. ${getStopDisplayName(waypointStop)}`
-             });
-             const waypointPin = MapHandler.createPin({ background: markerColor, borderColor: "#fff", glyphColor: "#fff", glyph: `${i + 1}`});
-             waypointMarker.content = waypointPin.element; 
-             optimizedRouteMarkersPage3.push(waypointMarker);
-        }
-        
-        // Marker for the end of the current route segment
-        const destMarker = MapHandler.createAdvancedMarker({ 
-            position: route.legs[route.legs.length - 1].end_location, map: mapPage3, 
-            title: `End of Route ${routeData.id}: ${getStopDisplayName(routeData.optimizedStops[routeData.optimizedStops.length-1])}`
-        });
-        const destPin = MapHandler.createPin({ background: markerColor, borderColor: "#fff", glyphColor: "#fff" });
-        destMarker.content = destPin.element; 
-        optimizedRouteMarkersPage3.push(destMarker);
-
-        jitterMarkerPositions(optimizedRouteMarkersPage3);
-        
-        if(optimizedRouteMarkersPage3.length > 0) fitMapToMarkers(mapPage3, optimizedRouteMarkersPage3); 
-        else if(currentLatLng && mapPage3) MapHandler.setCenter(mapPage3, currentLatLng); // Fallback to current location if no markers
-        MapHandler.applyMarkerCluster(mapPage3, optimizedRouteMarkersPage3).then((cluster) => {
-            optimizedRouteMarkerCluster = cluster;
-        });
     }
 
     // Helper function to convert a stop identifier (address or customer ID) to an actual address for Google Maps
@@ -9763,24 +8476,6 @@
 
         // Fallback: return as-is (might already be an address)
         return stopIdentifier;
-    }
-
-    function openRouteInGoogleMapsPage3(routeIndexToNavigate) {
-      if (!RouteSafety.gate(AppState.plannedRoutes[routeIndexToNavigate])) return;
-      if (routeIndexToNavigate < 0 || routeIndexToNavigate >= AppState.plannedRoutes.length || !AppState.plannedRoutes[routeIndexToNavigate] || !AppState.plannedRoutes[routeIndexToNavigate].directionsResult) {
-          appLog("Invalid route index or no directions for navigation", routeIndexToNavigate);
-          messageBarOptimizedPg3.textContent = `Route data not available for navigation.`;
-          return;
-      }
-      const routeData = AppState.plannedRoutes[routeIndexToNavigate];
-      if (!routeData.optimizedStops || routeData.optimizedStops.length < 2) {
-          messageBarOptimizedPg3.textContent = `Route ${routeData.id} has insufficient stops for navigation.`;
-          return;
-      }
-      // Google Maps mobile URLs accept only three intermediate waypoints. This
-      // builder splits every handoff consistently, including routes without
-      // restriction checking or manual navigation points.
-      RouteSafety.openNavigation(routeData);
     }
 
     function formatRouteDurationLabel(durationSeconds) {
@@ -10124,154 +8819,6 @@
         </section>
       `).join('');
       schedulePreviewPage3Div.style.display = 'block';
-    }
-
-    function generateTimeListAndShowOnPage3() {
-      const anySuccessfulRoute = AppState.plannedRoutes.some(r => r && r.directionsResult && r.directionsResult.routes && r.directionsResult.routes.length > 0);
-      if (!anySuccessfulRoute) {
-        timeListDisplayPage3Div.innerHTML = '<em>No routes successfully planned. Cannot generate schedule.</em>';
-        schedulePreviewPage3Div.style.display = 'block';
-        // printSummaryBtnPage3.disabled = true;
-        return;
-      }
-
-      const UNLOADING_TIME_SECONDS = 20 * 60; // 20 minutes
-      const LUNCH_START_HOUR = 12; // 12 PM
-      const LUNCH_END_HOUR = 13;   // 1 PM
-      let fullScheduleHtml = '';
-      let currentTime = new Date(); // Use current date, but set time to 9 AM for start
-      currentTime.setHours(9,0,0,0); // Start day at 9:00 AM
-
-      for (let routeIdx = 0; routeIdx < AppState.plannedRoutes.length; routeIdx++) {
-          const routeData = AppState.plannedRoutes[routeIdx];
-          if (!routeData || !routeData.directionsResult || !routeData.directionsResult.routes || routeData.directionsResult.routes.length === 0) {
-              // If a route was defined (e.g., manualRoute1Waypoints existed) but planning failed
-              if ( (routeIdx === 0 && manualRoute1Waypoints.length > 0) || (routeIdx === 1 && manualRoute2Waypoints.length > 0) ) {
-                 fullScheduleHtml += `<h4>Route ${routeData?.id || (routeIdx + 1)} - Planning Failed</h4>`;
-                 if (AppState.plannedRoutes.filter(r => r && r.directionsResult).length > 0 && routeIdx < AppState.plannedRoutes.length -1) {
-                      fullScheduleHtml += `<hr style="border-color: #bbb; margin: 8px 0;">`; // Separator if there's a next successful route
-                 }
-              }
-              continue; // Skip to next route if this one failed
-          }
-
-          // If this is not the first route, and the previous route was successful,
-          // start currentTime from the end of the previous route.
-          if (routeIdx > 0) {
-              const prevRoute = AppState.plannedRoutes[routeIdx - 1];
-              if (prevRoute && prevRoute.directionsResult && prevRoute.finalEtaAtLastStop instanceof Date) {
-                  currentTime = new Date(prevRoute.finalEtaAtLastStop.getTime());
-              } 
-              // If prev route failed or didn't set finalEta, currentTime continues from where it was (e.g. 9AM or end of an earlier successful route)
-          }
-          
-          routeData.detailedStopTimes = []; // Reset for fresh calculation
-
-          fullScheduleHtml += `<div class="route-header">Route ${routeData.id}</div>`;
-          const routeLegs = routeData.directionsResult.routes[0].legs;
-          const stopsForThisRoute = routeData.optimizedStops; // e.g., [Origin, WP1, WP2, ..., LastStopOfSegment]
-
-          // Departure from the start of this route segment
-          const departureTimeFormatted = formatTime12Hour(currentTime);
-          const startStopName = getStopDisplayName(stopsForThisRoute[0]);
-          const startStopAddress = getAddressForMapsUrl(stopsForThisRoute[0]);
-          fullScheduleHtml += `<div class="schedule-stop"><strong>Departure (${truncateText(startStopName, 25)}):</strong> ${departureTimeFormatted}</div>`;
-          routeData.detailedStopTimes.push({
-            address: startStopAddress,
-            name: startStopName,
-            departureTime: new Date(currentTime.getTime()),
-            departureTimeStr: departureTimeFormatted
-          });
-
-          for (let i = 0; i < routeLegs.length; i++) {
-            const leg = routeLegs[i];
-            const travelDurationSeconds = leg.duration.value;
-            
-            // Add travel time to current time
-            currentTime.setSeconds(currentTime.getSeconds() + travelDurationSeconds);
-            
-            // Check for lunch break *before* arrival at stop
-            let currentHour = currentTime.getHours();
-            if (currentHour === LUNCH_START_HOUR && currentTime.getMinutes() > 0) {
-              fullScheduleHtml += `<div class="schedule-stop lunch-break" style="text-align:center;">🍽️ Lunch Break (12 PM - 1 PM)</div>`;
-              currentTime.setHours(LUNCH_END_HOUR, 0, 0, 0);
-            }
-
-            const arrivalTimeFormatted = formatTime12Hour(currentTime);
-            const currentStopId = stopsForThisRoute[i+1];
-            const currentStopName = getStopDisplayName(currentStopId);
-            const currentStopAddress = getAddressForMapsUrl(currentStopId);
-            fullScheduleHtml += `<div class="schedule-stop"><strong>${currentStopName} (Arrival):</strong> ${arrivalTimeFormatted}</div>`;
-
-            // Store arrival time for this stop
-            routeData.detailedStopTimes.push({
-              address: currentStopAddress,
-              name: currentStopName,
-              arrivalTime: new Date(currentTime.getTime()),
-              arrivalTimeStr: arrivalTimeFormatted
-            });
-
-            // Add unloading time, unless it's the very last stop of the entire day
-            if (i < routeLegs.length - 1) {
-              currentTime.setSeconds(currentTime.getSeconds() + UNLOADING_TIME_SECONDS);
-
-              currentHour = currentTime.getHours();
-              if (currentHour === LUNCH_START_HOUR && currentTime.getMinutes() > 0) {
-                fullScheduleHtml += `<div class="schedule-stop lunch-break" style="text-align:center;">🍽️ Lunch Break (12 PM - 1 PM)</div>`;
-                currentTime.setHours(LUNCH_END_HOUR, 0, 0, 0);
-              }
-              const stopDepartureTimeFormatted = formatTime12Hour(currentTime);
-              fullScheduleHtml += `<div style="padding-left:15px; font-size:0.85em; color:#666;"><em>(Unload: 20m)</em> Departure: ${stopDepartureTimeFormatted}</div>`;
-
-              const lastStopEntry = routeData.detailedStopTimes.find(s => s.address === currentStopAddress);
-              if (lastStopEntry) {
-                  lastStopEntry.departureTime = new Date(currentTime.getTime());
-                  lastStopEntry.departureTimeStr = stopDepartureTimeFormatted;
-              }
-            } else {
-                if (routeData.id === 1 && AppState.plannedRoutes.find(r => r.id === 2 && r.directionsResult)) {
-                    currentTime.setSeconds(currentTime.getSeconds() + UNLOADING_TIME_SECONDS);
-                    currentHour = currentTime.getHours();
-                    if (currentHour === LUNCH_START_HOUR && currentTime.getMinutes() > 0) {
-                        fullScheduleHtml += `<div class="schedule-stop lunch-break" style="text-align:center;">🍽️ Lunch Break (12 PM - 1 PM)</div>`;
-                        currentTime.setHours(LUNCH_END_HOUR, 0, 0, 0);
-                    }
-                    routeData.finalEtaAtLastStop = new Date(currentTime.getTime());
-                    const r1EndTimeFormatted = formatTime12Hour(currentTime);
-                    fullScheduleHtml += `<div style="padding-left:15px; font-size:0.85em; color:#28a745;"><em>(Unload: 20m)</em> <strong>End of Route 1. Next route starts:</strong> ${r1EndTimeFormatted}</div>`;
-
-                    const lastStopEntry = routeData.detailedStopTimes.find(s => s.address === currentStopAddress);
-                    if (lastStopEntry) {
-                        lastStopEntry.departureTime = new Date(currentTime.getTime());
-                        lastStopEntry.departureTimeStr = r1EndTimeFormatted;
-                    }
-
-                } else {
-                    const currentStopActualAddress = getAddressForMapsUrl(currentStopId);
-                    if (isRouteConfiguredEndStop(routeData, currentStopId)) {
-                        routeData.finalEtaAtHq = new Date(currentTime.getTime());
-                        fullScheduleHtml += `<div class="schedule-stop" style="border-left-color:#28a745;"><strong>${getRouteFinalArrivalLabel(routeData)}:</strong> ${formatTime12Hour(currentTime)}</div>`;
-                    } else {
-                        routeData.finalEtaAtLastStop = new Date(currentTime.getTime());
-                        fullScheduleHtml += `<div class="schedule-stop" style="border-left-color:#28a745;"><strong>🏁 Final Stop Arrival:</strong> ${formatTime12Hour(currentTime)}</div>`;
-                    }
-                }
-            }
-          }
-          // Add separator between routes
-          if (routeIdx < AppState.plannedRoutes.length - 1 && AppState.plannedRoutes[routeIdx+1]?.directionsResult) {
-            fullScheduleHtml += `<hr style="border-color: #bbb; margin: 12px 0;">`;
-          }
-      } 
-
-      // Schedule data is now ready - directly open print preview
-      // printSummaryBtnPage3.disabled = !anySuccessfulRoute;
-      appLog(`Full day detailed stop times:`, JSON.parse(JSON.stringify(AppState.plannedRoutes.map(r => r ? r.detailedStopTimes : null ))));
-
-      // Directly open print preview window
-      if (anySuccessfulRoute) {
-          printSummaryPage3();
-      }
     }
 
 
@@ -10983,1767 +9530,6 @@
         }, 3000);
     }
 
-    // === GPS TRACKING FUNCTIONALITY ===
-    
-    // GPS Tracking Variables
-    let gpsWatchId = null;
-    let currentPosition = null;
-    let trackingActive = false;
-    let trackingPaused = false;
-    let routeStops = [];
-    let currentStopIndex = 0;
-    let tripStartTime = null;
-    let arrivalTimes = [];
-    let mapGPSTracking = null;
-    let currentLocationMarker = null;
-    let stopMarkers = [];
-    let stopMarkerCluster = null;
-    let routeRenderer = null;
-    let routePolyline = null;
-
-    // ===== MAP =====
-    // GPS tracking map, live markers, driven route line, and planned route overlays.
-    // DirectionsService and DirectionsRenderer for actual road route display (like Maps Preview)
-    let gpsDirectionsService = null;
-    let gpsDirectionsRenderer = null;
-    let gpsDirectionsRenderer2 = null; // For Route 2 (red)
-    
-    // Global Route State - accessible to other parts of the app
-    window.getCurrentRoute = function() {
-        return {
-            isLoaded: routeStops.length > 0,
-            stops: routeStops,
-            currentStopIndex: currentStopIndex,
-            totalStops: routeStops.length,
-            completedStops: routeStops.filter(stop => stop.status === 'arrived').length,
-            trackingActive: trackingActive,
-            tripStartTime: tripStartTime,
-            getNextStop: function() {
-                return currentStopIndex < routeStops.length ? routeStops[currentStopIndex] : null;
-            },
-            getCurrentStop: function() {
-                const current = routeStops[currentStopIndex];
-                return current && current.status !== 'arrived' ? current : null;
-            },
-            getAllStops: function() {
-                return [...routeStops];
-            },
-            getCompletedStops: function() {
-                return routeStops.filter(stop => stop.status === 'arrived');
-            },
-            getPendingStops: function() {
-                return routeStops.filter(stop => stop.status === 'pending');
-            }
-        };
-    };
-    
-    // Legacy compatibility - expose routeStops globally for existing code
-    window.getRouteStops = () => routeStops;
-    window.isRouteLoaded = () => routeStops.length > 0;
-    
-    // GPS Tracking DOM Elements
-    const startTrackingBtnGPS = document.getElementById('startTrackingBtn');
-    const stopTrackingBtnGPS = document.getElementById('stopTrackingBtn');
-    const pauseTrackingBtnGPS = document.getElementById('pauseTrackingBtn');
-    const gpsStatus = document.getElementById('gpsStatus');
-    const currentCoords = document.getElementById('currentCoords');
-    const completedStops = document.getElementById('completedStops');
-    const totalStops = document.getElementById('totalStops');
-    const progressFill = document.getElementById('progressFill');
-    const stopsList = document.getElementById('stopsList');
-    const tripStatus = document.getElementById('tripStatus');
-    const timeEfficiency = document.getElementById('timeEfficiency');
-    const performanceRating = document.getElementById('performanceRating');
-    const fuelEfficiency = document.getElementById('fuelEfficiency');
-
-    // Initialize GPS Tracking Map
-    function initGPSTrackingMap() {
-        if (!mapGPSTracking) {
-            mapGPSTracking = MapHandler.initMap(document.getElementById('mapGPSTracking'), {
-                center: { lat: 1.3521, lng: 103.8198 }, // Singapore center
-                zoom: 12,
-                mapTypeControl: true,
-                streetViewControl: false,
-                fullscreenControl: true,
-                mapId: 'GPS_TRACKING_MAP_ID'
-            });
-
-            // Initialize DirectionsService and DirectionsRenderer for actual road route display
-            gpsDirectionsService = MapHandler.initDirectionsService();
-            gpsDirectionsRenderer = MapHandler.initDirectionsRenderer({
-                map: mapGPSTracking,
-                suppressMarkers: true,
-                polylineOptions: {
-                    strokeColor: '#007bff', // Blue - Route 1
-                    strokeOpacity: 0.9,
-                    strokeWeight: 6
-                }
-            });
-            gpsDirectionsRenderer2 = MapHandler.initDirectionsRenderer({
-                map: mapGPSTracking,
-                suppressMarkers: true,
-                polylineOptions: {
-                    strokeColor: '#dc3545', // Red - Route 2
-                    strokeOpacity: 0.9,
-                    strokeWeight: 6
-                }
-            });
-        }
-    }
-
-
-    // Normalize route data from different sources to consistent format
-    function normalizeRouteData(routeData) {
-        console.log('Normalizing route data:', routeData);
-        console.log('Data type:', typeof routeData);
-        console.log('Available keys:', routeData && typeof routeData === 'object' ? Object.keys(routeData) : 'N/A');
-        
-        // Handle different possible data structures
-        if (!routeData) {
-            throw new Error('No route data provided');
-        }
-        
-        // GPS-Ready format (from sheets-sync.js exportGPSReadyFormat)
-        if (routeData.routeType === 'GPS_READY' && routeData.stops && Array.isArray(routeData.stops)) {
-            console.log('✅ GPS-Ready format detected');
-            return validateRouteStops(routeData);
-        }
-        
-        // If it's already in correct format
-        if (routeData.stops && Array.isArray(routeData.stops)) {
-            console.log('✅ Data already in correct format with stops array');
-            return validateRouteStops(routeData);
-        }
-        
-        // If it's just an array of stops
-        if (Array.isArray(routeData)) {
-            console.log('✅ Data is array of stops');
-            return validateRouteStops({ stops: routeData });
-        }
-        
-        // Full export format from sheets-sync.js (has username, exportDate, routes array)
-        if (routeData.app === 'BJS Delivery Route Planner' && routeData.routes && Array.isArray(routeData.routes)) {
-            console.log('✅ Full BJS export format detected');
-            return processFullExportFormat(routeData);
-        }
-        
-        // Generic route history export (has routes array)
-        if (routeData.routes && Array.isArray(routeData.routes)) {
-            console.log(`✅ Processing exported route history with ${routeData.routes.length} routes`);
-            return processRouteHistoryFormat(routeData);
-        }
-        
-        // Legacy trip export format (has routeStops)
-        if (routeData.routeStops && Array.isArray(routeData.routeStops)) {
-            console.log('✅ Legacy trip export format detected');
-            return validateRouteStops({ stops: routeData.routeStops });
-        }
-        
-        // If it's a single planned route object
-        if (routeData.plannedRoutes) {
-            console.log('Processing single planned route object');
-            return convertPlannedRoutesToStops(routeData);
-        }
-        
-        // If it has waypoints (from manual route)
-        if (routeData.route1Waypoints || routeData.route2Waypoints) {
-            console.log('Processing waypoints data');
-            return convertWaypointsToStops(routeData);
-        }
-        
-        // Generate a helpful error message with format suggestions
-        const availableKeys = Object.keys(routeData);
-        console.error('Unrecognized route data format');
-        console.log('Available keys:', availableKeys);
-        
-        let suggestions = 'Supported formats:\n';
-        suggestions += '• GPS-Ready: { "routeType": "GPS_READY", "stops": [...] }\n';
-        suggestions += '• Route History: { "routes": [...] }\n';  
-        suggestions += '• Trip Export: { "routeStops": [...] }\n';
-        suggestions += '• Simple Array: [{ "name": "...", "address": "..." }]\n\n';
-        suggestions += `Your file has keys: ${availableKeys.join(', ')}`;
-        
-        throw new Error('Unrecognized route data format.\n\n' + suggestions);
-    }
-    
-    function validateRouteStops(routeData) {
-        if (!routeData.stops || !Array.isArray(routeData.stops) || routeData.stops.length === 0) {
-            throw new Error('Route must contain at least one stop');
-        }
-        
-        const validatedStops = routeData.stops.map((stop, index) => {
-            if (!stop.name && !stop.address) {
-                throw new Error(`Stop ${index + 1} must have either a name or address`);
-            }
-            
-            return {
-                name: stop.name || `Stop ${index + 1}`,
-                address: stop.address || stop.name || '',
-                lat: typeof stop.lat === 'number' ? stop.lat : null,
-                lng: typeof stop.lng === 'number' ? stop.lng : null,
-                estimatedArrival: stop.estimatedArrival || stop.arrivalTimeStr || null
-            };
-        });
-        
-        return { stops: validatedStops };
-    }
-    
-    function convertPlannedRoutesToStops(routeData) {
-        const stops = [];
-        
-        console.log('🔍 Converting planned routes to stops:', routeData);
-        console.log('🔍 Available global addressNameMap:', typeof addressNameMap, Object.keys(addressNameMap || {}).length);
-        
-        if (routeData.plannedRoutes && Array.isArray(routeData.plannedRoutes)) {
-            routeData.plannedRoutes.forEach((route, routeIndex) => {
-                console.log(`🔍 Processing route ${routeIndex}:`, route);
-                console.log(`🔍 Route ${routeIndex} keys:`, route ? Object.keys(route) : 'Route is null/undefined');
-                
-                if (!route) {
-                    console.warn(`❌ Route ${routeIndex} is null or undefined`);
-                    return;
-                }
-                
-                let routeStopsFound = false;
-                
-                // Method 1: detailedStopTimes (has timing info)
-                if (route.detailedStopTimes && Array.isArray(route.detailedStopTimes) && route.detailedStopTimes.length > 0) {
-                    console.log(`✅ Route ${routeIndex} using detailedStopTimes (${route.detailedStopTimes.length} stops)`);
-                    route.detailedStopTimes.forEach((stop, stopIndex) => {
-                        if (stop.address && stop.address !== routeData.origin) {
-                            // Try to get lat/lng from detailedStopTimes or from customer data
-                            let lat = stop.lat || null;
-                            let lng = stop.lng || null;
-
-                            // Try to get from customerStops if available
-                            if ((!lat || !lng) && route.customerStops) {
-                                const customerMatch = route.customerStops.find(c =>
-                                    c && (c.Address === stop.address || c.Name === stop.name)
-                                );
-                                if (customerMatch && customerMatch.coordinate) {
-                                    const coords = customerMatch.coordinate.split(',');
-                                    if (coords.length === 2) {
-                                        const parsedLat = parseFloat(coords[0].trim());
-                                        const parsedLng = parseFloat(coords[1].trim());
-                                        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                                            lat = parsedLat;
-                                            lng = parsedLng;
-                                        }
-                                    }
-                                }
-                            }
-
-                            stops.push({
-                                name: stop.name || (addressNameMap && addressNameMap[stop.address]) || stop.address,
-                                address: stop.address,
-                                lat: lat,
-                                lng: lng,
-                                estimatedArrival: stop.arrivalTimeStr || stop.estimatedArrival || null
-                            });
-                            routeStopsFound = true;
-                        }
-                    });
-                }
-
-                // Method 2: optimizedStops (can be customer IDs or addresses)
-                else if (route.optimizedStops && Array.isArray(route.optimizedStops) && route.optimizedStops.length > 0) {
-                    console.log(`✅ Route ${routeIndex} using optimizedStops (${route.optimizedStops.length} stops)`);
-                    route.optimizedStops.forEach((stopId, stopIndex) => {
-                        if (stopId && stopId !== routeData.origin) {
-                            // Get customer data if it's a customer ID
-                            const customer = getCustomerById(stopId);
-                            const stopName = customer ? customer.Name : (addressNameMap && addressNameMap[stopId]) || stopId;
-                            const stopAddress = customer ? customer.Address : stopId;
-
-                            // Try to get lat/lng from customer data
-                            let lat = null, lng = null;
-
-                            // Check customer.coordinate field (format: "lat,lng")
-                            if (customer && customer.coordinate) {
-                                const coords = customer.coordinate.split(',');
-                                if (coords.length === 2) {
-                                    const parsedLat = parseFloat(coords[0].trim());
-                                    const parsedLng = parseFloat(coords[1].trim());
-                                    if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                                        lat = parsedLat;
-                                        lng = parsedLng;
-                                    }
-                                }
-                            }
-
-                            // Also check customerStops array if available
-                            if ((!lat || !lng) && route.customerStops) {
-                                const customerMatch = route.customerStops.find(c =>
-                                    c && (c.uniqueId === stopId || c.Address === stopAddress)
-                                );
-                                if (customerMatch && customerMatch.coordinate) {
-                                    const coords = customerMatch.coordinate.split(',');
-                                    if (coords.length === 2) {
-                                        const parsedLat = parseFloat(coords[0].trim());
-                                        const parsedLng = parseFloat(coords[1].trim());
-                                        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                                            lat = parsedLat;
-                                            lng = parsedLng;
-                                        }
-                                    }
-                                }
-                            }
-
-                            stops.push({
-                                name: stopName,
-                                address: stopAddress,
-                                lat: lat,
-                                lng: lng,
-                                estimatedArrival: null
-                            });
-                            routeStopsFound = true;
-                        }
-                    });
-                }
-                
-                // Method 3: directionsResult waypoints (from Google Directions API)
-                else if (route.directionsResult && route.directionsResult.routes && route.directionsResult.routes[0]) {
-                    const directionsRoute = route.directionsResult.routes[0];
-                    if (directionsRoute.legs && Array.isArray(directionsRoute.legs)) {
-                        console.log(`✅ Route ${routeIndex} using directionsResult legs (${directionsRoute.legs.length} legs)`);
-                        directionsRoute.legs.forEach((leg, legIndex) => {
-                            if (leg.end_address && leg.end_address !== routeData.origin) {
-                                // Handle both function (live API) and object (serialized) formats for location
-                                let lat = null, lng = null;
-                                if (leg.end_location) {
-                                    if (typeof leg.end_location.lat === 'function') {
-                                        lat = leg.end_location.lat();
-                                        lng = leg.end_location.lng();
-                                    } else {
-                                        lat = leg.end_location.lat;
-                                        lng = leg.end_location.lng;
-                                    }
-                                }
-                                stops.push({
-                                    name: (addressNameMap && addressNameMap[leg.end_address]) || leg.end_address,
-                                    address: leg.end_address,
-                                    lat: lat,
-                                    lng: lng,
-                                    estimatedArrival: null
-                                });
-                                routeStopsFound = true;
-                            }
-                        });
-                    }
-                }
-                
-                // Method 4: originalWaypoints (backup)
-                else if (route.originalWaypoints && Array.isArray(route.originalWaypoints) && route.originalWaypoints.length > 0) {
-                    console.log(`✅ Route ${routeIndex} using originalWaypoints (${route.originalWaypoints.length} waypoints)`);
-                    route.originalWaypoints.forEach((waypoint, wpIndex) => {
-                        if (waypoint && waypoint !== routeData.origin) {
-                            stops.push({
-                                name: (addressNameMap && addressNameMap[waypoint]) || waypoint,
-                                address: waypoint,
-                                lat: null,
-                                lng: null,
-                                estimatedArrival: null
-                            });
-                            routeStopsFound = true;
-                        }
-                    });
-                }
-                
-                if (!routeStopsFound) {
-                    console.warn(`❌ Route ${routeIndex} - no stops found in any format. Available properties:`, Object.keys(route));
-                }
-            });
-        } else {
-            console.warn('❌ No plannedRoutes found or they are not an array:', routeData);
-        }
-        
-        console.log(`🎯 Final converted stops (${stops.length}):`, stops);
-        
-        if (stops.length === 0) {
-            // Enhanced error with debugging info
-            const routeCount = routeData.plannedRoutes ? routeData.plannedRoutes.length : 0;
-            const routeTypes = routeData.plannedRoutes ? routeData.plannedRoutes.map((r, i) => 
-                `Route ${i}: ${r ? Object.keys(r).join(', ') : 'null'}`
-            ).join(' | ') : 'None';
-            
-            const errorMsg = `No valid stops found in ${routeCount} planned routes.\n\n` +
-                           `Route data available: ${routeTypes}\n\n` +
-                           `Try planning routes again or use "Import Route" instead.`;
-            
-            throw new Error(errorMsg);
-        }
-        
-        return { stops };
-    }
-    
-    function convertWaypointsToStops(routeData) {
-        const stops = [];
-        const allWaypoints = [
-            ...(routeData.route1Waypoints || []),
-            ...(routeData.route2Waypoints || [])
-        ];
-        
-        allWaypoints.forEach((waypoint, index) => {
-            if (waypoint && waypoint !== routeData.origin) {
-                const addressMap = window.addressNameMap || {};
-                stops.push({
-                    name: addressMap[waypoint] || waypoint,
-                    address: waypoint,
-                    lat: null,
-                    lng: null,
-                    estimatedArrival: null
-                });
-            }
-        });
-        
-        if (stops.length === 0) {
-            throw new Error('No valid waypoints found in route data');
-        }
-        
-        return { stops };
-    }
-    
-    function convertSelectedStopsToRoute(routeData) {
-        const stops = [];
-        
-        if (routeData.selectedStops && Array.isArray(routeData.selectedStops)) {
-            const addressMap = window.addressNameMap || {};
-            
-            routeData.selectedStops.forEach((address, index) => {
-                if (address && address !== routeData.origin) {
-                    stops.push({
-                        name: addressMap[address] || address,
-                        address: address,
-                        lat: null,
-                        lng: null,
-                        estimatedArrival: null
-                    });
-                }
-            });
-        }
-        
-        // Also include waypoints if they exist and are not already in selectedStops
-        const allWaypoints = [
-            ...(routeData.route1Waypoints || []),
-            ...(routeData.route2Waypoints || [])
-        ];
-        
-        const existingAddresses = new Set(stops.map(stop => stop.address));
-        
-        allWaypoints.forEach(waypoint => {
-            if (waypoint && waypoint !== routeData.origin && !existingAddresses.has(waypoint)) {
-                const addressMap = window.addressNameMap || {};
-                stops.push({
-                    name: addressMap[waypoint] || waypoint,
-                    address: waypoint,
-                    lat: null,
-                    lng: null,
-                    estimatedArrival: null
-                });
-            }
-        });
-        
-        if (stops.length === 0) {
-            throw new Error('No valid stops found in selected stops or waypoints');
-        }
-        
-        return { stops };
-    }
-
-    function processImportedRoute(routeData) {
-        if (!routeData || !routeData.stops || !Array.isArray(routeData.stops)) {
-            throw new Error('Invalid route format. Expected { stops: [{ name, address, lat?, lng?, estimatedArrival? }] }');
-        }
-
-        if (routeData.stops.length === 0) {
-            throw new Error('Route must contain at least one stop');
-        }
-
-        // Process and validate each stop
-        routeStops = routeData.stops.map((stop, index) => {
-            const processedStop = {
-                id: index,
-                name: stop.name || `Stop ${index + 1}`,
-                address: stop.address || stop.name || '',
-                lat: typeof stop.lat === 'number' ? stop.lat : null,
-                lng: typeof stop.lng === 'number' ? stop.lng : null,
-                estimatedArrival: stop.estimatedArrival || null,
-                status: 'pending',
-                actualArrival: null,
-                distanceFromCurrent: null
-            };
-
-            // Validate essential fields
-            if (!processedStop.name && !processedStop.address) {
-                throw new Error(`Stop ${index + 1} must have either a name or address`);
-            }
-
-            return processedStop;
-        });
-
-        // Reset tracking state
-        currentStopIndex = 0;
-        arrivalTimes = [];
-        trackingActive = false;
-        trackingPaused = false;
-        tripStartTime = null;
-
-        // Update UI components
-        try {
-            updateRouteDisplay();
-
-            // Geocode stops that don't have coordinates, then display on map
-            geocodeStopsAndDisplay();
-
-            // Enable tracking controls
-            if (startTrackingBtnGPS) {
-                startTrackingBtnGPS.disabled = false;
-            }
-            if (stopTrackingBtnGPS) {
-                stopTrackingBtnGPS.disabled = true;
-            }
-            if (pauseTrackingBtnGPS) {
-                pauseTrackingBtnGPS.disabled = true;
-            }
-
-            console.log(`✅ Route successfully processed: ${routeStops.length} stops`);
-
-        } catch (displayError) {
-            console.warn('Error updating display after route import:', displayError);
-        }
-    }
-
-    // GPS Tracking Functions
-    async function startGPSTracking() {
-        // Allow tracking without imported route (just track daily route)
-        if (!navigator.geolocation) {
-            gpsStatus.textContent = '❌ Geolocation not supported by this browser.';
-            gpsStatus.style.backgroundColor = '#fee2e2';
-            gpsStatus.style.color = '#991b1b';
-            return;
-        }
-
-        // Load today's existing tracking points from cloud
-        await loadTodayTrackingFromCloud();
-
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 1000
-        };
-
-        gpsWatchId = navigator.geolocation.watchPosition(
-            handlePositionUpdate,
-            handlePositionError,
-            options
-        );
-
-        trackingActive = true;
-        trackingPaused = false;
-        if (!tripStartTime) {
-            tripStartTime = new Date();
-        }
-
-        // Update UI
-        startTrackingBtnGPS.disabled = true;
-        stopTrackingBtnGPS.disabled = false;
-        pauseTrackingBtnGPS.disabled = false;
-
-        // Show finish button
-        const finishBtn = document.getElementById('finishTrackingBtn');
-        if (finishBtn) {
-            finishBtn.style.display = 'inline-block';
-            finishBtn.disabled = false;
-        }
-
-        gpsStatus.textContent = '🛰️ GPS tracking started - High accuracy mode';
-        gpsStatus.style.backgroundColor = '#dcfce7';
-        gpsStatus.style.color = '#166534';
-
-        tripStatus.textContent = 'In Progress';
-        tripStatus.className = 'performance-value good';
-
-        // Save tracking started to cloud
-        if (window.FirebaseApp && window.FirebaseApp.gps) {
-            window.FirebaseApp.gps.updateSummary({
-                startTime: tripStartTime.toISOString(),
-                isActive: true
-            });
-        }
-    }
-
-    // Auto-load planned routes when GPS tracking page opens
-    async function autoLoadPlannedRoutes() {
-        try {
-            console.log('🔄 Auto-loading planned routes...');
-
-            // Priority 1: Check for explicitly inserted route data (from "Insert to GPS" button)
-            if (window.gpsRouteData && window.gpsRouteData.plannedRoutes && window.gpsRouteData.plannedRoutes.length > 0) {
-                console.log('✅ Using explicitly inserted route data from Insert to GPS');
-                gpsStatus.textContent = '📥 Loading inserted route data...';
-
-                // Copy inserted data into local variables
-                AppState.plannedRoutes = window.gpsRouteData.plannedRoutes;
-                addressNameMap = window.gpsRouteData.addressNameMap || {};
-                currentLocationOrigin = window.gpsRouteData.origin || '';
-
-                // Update window references
-                window.plannedRoutes = AppState.plannedRoutes;
-                window.addressNameMap = addressNameMap;
-                window.currentLocationOrigin = currentLocationOrigin;
-
-                // Find valid routes
-                const validRoutes = AppState.plannedRoutes.filter(route => {
-                    return route && (
-                        route.directionsResult ||
-                        route.optimizedStops ||
-                        route.originalWaypoints ||
-                        route.detailedStopTimes
-                    );
-                });
-
-                if (validRoutes.length > 0) {
-                    const routeData = {
-                        plannedRoutes: validRoutes,
-                        origin: currentLocationOrigin || 'Unknown Origin',
-                        addressNameMap: addressNameMap || {}
-                    };
-
-                    const normalizedRoute = normalizeRouteData(routeData);
-                    processImportedRoute(normalizedRoute);
-
-                    // Update route info bar
-                    const routeInfoBar = document.getElementById('routeInfoBar');
-                    const loadedRouteName = document.getElementById('loadedRouteName');
-                    const loadedRouteStops = document.getElementById('loadedRouteStops');
-
-                    if (routeInfoBar && loadedRouteName && loadedRouteStops) {
-                        routeInfoBar.style.display = 'flex';
-                        loadedRouteName.textContent = validRoutes.length === 1 ? 'Route 1' : `${validRoutes.length} Routes`;
-                        loadedRouteStops.textContent = `${routeStops.length} stops`;
-                    }
-
-                    gpsStatus.textContent = `✅ Loaded ${routeStops.length} stops from inserted routes`;
-                    gpsStatus.style.backgroundColor = '#dcfce7';
-                    gpsStatus.style.color = '#166534';
-
-                    // Clear the inserted data so it doesn't reload on re-entry
-                    window.gpsRouteData = null;
-                    return true;
-                }
-
-                // If inserted data had no valid routes, clear it and fall through
-                window.gpsRouteData = null;
-                console.warn('Inserted route data had no valid routes, falling through...');
-            }
-
-            // Priority 2: If no local routes, try to load from persisted route storage
-            if (!AppState.plannedRoutes || !Array.isArray(AppState.plannedRoutes) || AppState.plannedRoutes.length === 0) {
-                console.log('No local routes, trying to load persisted active routes...');
-                gpsStatus.textContent = '☁️ Loading saved active routes...';
-
-                if (window.RoutePlannerStorage && window.RoutePlannerStorage.loadActiveRoutes) {
-                    const storedResult = await window.RoutePlannerStorage.loadActiveRoutes();
-                    if (storedResult.success && storedResult.data && storedResult.data.plannedRoutes) {
-                        console.log('✅ Loaded active routes from storage:', storedResult.data);
-
-                        const storedRoutes = storedResult.data.plannedRoutes;
-                        const storedAddressMap = storedResult.data.addressNameMap || {};
-                        const storedOrigin = storedResult.data.origin || '';
-
-                        if (storedRoutes.length > 0) {
-                            const routeData = {
-                                plannedRoutes: storedRoutes,
-                                origin: storedOrigin,
-                                addressNameMap: storedAddressMap
-                            };
-
-                            const normalizedRoute = normalizeRouteData(routeData);
-                            processImportedRoute(normalizedRoute);
-
-                            // Update route info bar
-                            const routeInfoBar = document.getElementById('routeInfoBar');
-                            const loadedRouteName = document.getElementById('loadedRouteName');
-                            const loadedRouteStops = document.getElementById('loadedRouteStops');
-
-                            if (routeInfoBar && loadedRouteName && loadedRouteStops) {
-                                routeInfoBar.style.display = 'flex';
-                                loadedRouteName.textContent = storedRoutes.length === 1 ? 'Route 1' : `${storedRoutes.length} Routes`;
-                                loadedRouteStops.textContent = `${routeStops.length} stops`;
-                            }
-
-                            gpsStatus.textContent = `☁️ Loaded ${routeStops.length} saved stops`;
-                            gpsStatus.style.backgroundColor = '#dcfce7';
-                            gpsStatus.style.color = '#166534';
-                            return true;
-                        }
-                    }
-                }
-
-                // Still no routes
-                console.log('No planned routes available from persisted storage or locally');
-                document.getElementById('stopsList').innerHTML = '<p class="no-route-message">No routes planned yet.<br><br>Go to <b>Routes</b> tab and plan a route first, then return here.</p>';
-                document.getElementById('routeInfoBar').style.display = 'none';
-                gpsStatus.textContent = 'No routes available - plan a route first';
-                return false;
-            }
-
-            // Update window references
-            window.plannedRoutes = AppState.plannedRoutes;
-            window.addressNameMap = addressNameMap;
-            window.currentLocationOrigin = currentLocationOrigin;
-
-            // Find valid routes
-            const validRoutes = AppState.plannedRoutes.filter(route => {
-                return route && (
-                    route.directionsResult ||
-                    route.optimizedStops ||
-                    route.originalWaypoints ||
-                    route.detailedStopTimes
-                );
-            });
-
-            if (validRoutes.length === 0) {
-                console.log('No valid route data found');
-                document.getElementById('stopsList').innerHTML = '<p class="no-route-message">Routes not ready. Please complete route planning first.</p>';
-                document.getElementById('routeInfoBar').style.display = 'none';
-                return false;
-            }
-
-            // Create route data and process it
-            const routeData = {
-                plannedRoutes: validRoutes,
-                origin: currentLocationOrigin || window.currentLocationOrigin || 'Unknown Origin',
-                addressNameMap: addressNameMap || {}
-            };
-
-            const normalizedRoute = normalizeRouteData(routeData);
-            processImportedRoute(normalizedRoute);
-
-            // Update route info bar
-            const routeInfoBar = document.getElementById('routeInfoBar');
-            const loadedRouteName = document.getElementById('loadedRouteName');
-            const loadedRouteStops = document.getElementById('loadedRouteStops');
-
-            if (routeInfoBar && loadedRouteName && loadedRouteStops) {
-                routeInfoBar.style.display = 'flex';
-                loadedRouteName.textContent = validRoutes.length === 1 ? 'Route 1' : `${validRoutes.length} Routes`;
-                loadedRouteStops.textContent = `${routeStops.length} stops`;
-            }
-
-            gpsStatus.textContent = `✅ Loaded ${routeStops.length} stops from planned routes`;
-            gpsStatus.style.backgroundColor = '#dcfce7';
-            gpsStatus.style.color = '#166534';
-
-            return true;
-        } catch (error) {
-            console.error('Auto-load planned routes error:', error);
-            console.error('Error details:', error.message);
-            console.error('Planned routes:', AppState.plannedRoutes);
-
-            // Show more specific error message
-            let errorMsg = 'Error loading routes.';
-            if (error.message.includes('No valid stops')) {
-                errorMsg = 'No stops found in routes. Try planning routes again.';
-            } else if (error.message.includes('Route must contain')) {
-                errorMsg = 'Routes have no stops. Go to Routes tab and plan first.';
-            }
-
-            document.getElementById('stopsList').innerHTML = `<p class="no-route-message">${errorMsg}</p>`;
-            return false;
-        }
-    }
-
-    // Auto-detect driver's current location on page entry (before pressing Start)
-    function autoDetectCurrentLocation() {
-        if (!navigator.geolocation) {
-            gpsStatus.textContent = 'Geolocation not supported by this browser.';
-            return;
-        }
-
-        gpsStatus.textContent = '📡 Detecting your current location...';
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                currentPosition = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                    accuracy: position.coords.accuracy,
-                    timestamp: new Date()
-                };
-
-                currentCoords.textContent = `${currentPosition.lat.toFixed(6)}, ${currentPosition.lng.toFixed(6)} (±${currentPosition.accuracy.toFixed(0)}m)`;
-
-                // Show blue dot on map
-                updateCurrentLocationMarker();
-
-                // Center map on current location
-                if (mapGPSTracking) {
-                    MapHandler.panTo(mapGPSTracking, currentPosition);
-                    MapHandler.setZoom(mapGPSTracking, 14);
-                }
-
-                if (!trackingActive) {
-                    gpsStatus.textContent = '📍 Location detected. Press Start to begin tracking.';
-                    gpsStatus.style.backgroundColor = '#dcfce7';
-                    gpsStatus.style.color = '#166534';
-                }
-            },
-            (error) => {
-                console.warn('Auto-detect location failed:', error);
-                if (!trackingActive) {
-                    gpsStatus.textContent = '📍 Could not detect location. Press Start to try again.';
-                }
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-        );
-    }
-
-    // Load today's tracking data from cloud
-    async function loadTodayTrackingFromCloud() {
-        // First, auto-load planned routes (from memory or cloud)
-        await autoLoadPlannedRoutes();
-
-        // Auto-detect current location on page entry
-        autoDetectCurrentLocation();
-
-        // Then load GPS tracking data from cloud
-        if (!window.FirebaseApp || !window.FirebaseApp.gps) return;
-
-        try {
-            gpsStatus.textContent = '☁️ Loading today\'s tracking data...';
-
-            const result = await window.FirebaseApp.gps.loadTodayPoints();
-            if (result.success && result.points.length > 0) {
-                console.log('Loaded', result.points.length, 'GPS points from cloud');
-
-                // Rebuild tracked route path
-                trackedRoutePath = result.points.map(p => ({ lat: p.lat, lng: p.lng }));
-
-                // Calculate total distance
-                totalDistanceKm = 0;
-                for (let i = 1; i < trackedRoutePath.length; i++) {
-                    totalDistanceKm += calculateDistance(
-                        trackedRoutePath[i-1].lat, trackedRoutePath[i-1].lng,
-                        trackedRoutePath[i].lat, trackedRoutePath[i].lng
-                    );
-                }
-
-                // Draw the route on map
-                updateDrivenRouteLine();
-
-                // Set current position to last point
-                const lastPoint = result.points[result.points.length - 1];
-                currentPosition = {
-                    lat: lastPoint.lat,
-                    lng: lastPoint.lng,
-                    accuracy: lastPoint.accuracy || 0,
-                    timestamp: new Date(lastPoint.timestamp)
-                };
-                updateCurrentLocationMarker();
-
-                gpsStatus.textContent = `☁️ Loaded ${result.points.length} points from today's route`;
-            }
-
-            // Load summary
-            const summaryResult = await window.FirebaseApp.gps.loadSummary();
-            if (summaryResult.success && summaryResult.summary) {
-                if (summaryResult.summary.startTime) {
-                    tripStartTime = new Date(summaryResult.summary.startTime);
-                }
-                if (summaryResult.summary.totalDistanceKm) {
-                    totalDistanceKm = parseFloat(summaryResult.summary.totalDistanceKm);
-                }
-                dashboardTrackingSummary = summaryResult.summary;
-                dashboardTrackingSummaryState = 'ready';
-                if (document.getElementById('page-history-dashboard')?.classList.contains('active-page')) {
-                    renderDashboardOperationalSummary();
-                }
-            } else {
-                dashboardTrackingSummary = null;
-                dashboardTrackingSummaryState = 'error';
-                if (document.getElementById('page-history-dashboard')?.classList.contains('active-page')) {
-                    renderDashboardOperationalSummary();
-                }
-            }
-        } catch (e) {
-            console.warn('Failed to load tracking from cloud:', e);
-            dashboardTrackingSummary = null;
-            dashboardTrackingSummaryState = 'error';
-            if (document.getElementById('page-history-dashboard')?.classList.contains('active-page')) {
-                renderDashboardOperationalSummary();
-            }
-        }
-    }
-
-    async function stopGPSTracking() {
-        if (gpsWatchId) {
-            navigator.geolocation.clearWatch(gpsWatchId);
-            gpsWatchId = null;
-        }
-
-        trackingActive = false;
-        trackingPaused = false;
-
-        // Update UI
-        startTrackingBtnGPS.disabled = false;
-        stopTrackingBtnGPS.disabled = true;
-        pauseTrackingBtnGPS.disabled = true;
-
-        gpsStatus.textContent = '⏹️ GPS tracking stopped';
-        gpsStatus.style.backgroundColor = '#f1f5f9';
-        gpsStatus.style.color = '#475569';
-
-        tripStatus.textContent = 'Completed';
-        tripStatus.className = 'performance-value excellent';
-
-        // Save final summary to cloud
-        if (window.FirebaseApp && window.FirebaseApp.gps) {
-            try {
-                const endTime = new Date();
-                const durationMinutes = tripStartTime ? Math.round((endTime - tripStartTime) / 60000) : 0;
-
-                await window.FirebaseApp.gps.updateSummary({
-                    endTime: endTime.toISOString(),
-                    totalPoints: trackedRoutePath.length,
-                    totalDistanceKm: totalDistanceKm.toFixed(2),
-                    durationMinutes: durationMinutes,
-                    isActive: false,
-                    completedStops: currentStopIndex,
-                    totalStops: routeStops.length
-                });
-
-                gpsStatus.textContent = '☁️ Route saved to tracking storage';
-            } catch (e) {
-                console.warn('Failed to save final summary to cloud:', e);
-            }
-        }
-
-        calculateFinalPerformance();
-    }
-
-    function pauseGPSTracking() {
-        trackingPaused = !trackingPaused;
-        
-        if (trackingPaused) {
-            pauseTrackingBtnGPS.innerHTML = '<span>▶️</span> Resume';
-            gpsStatus.textContent = '⏸️ GPS tracking paused';
-            gpsStatus.style.backgroundColor = '#fef3c7';
-            gpsStatus.style.color = '#92400e';
-            tripStatus.textContent = 'Paused';
-            tripStatus.className = 'performance-value average';
-        } else {
-            pauseTrackingBtnGPS.innerHTML = '<span>⏸️</span> Pause';
-            gpsStatus.textContent = '🛰️ GPS tracking resumed';
-            gpsStatus.style.backgroundColor = '#dcfce7';
-            gpsStatus.style.color = '#166534';
-            tripStatus.textContent = 'In Progress';
-            tripStatus.className = 'performance-value good';
-        }
-    }
-
-    // Store tracked route path for drawing
-    let trackedRoutePath = [];
-    let drivenRouteLine = null;
-    let lastSavedTime = 0;
-    let totalDistanceKm = 0;
-
-    function handlePositionUpdate(position) {
-        if (!trackingActive || trackingPaused) return;
-
-        const newPosition = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            speed: position.coords.speed,
-            heading: position.coords.heading,
-            timestamp: new Date()
-        };
-
-        // Calculate distance from last position
-        if (currentPosition) {
-            const dist = calculateDistance(
-                currentPosition.lat, currentPosition.lng,
-                newPosition.lat, newPosition.lng
-            );
-            totalDistanceKm += dist;
-        }
-
-        currentPosition = newPosition;
-
-        // Add to tracked path
-        trackedRoutePath.push({ lat: newPosition.lat, lng: newPosition.lng });
-
-        // Update coordinates display
-        currentCoords.textContent = `${currentPosition.lat.toFixed(6)}, ${currentPosition.lng.toFixed(6)} (±${currentPosition.accuracy.toFixed(0)}m)`;
-
-        // Update map marker and route line
-        updateCurrentLocationMarker();
-        updateDrivenRouteLine();
-
-        // Check for arrival at stops
-        checkStopArrivals();
-
-        // Update performance metrics
-        updatePerformanceMetrics();
-
-        // Save to Firebase (every 10 seconds to avoid too many writes)
-        const now = Date.now();
-        if (now - lastSavedTime > 10000) {
-            saveGPSPointToCloud(newPosition);
-            lastSavedTime = now;
-        }
-    }
-
-    // Save GPS point to Firebase
-    async function saveGPSPointToCloud(position) {
-        if (window.FirebaseApp && window.FirebaseApp.gps) {
-            try {
-                await window.FirebaseApp.gps.savePoint({
-                    lat: position.lat,
-                    lng: position.lng,
-                    accuracy: position.accuracy,
-                    speed: position.speed,
-                    heading: position.heading
-                });
-
-                // Update summary
-                await window.FirebaseApp.gps.updateSummary({
-                    totalPoints: trackedRoutePath.length,
-                    totalDistanceKm: totalDistanceKm.toFixed(2),
-                    startTime: tripStartTime ? tripStartTime.toISOString() : null,
-                    isActive: trackingActive,
-                    lastUpdate: new Date().toISOString()
-                });
-            } catch (e) {
-                console.warn('Failed to save GPS point to cloud:', e);
-            }
-        }
-    }
-
-    // Draw the driven route line on map
-    function updateDrivenRouteLine() {
-        if (!mapGPSTracking || trackedRoutePath.length < 2) return;
-
-        if (drivenRouteLine) {
-            drivenRouteLine.setPath(trackedRoutePath);
-        } else {
-            drivenRouteLine = MapHandler.createPolyline({
-                path: trackedRoutePath,
-                geodesic: true,
-                strokeColor: '#10b981',
-                strokeOpacity: 0.8,
-                strokeWeight: 4,
-                map: mapGPSTracking
-            });
-        }
-    }
-
-    // Calculate distance between two points (in km)
-    function calculateDistance(lat1, lng1, lat2, lng2) {
-        const R = 6371; // Earth's radius in km
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLng = (lng2 - lng1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                  Math.sin(dLng/2) * Math.sin(dLng/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    }
-
-    function handlePositionError(error) {
-        let errorMessage = 'GPS Error: ';
-        switch(error.code) {
-            case error.PERMISSION_DENIED:
-                errorMessage += 'Location access denied by user.';
-                break;
-            case error.POSITION_UNAVAILABLE:
-                errorMessage += 'Location information is unavailable.';
-                break;
-            case error.TIMEOUT:
-                errorMessage += 'Location request timed out.';
-                break;
-            default:
-                errorMessage += 'An unknown error occurred.';
-                break;
-        }
-        
-        gpsStatus.textContent = '❌ ' + errorMessage;
-        gpsStatus.style.backgroundColor = '#fee2e2';
-        gpsStatus.style.color = '#991b1b';
-    }
-
-    let isFirstLocationUpdate = true; // Track if this is the first location update
-
-    function updateCurrentLocationMarker() {
-        if (!mapGPSTracking || !currentPosition) return;
-
-        // Create larger, more visible current location marker with pulsing effect
-        const currentLocationSVG = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-                <circle cx="20" cy="20" r="18" fill="rgba(59, 130, 246, 0.2)" stroke="none">
-                    <animate attributeName="r" values="10;18;10" dur="2s" repeatCount="indefinite"/>
-                    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite"/>
-                </circle>
-                <circle cx="20" cy="20" r="12" fill="#3b82f6" stroke="#ffffff" stroke-width="3"/>
-                <circle cx="20" cy="20" r="5" fill="#ffffff"/>
-            </svg>
-        `;
-
-        if (currentLocationMarker) {
-            currentLocationMarker.setPosition(currentPosition);
-        } else {
-            currentLocationMarker = MapHandler.createMarker({
-                position: currentPosition,
-                map: mapGPSTracking,
-                title: 'Your Current Location',
-                icon: {
-                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(currentLocationSVG),
-                    scaledSize: MapHandler.createSize(40, 40),
-                    anchor: MapHandler.createPoint(20, 20)
-                },
-                zIndex: 9999 // Ensure it's always on top
-            });
-        }
-
-        // Only auto-center on first location update, then user controls the map
-        if (isFirstLocationUpdate) {
-            MapHandler.panTo(mapGPSTracking, currentPosition);
-            MapHandler.setZoom(mapGPSTracking, 15);
-            isFirstLocationUpdate = false;
-        }
-    }
-
-    // Center map on current location (called by Locate Me button)
-    function centerOnCurrentLocation() {
-        if (!mapGPSTracking || !currentPosition) {
-            alert('Current location not available yet');
-            return;
-        }
-        MapHandler.panTo(mapGPSTracking, currentPosition);
-        MapHandler.setZoom(mapGPSTracking, 16);
-    }
-
-    function checkStopArrivals() {
-        if (!currentPosition || routeStops.length === 0) return;
-
-        // Determine arrival radius based on GPS accuracy
-        // If GPS accuracy is poor (>100m), use larger radius
-        const gpsAccuracy = currentPosition.accuracy || 50;
-        const baseArrivalRadius = 150; // meters - base radius for arrival detection
-        const nearbyRadius = 300; // meters - radius for "nearby" notification
-
-        // Adjust radius based on GPS accuracy (min 150m, max 500m)
-        const arrivalRadius = Math.min(500, Math.max(baseArrivalRadius, gpsAccuracy + 50));
-
-        console.log(`GPS accuracy: ${gpsAccuracy}m, Using arrival radius: ${arrivalRadius}m`);
-
-        // Check ALL stops (not just current one) - driver might not arrive in sequence
-        routeStops.forEach((stop, index) => {
-            if (stop.status === 'arrived') return; // Skip already arrived stops
-
-            // Calculate distance to this stop
-            if (!stop.lat || !stop.lng) {
-                stop.distanceFromCurrent = null;
-                return; // Skip if no coordinates
-            }
-
-            const stopPosition = { lat: stop.lat, lng: stop.lng };
-            const distance = calculateDistanceMeters(currentPosition, stopPosition);
-            stop.distanceFromCurrent = distance;
-
-            // Check for arrival - within arrival radius
-            if (distance <= arrivalRadius) {
-                console.log(`✅ Arrived at stop ${index + 1}: ${stop.name} (${Math.round(distance)}m away)`);
-                markStopAsArrived(index);
-            }
-            // Check for nearby - within nearby radius but not arrived
-            else if (distance <= nearbyRadius && stop.status !== 'nearby') {
-                console.log(`📍 Approaching stop ${index + 1}: ${stop.name} (${Math.round(distance)}m away)`);
-                stop.status = 'nearby';
-                updateStopMarker(index); // Update marker to orange
-                // Show notification
-                if (gpsStatus) {
-                    gpsStatus.textContent = `📍 Approaching: ${stop.name} (${Math.round(distance)}m)`;
-                    gpsStatus.style.backgroundColor = '#fef3c7';
-                    gpsStatus.style.color = '#92400e';
-                }
-            }
-            // Reset nearby status if moved away
-            else if (distance > nearbyRadius && stop.status === 'nearby') {
-                stop.status = 'pending';
-                updateStopMarker(index); // Update marker back to red
-            }
-        });
-
-        // Update the display
-        updateRouteDisplay();
-
-        // Check if all stops completed — highlight Finish button
-        const allCompleted = routeStops.length > 0 && routeStops.every(s => s.status === 'arrived');
-        const finishBtn = document.getElementById('finishTrackingBtn');
-        if (finishBtn && trackingActive) {
-            if (allCompleted) {
-                finishBtn.classList.add('all-complete');
-                finishBtn.textContent = '🏁 All Done! Finish & Report';
-                gpsStatus.textContent = '🎉 All stops visited! Press Finish to generate KPI report.';
-                gpsStatus.style.backgroundColor = '#dcfce7';
-                gpsStatus.style.color = '#166534';
-            }
-        }
-    }
-
-    // Calculate distance between two position objects (in meters)
-    function calculateDistanceMeters(pos1, pos2) {
-        const R = 6371e3; // Earth's radius in meters
-        const φ1 = pos1.lat * Math.PI/180;
-        const φ2 = pos2.lat * Math.PI/180;
-        const Δφ = (pos2.lat-pos1.lat) * Math.PI/180;
-        const Δλ = (pos2.lng-pos1.lng) * Math.PI/180;
-
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-        return R * c; // Distance in meters
-    }
-
-    function markStopAsArrived(stopIndex) {
-        if (stopIndex >= routeStops.length) return;
-
-        const stop = routeStops[stopIndex];
-        if (stop.status === 'arrived') return;
-
-        stop.status = 'arrived';
-        stop.actualArrival = new Date();
-
-        arrivalTimes.push({
-            stopId: stop.id,
-            stopName: stop.name,
-            estimatedArrival: stop.estimatedArrival,
-            actualArrival: stop.actualArrival,
-            timeDifference: calculateTimeDifference(stop.estimatedArrival, stop.actualArrival)
-        });
-
-        // Show arrival notification
-        if (gpsStatus) {
-            gpsStatus.textContent = `✅ Arrived at: ${stop.name}`;
-            gpsStatus.style.backgroundColor = '#dcfce7';
-            gpsStatus.style.color = '#166534';
-        }
-
-        // Update currentStopIndex to next non-arrived stop
-        // This handles out-of-sequence arrivals
-        while (currentStopIndex < routeStops.length && routeStops[currentStopIndex].status === 'arrived') {
-            currentStopIndex++;
-        }
-
-        updateRouteDisplay();
-        updateStopMarker(stopIndex);
-
-        // Check if all stops completed
-        const allArrivedCount = routeStops.filter(s => s.status === 'arrived').length;
-        if (allArrivedCount >= routeStops.length) {
-            gpsStatus.textContent = '🎉 All stops completed!';
-            gpsStatus.style.backgroundColor = '#dcfce7';
-            gpsStatus.style.color = '#166534';
-            // Don't auto-stop tracking - driver might want to continue recording route
-        }
-
-        // Update performance metrics
-        updatePerformanceMetrics();
-    }
-
-    function calculateTimeDifference(estimated, actual) {
-        if (!estimated || !actual) return null;
-        
-        // Parse estimated time if it's a string
-        let estTime;
-        if (typeof estimated === 'string') {
-            // Handle time strings like "14:30" or "2:30 PM"
-            const today = new Date();
-            const [hours, minutes] = estimated.split(':');
-            estTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 
-                            parseInt(hours), parseInt(minutes));
-        } else {
-            estTime = estimated;
-        }
-        
-        return Math.round((actual - estTime) / (1000 * 60)); // Difference in minutes
-    }
-
-    function updateRouteDisplay() {
-        const completed = routeStops.filter(s => s.status === 'arrived').length;
-        completedStops.textContent = completed;
-        totalStops.textContent = routeStops.length;
-        
-        const progress = routeStops.length > 0 ? (completed / routeStops.length) * 100 : 0;
-        progressFill.style.width = progress + '%';
-
-        // Update stops list
-        updateStopsList();
-    }
-
-    function updateStopsList() {
-        if (routeStops.length === 0) {
-            stopsList.innerHTML = '<p class="no-route-message">No route loaded. Import a route to begin tracking.</p>';
-            return;
-        }
-
-        const stopsHTML = routeStops.map((stop, index) => {
-            const isCurrent = index === currentStopIndex && stop.status !== 'arrived';
-            const isNearby = stop.status === 'nearby';
-
-            let statusClass = 'pending';
-            let statusText = 'PENDING';
-
-            if (stop.status === 'arrived') {
-                statusClass = 'arrived';
-                statusText = 'ARRIVED';
-            } else if (isNearby) {
-                statusClass = 'nearby';
-                statusText = 'NEARBY';
-            } else if (isCurrent) {
-                statusClass = 'current';
-                statusText = 'NEXT';
-            }
-
-            let arrivalInfo = '';
-            if (stop.actualArrival) {
-                arrivalInfo = `<br><small>Arrived: ${formatRegionalTime(stop.actualArrival)}</small>`;
-            } else if (stop.estimatedArrival) {
-                arrivalInfo = `<br><small>Est: ${stop.estimatedArrival}</small>`;
-            }
-
-            // Show distance for non-arrived stops
-            if (stop.distanceFromCurrent && stop.status !== 'arrived') {
-                const distStr = stop.distanceFromCurrent >= 1000
-                    ? `${(stop.distanceFromCurrent / 1000).toFixed(1)} km`
-                    : `${Math.round(stop.distanceFromCurrent)} m`;
-                arrivalInfo += `<br><small style="color: ${isNearby ? '#f59e0b' : '#64748b'};">📍 ${distStr} away</small>`;
-            }
-
-            return `
-                <div class="stop-item ${statusClass}">
-                    <div class="stop-info">
-                        <div class="stop-name">${index + 1}. ${stop.name}</div>
-                        <div class="stop-address">${stop.address}${arrivalInfo}</div>
-                    </div>
-                    <div class="stop-status ${statusClass}">${statusText}</div>
-                </div>
-            `;
-        }).join('');
-
-        stopsList.innerHTML = stopsHTML;
-    }
-
-    // Geocode stops that don't have coordinates
-    async function geocodeStopsAndDisplay() {
-        if (!MapHandler.isReady()) {
-            console.warn('Google Maps not loaded, skipping geocoding');
-            displayStopsOnMap();
-            return;
-        }
-
-        const geocoder = MapHandler.initGeocoder();
-        const stopsToGeocode = routeStops.filter(stop => !stop.lat || !stop.lng);
-
-        if (stopsToGeocode.length === 0) {
-            console.log('All stops have coordinates, displaying on map');
-            displayStopsOnMap();
-            return;
-        }
-
-        console.log(`Geocoding ${stopsToGeocode.length} stops...`);
-        gpsStatus.textContent = `📍 Getting coordinates for ${stopsToGeocode.length} stops...`;
-
-        // Geocode each stop sequentially to avoid rate limiting
-        for (const stop of stopsToGeocode) {
-            if (stop.address) {
-                try {
-                    const result = await new Promise((resolve, reject) => {
-                        MapHandler.geocode(geocoder, { address: stop.address }, (results, status) => {
-                            if (status === 'OK' && results[0]) {
-                                resolve(results[0]);
-                            } else {
-                                reject(new Error(`Geocode failed: ${status}`));
-                            }
-                        });
-                    });
-
-                    stop.lat = result.geometry.location.lat();
-                    stop.lng = result.geometry.location.lng();
-                    console.log(`✅ Geocoded: ${stop.name} -> ${stop.lat}, ${stop.lng}`);
-                } catch (e) {
-                    console.warn(`Failed to geocode ${stop.name}: ${e.message}`);
-                }
-
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
-        }
-
-        const geocodedCount = routeStops.filter(s => s.lat && s.lng).length;
-        console.log(`Geocoding complete: ${geocodedCount}/${routeStops.length} stops have coordinates`);
-
-        gpsStatus.textContent = `✅ Loaded ${routeStops.length} stops`;
-        gpsStatus.style.backgroundColor = '#dcfce7';
-        gpsStatus.style.color = '#166534';
-
-        displayStopsOnMap();
-    }
-
-    // Planned route polyline (fallback for when DirectionsService fails)
-    let plannedRouteLine = null;
-
-    function displayStopsOnMap() {
-        if (!mapGPSTracking) return;
-
-        // Clear existing markers
-        MapHandler.clearCluster(stopMarkerCluster);
-        stopMarkerCluster = null;
-        stopMarkers.forEach((marker) => clearMapMarker(marker));
-        stopMarkers = [];
-
-        // Clear existing planned route line (polyline fallback)
-        if (plannedRouteLine) {
-            MapHandler.clearRendererMap(plannedRouteLine);
-            plannedRouteLine = null;
-        }
-
-        // Clear existing DirectionsRenderer route
-        if (gpsDirectionsRenderer) {
-            MapHandler.setDirections(gpsDirectionsRenderer, { routes: [] });
-        }
-
-        const bounds = MapHandler.createLatLngBounds();
-        const routePath = []; // For fetching actual road route
-
-        const coordinateUseCounts = new Map();
-
-        routeStops.forEach((stop, index) => {
-            const routePosition = getLatLngLiteral({ lat: stop.lat, lng: stop.lng });
-            const position = getJitteredMarkerPosition(routePosition, coordinateUseCounts);
-            const stopNo = stop.stopNo || index + 1;
-
-            if (routePosition && position) {
-                routePath.push(routePosition);
-
-                console.log(
-                    "Rendering marker",
-                    stopNo,
-                    stop.name,
-                    position.lat,
-                    position.lng
-                );
-
-                // Determine marker color based on status
-                let iconUrl = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'; // Default: pending
-                if (stop.status === 'arrived') {
-                    iconUrl = 'https://maps.google.com/mapfiles/ms/icons/green-dot.png';
-                } else if (stop.status === 'nearby') {
-                    iconUrl = 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png';
-                } else if (index === currentStopIndex) {
-                    iconUrl = 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
-                }
-
-                const marker = MapHandler.createMarker({
-                    position: position,
-                    map: mapGPSTracking,
-                    title: `${stopNo}. ${stop.name}`,
-                    label: {
-                        text: String(stopNo),
-                        color: 'white',
-                        fontWeight: 'bold'
-                    },
-                    icon: {
-                        url: iconUrl
-                    }
-                });
-                if (marker) marker.id = `${stopNo}_${index}`;
-
-                // Add click listener to show stop info
-                MapHandler.addObjectListener(marker, 'click', () => {
-                    const infoWindow = MapHandler.createInfoWindow({
-                        content: `
-                            <div style="padding: 5px;">
-                                <strong>${stopNo}. ${stop.name}</strong><br>
-                                <small>${stop.address}</small><br>
-                                <span style="color: ${stop.status === 'arrived' ? 'green' : stop.status === 'nearby' ? 'orange' : 'gray'};">
-                                    ${stop.status === 'arrived' ? '✅ Arrived' : stop.status === 'nearby' ? '📍 Nearby' : '⏳ Pending'}
-                                </span>
-                            </div>
-                        `
-                    });
-                    MapHandler.openInfoWindow(infoWindow, mapGPSTracking, marker);
-                });
-
-                stopMarkers[index] = marker;
-                MapHandler.extendBounds(bounds, position);
-            }
-        });
-        const renderedStopMarkers = stopMarkers.filter(Boolean);
-        console.log(
-            "Expected markers:",
-            routeStops.length,
-            "Rendered markers:",
-            renderedStopMarkers.length
-        );
-        if (routeStops.length !== renderedStopMarkers.length) {
-            console.warn("Marker count mismatch detected", {
-                expected: routeStops.length,
-                rendered: renderedStopMarkers.length
-            });
-            if (typeof showToast === 'function') {
-                showToast('Marker count mismatch detected', 'warning', 4200);
-            }
-        }
-        MapHandler.applyMarkerCluster(mapGPSTracking, renderedStopMarkers).then((cluster) => {
-            stopMarkerCluster = cluster;
-        });
-
-        // Display planned route line — reuse stored directionsResult (same as Maps Preview)
-        const validRoutes = (window.plannedRoutes || AppState.plannedRoutes || []).filter(r => r && r.directionsResult);
-
-        // Clear previous route renderers
-        if (gpsDirectionsRenderer) MapHandler.setDirections(gpsDirectionsRenderer, { routes: [] });
-        if (gpsDirectionsRenderer2) MapHandler.setDirections(gpsDirectionsRenderer2, { routes: [] });
-
-        if (validRoutes.length > 0 && gpsDirectionsRenderer) {
-            // Route 1
-            const route1 = validRoutes.find(r => r.id === 1) || validRoutes[0];
-            if (route1) {
-                MapHandler.setDirections(gpsDirectionsRenderer, route1.directionsResult);
-                console.log('✅ Route 1 displayed from stored directionsResult');
-            }
-            // Route 2
-            const route2 = validRoutes.find(r => r.id === 2);
-            if (route2 && gpsDirectionsRenderer2) {
-                MapHandler.setDirections(gpsDirectionsRenderer2, route2.directionsResult);
-                console.log('✅ Route 2 displayed from stored directionsResult');
-            }
-        } else if (routePath.length >= 2 && gpsDirectionsService) {
-            // Fallback: fetch route if no stored directionsResult (e.g. cloud-loaded routes)
-            fetchAndDisplayRoadRoute(routePath);
-        } else if (routePath.length >= 2) {
-            // Last fallback: simple polyline
-            plannedRouteLine = MapHandler.createPolyline({
-                path: routePath,
-                geodesic: true,
-                strokeColor: '#3b82f6',
-                strokeOpacity: 0.8,
-                strokeWeight: 4,
-                map: mapGPSTracking
-            });
-        }
-
-        if (!bounds.isEmpty()) {
-            MapHandler.fitBounds(mapGPSTracking, bounds);
-
-            // Don't zoom in too much for few stops
-            const listener = MapHandler.addListener(mapGPSTracking, 'idle', () => {
-                if (MapHandler.getZoom(mapGPSTracking) > 16) {
-                    MapHandler.setZoom(mapGPSTracking, 16);
-                }
-                MapHandler.removeListener(listener);
-            });
-        }
-    }
-
-    // Fetch actual road route using DirectionsService and display with DirectionsRenderer
-    async function fetchAndDisplayRoadRoute(routePath) {
-        if (routePath.length < 2) return;
-
-        try {
-            console.log('🛣️ Fetching actual road route for GPS tracking...');
-
-            // Google Directions API has a limit of 25 waypoints per request
-            // For routes with more stops, we need to split into multiple requests
-            const maxWaypoints = 23; // Leave room for origin and destination
-
-            if (routePath.length <= maxWaypoints + 2) {
-                // Single request can handle the route
-                const origin = routePath[0];
-                const destination = routePath[routePath.length - 1];
-                const waypoints = routePath.slice(1, -1).map(pos => ({
-                    location: pos,
-                    stopover: true
-                }));
-
-                const result = await MapHandler.route(gpsDirectionsService, {
-                    origin: origin,
-                    destination: destination,
-                    waypoints: waypoints,
-                    optimizeWaypoints: false, // Keep the planned order
-                    travelMode: MapHandler.travelModeDriving()
-                });
-
-                MapHandler.setDirections(gpsDirectionsRenderer, result);
-                console.log('✅ Road route displayed on GPS tracking map');
-            } else {
-                // Multiple requests needed - fall back to polyline for simplicity
-                console.log('📍 Route too long for single request, using polyline');
-                plannedRouteLine = MapHandler.createPolyline({
-                    path: routePath,
-                    geodesic: true,
-                    strokeColor: '#3b82f6',
-                    strokeOpacity: 0.8,
-                    strokeWeight: 4,
-                    map: mapGPSTracking
-                });
-            }
-        } catch (error) {
-            console.warn('Failed to fetch road route, using polyline fallback:', error);
-            // Fallback to simple polyline
-            plannedRouteLine = MapHandler.createPolyline({
-                path: routePath,
-                geodesic: true,
-                strokeColor: '#3b82f6',
-                strokeOpacity: 0.8,
-                strokeWeight: 4,
-                map: mapGPSTracking
-            });
-        }
-    }
-
-    function updateStopMarker(stopIndex) {
-        if (stopMarkers[stopIndex]) {
-            const stop = routeStops[stopIndex];
-            let iconUrl = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
-
-            if (stop && stop.status === 'arrived') {
-                iconUrl = 'https://maps.google.com/mapfiles/ms/icons/green-dot.png';
-            } else if (stop && stop.status === 'nearby') {
-                iconUrl = 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png';
-            } else if (stopIndex === currentStopIndex) {
-                iconUrl = 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
-            }
-
-            stopMarkers[stopIndex].setIcon({ url: iconUrl });
-        }
-    }
-
-    // Update all stop markers based on their current status
-    function updateAllStopMarkers() {
-        routeStops.forEach((stop, index) => {
-            updateStopMarker(index);
-        });
-    }
-
-    function updatePerformanceMetrics() {
-        // Always update distance traveled
-        if (fuelEfficiency) {
-            fuelEfficiency.textContent = `${totalDistanceKm.toFixed(1)} km`;
-            fuelEfficiency.className = 'performance-value good';
-        }
-
-        // Update elapsed time
-        if (tripStartTime && tripStatus) {
-            const elapsed = Math.round((new Date() - tripStartTime) / 60000);
-            const hours = Math.floor(elapsed / 60);
-            const mins = elapsed % 60;
-            if (hours > 0) {
-                timeEfficiency.textContent = `${hours}h ${mins}m`;
-            } else {
-                timeEfficiency.textContent = `${mins} min`;
-            }
-            timeEfficiency.className = 'performance-value good';
-        }
-
-        if (!trackingActive || arrivalTimes.length === 0) return;
-
-        // Calculate time efficiency for stops
-        const onTimeArrivals = arrivalTimes.filter(a =>
-            a.timeDifference !== null && Math.abs(a.timeDifference) <= 10
-        ).length;
-        const efficiencyPercent = (onTimeArrivals / arrivalTimes.length) * 100;
-
-        if (performanceRating) {
-            performanceRating.textContent = `${efficiencyPercent.toFixed(0)}%`;
-
-            if (efficiencyPercent >= 80) {
-                performanceRating.className = 'performance-value excellent';
-            } else if (efficiencyPercent >= 60) {
-                performanceRating.className = 'performance-value good';
-            } else if (efficiencyPercent >= 40) {
-                performanceRating.className = 'performance-value average';
-            } else {
-                performanceRating.className = 'performance-value poor';
-            }
-        }
-    }
-
-    function calculateFinalPerformance() {
-        const completedStopsCount = routeStops.filter(s => s.status === 'arrived').length;
-        const totalStopsCount = routeStops.length || 1; // Avoid division by zero
-        const completionRate = (completedStopsCount / totalStopsCount) * 100;
-
-        // Calculate time saved/lost
-        const avgTimeDiff = arrivalTimes.length > 0
-            ? arrivalTimes.reduce((sum, a) => sum + (a.timeDifference || 0), 0) / arrivalTimes.length
-            : 0;
-
-        // Show distance traveled instead of fuel saved
-        if (totalDistanceKm > 0) {
-            fuelEfficiency.textContent = `${totalDistanceKm.toFixed(1)} km`;
-        } else {
-            fuelEfficiency.textContent = '0.0 km';
-        }
-        
-        // Determine performance rating
-        let rating = 'Standard';
-        let ratingClass = 'average';
-        
-        if (completionRate === 100 && avgTimeDiff <= -10) {
-            rating = 'Superb Performance';
-            ratingClass = 'excellent';
-        } else if (completionRate >= 90 && avgTimeDiff <= 5) {
-            rating = 'Meet Expectation';
-            ratingClass = 'good';
-        } else if (completionRate >= 70 && avgTimeDiff <= 15) {
-            rating = 'Standard';
-            ratingClass = 'average';
-        } else if (completionRate >= 50) {
-            rating = 'Under Expected';
-            ratingClass = 'poor';
-        } else {
-            rating = 'Poor Performance';
-            ratingClass = 'poor';
-        }
-        
-        performanceRating.textContent = rating;
-        performanceRating.className = `performance-value ${ratingClass}`;
-        
-        fuelEfficiency.className = `performance-value ${ratingClass}`;
-    }
-
-    // Event Listeners for GPS Tracking
-    startTrackingBtnGPS?.addEventListener('click', startGPSTracking);
-    stopTrackingBtnGPS?.addEventListener('click', stopGPSTracking);
-    pauseTrackingBtnGPS?.addEventListener('click', pauseGPSTracking);
-
-    // Locate Me button
-    document.getElementById('locateMeBtn')?.addEventListener('click', centerOnCurrentLocation);
-
-    // Finish & Report button
-    document.getElementById('finishTrackingBtn')?.addEventListener('click', async () => {
-        await stopGPSTracking();
-        showKPIReport();
-    });
-
-    // Initialize GPS map when page is shown
-    function initGPSPageIfNeeded() {
-        if (document.getElementById('page-gps-tracking').classList.contains('active-page')) {
-            if (!mapGPSTracking) {
-                gpsPageInitTimeoutId = setTimeout(() => {
-                    gpsPageInitTimeoutId = null;
-                    initGPSTrackingMap();
-                }, 100);
-            }
-        }
-    }
-
     // === Add Stop Page Functionality ===
     let mapAddStop = null;
     let addStopMarker = null;
@@ -13430,6 +10216,19 @@
             return;
         }
         delete stopData.constraintErrors;
+
+        if (!isEditing) {
+            // Manual add had no duplicate check (import has one): ask before saving the same name and address twice.
+            const sameText = (value) => String(value || '').trim().toLowerCase();
+            const alreadySaved = allCustomerEntries.some((entry) => sameText(entry.Name) === sameText(stopName)
+                && normalizeStopAddress(entry.Address || '') === normalizeStopAddress(stopAddress));
+            if (alreadySaved && !confirm(`"${stopName}" is already saved with this address. Save another copy anyway?`)) {
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'add-stop-status error';
+                statusDiv.textContent = 'Not saved: this customer and address already exist.';
+                return;
+            }
+        }
 
         if (!isEditing) {
             const customerLimitStatus = getUsageStatus('customers');
@@ -14149,6 +10948,8 @@
             address: row.address,
             unit: row.unit,
             note: row.note,
+            // The Postal Code column was read into the preview but dropped here, so it was never saved.
+            ...(row.postalCode ? { postalCode: row.postalCode } : {}),
             lat: row.lat,
             lng: row.lng
         });
@@ -14402,204 +11203,13 @@
     }
 
     // === KPI Performance Report ===
-    function showKPIReport() {
-        if (!promptForProductFeatureAccess('kpiPrintSummary', {
-            message: 'KPI reporting is available on ProPlan for teams that need performance review and printable summaries.'
-        })) {
-            return;
-        }
-        const modal = document.getElementById('kpiReportModal');
-        const body = document.getElementById('kpiReportBody');
-        if (!modal || !body) return;
 
-        const driverName = localStorage.getItem('bjsUsername') || 'Unknown Driver';
-        const reportDate = new Date();
-        const dateStr = formatRegionalDate(reportDate, {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-
-        const completedCount = routeStops.filter(s => s.status === 'arrived').length;
-        const totalCount = routeStops.length;
-        const completionRate = totalCount > 0 ? ((completedCount / totalCount) * 100).toFixed(0) : 0;
-
-        // Time elapsed
-        let elapsedStr = 'N/A';
-        let durationMinutes = 0;
-        if (tripStartTime) {
-            durationMinutes = Math.round((reportDate - tripStartTime) / 60000);
-            const hours = Math.floor(durationMinutes / 60);
-            const mins = durationMinutes % 60;
-            elapsedStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
-        }
-
-        const startTimeStr = tripStartTime
-            ? formatRegionalTime(tripStartTime)
-            : 'N/A';
-        const endTimeStr = formatRegionalTime(reportDate);
-
-        // On-time calculation
-        const onTimeCount = arrivalTimes.filter(a =>
-            a.timeDifference !== null && a.timeDifference <= 10
-        ).length;
-        const onTimePercent = arrivalTimes.length > 0
-            ? ((onTimeCount / arrivalTimes.length) * 100).toFixed(0)
-            : '--';
-
-        // Average time variance
-        const avgTimeDiff = arrivalTimes.length > 0
-            ? arrivalTimes.reduce((sum, a) => sum + (a.timeDifference || 0), 0) / arrivalTimes.length
-            : 0;
-
-        // Overall rating
-        let rating = 'Standard';
-        let ratingClass = 'average';
-        const cr = parseFloat(completionRate);
-        if (cr === 100 && avgTimeDiff <= 5) { rating = 'Excellent Performance'; ratingClass = 'excellent'; }
-        else if (cr >= 90 && avgTimeDiff <= 10) { rating = 'Good Performance'; ratingClass = 'good'; }
-        else if (cr >= 70) { rating = 'Standard'; ratingClass = 'average'; }
-        else { rating = 'Needs Improvement'; ratingClass = 'poor'; }
-
-        // Build stop rows
-        let stopRowsHTML = '';
-        routeStops.forEach((stop, index) => {
-            const arrivalData = arrivalTimes.find(a => a.stopName === stop.name);
-            const estTime = stop.estimatedArrival || '--';
-            const actTime = stop.actualArrival
-                ? formatRegionalTime(stop.actualArrival)
-                : '--';
-
-            let timeDiffStr = '--';
-            let timeDiffClass = '';
-            if (arrivalData && arrivalData.timeDifference !== null) {
-                const diff = arrivalData.timeDifference;
-                if (diff <= -5) { timeDiffStr = `${Math.abs(Math.round(diff))} min early`; timeDiffClass = 'kpi-early'; }
-                else if (diff <= 10) { timeDiffStr = 'On time'; timeDiffClass = 'kpi-on-time'; }
-                else { timeDiffStr = `${Math.round(diff)} min late`; timeDiffClass = 'kpi-late'; }
-            }
-
-            const statusIcon = stop.status === 'arrived' ? 'Arrived' : 'Missed';
-            const statusClass = stop.status === 'arrived' ? 'kpi-on-time' : 'kpi-missed';
-
-            stopRowsHTML += `<tr>
-                <td>${index + 1}</td>
-                <td>${stop.name}</td>
-                <td>${estTime}</td>
-                <td>${actTime}</td>
-                <td class="${timeDiffClass}">${timeDiffStr}</td>
-                <td class="${statusClass}">${statusIcon}</td>
-            </tr>`;
-        });
-
-        body.innerHTML = `
-            <div class="kpi-report-header">
-                <h2>GoRouteX — KPI Performance Report</h2>
-                <p style="color:#64748b; margin:0; font-size:0.9rem;">${dateStr}</p>
-            </div>
-
-            <div class="kpi-driver-info">
-                <div><strong>Driver:</strong> ${driverName}</div>
-                <div><strong>Start:</strong> ${startTimeStr}</div>
-                <div><strong>End:</strong> ${endTimeStr}</div>
-            </div>
-
-            <div class="kpi-summary-grid">
-                <div class="kpi-summary-card">
-                    <div class="kpi-value">${completedCount}/${totalCount}</div>
-                    <div class="kpi-label">Stops Completed</div>
-                </div>
-                <div class="kpi-summary-card">
-                    <div class="kpi-value">${totalDistanceKm.toFixed(1)} km</div>
-                    <div class="kpi-label">Distance Driven</div>
-                </div>
-                <div class="kpi-summary-card">
-                    <div class="kpi-value">${elapsedStr}</div>
-                    <div class="kpi-label">Total Time</div>
-                </div>
-                <div class="kpi-summary-card">
-                    <div class="kpi-value">${completionRate}%</div>
-                    <div class="kpi-label">Completion Rate</div>
-                </div>
-                <div class="kpi-summary-card">
-                    <div class="kpi-value">${onTimePercent}${onTimePercent !== '--' ? '%' : ''}</div>
-                    <div class="kpi-label">On-Time Rate</div>
-                </div>
-                <div class="kpi-summary-card">
-                    <div class="kpi-value">${avgTimeDiff > 0 ? '+' : ''}${avgTimeDiff.toFixed(0)} min</div>
-                    <div class="kpi-label">Avg Variance</div>
-                </div>
-            </div>
-
-            <h3 style="margin:15px 0 8px; color:#1e293b; font-size:1rem;">Stop-by-Stop Details</h3>
-            <table class="kpi-stops-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Stop Name</th>
-                        <th>ETA</th>
-                        <th>Actual</th>
-                        <th>Variance</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${stopRowsHTML}
-                </tbody>
-            </table>
-
-            <div class="kpi-overall-rating kpi-rating-${ratingClass}">
-                Overall Rating: ${rating}
-            </div>
-        `;
-
-        modal.style.display = 'flex';
-    }
-
-    function closeKPIReport() {
-        document.getElementById('kpiReportModal').style.display = 'none';
-    }
-
-    function printKPIReport() {
-        if (!promptForProductFeatureAccess('kpiPrintSummary', {
-            message: 'Printable KPI reports are available on ProPlan.'
-        })) {
-            return;
-        }
-        window.print();
-    }
-
-    // Close KPI modal when clicking outside
-    document.getElementById('kpiReportModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeKPIReport();
-    });
 
   </script>
-
-  <!-- KPI Performance Report Modal -->
-  <div id="kpiReportModal">
-    <div id="kpiReportContent">
-      <div id="kpiReportBody"></div>
-      <div class="kpi-report-actions">
-        <button onclick="printKPIReport()" style="background:#3b82f6;">🖨️ Print Report</button>
-        <button onclick="closeKPIReport()" style="background:#ef4444;">Close</button>
-      </div>
-    </div>
-  </div>
 
   <script type="module" src="orders/master-maintenance.js"></script>
   <script type="module" src="settings/settings-store.js"></script>
   <script src="app-shell.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 

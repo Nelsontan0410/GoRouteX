@@ -55,7 +55,7 @@
   function renderAllDriverSelect(context, saved) {
     const select = $('dispatchAllDriver');
     if (!select) return;
-    select.replaceChildren(new Option(state.drivers.length ? 'Select driver' : state.driversLoaded ? 'No active drivers' : 'Loading drivers...', ''));
+    select.replaceChildren(new Option(state.drivers.length ? 'Select driver' : state.driversFailed ? 'Drivers unavailable - refresh' : state.driversLoaded ? 'No active drivers' : 'Loading drivers...', ''));
     for (const driver of state.drivers) select.append(new Option(`${driver.name} · ${driver.username ? '@' + driver.username : driver.email}`, driver.uid));
     select.value = defaultDriver();
     select.disabled = !saved || state.loading || !state.drivers.length;
@@ -151,15 +151,6 @@
     const total = metres || Number(route.estimatedDistanceMeters || 0);
     return total ? `${(total / 1000).toFixed(1)} km` : '—';
   }
-  function gpsLabel(gps) {
-    if (!gps) return 'GPS unavailable';
-    const updated = new Date(gps.lastUpdatedAt || gps.lastUploadedClientAt || 0);
-    const age = Date.now() - updated.getTime();
-    if (!Number.isFinite(age) || age < 0) return 'GPS unavailable';
-    if (gps.status === 'stopped') return 'Tracking stopped';
-    if (age > 90000) return `GPS stale · ${Math.floor(age / 60000)}m ago`;
-    return `GPS live · ${Math.max(1, Math.floor(age / 1000))}s ago`;
-  }
 
   // Plan summary as KPI cards (values from the plan; '—' when the plan does not have them).
   function renderKpis(context) {
@@ -246,7 +237,7 @@
       const select = document.createElement('select');
       select.id = `dispatchDriver_${routeId}`;
       select.disabled = Boolean(dispatch) || !saved || state.loading;
-      select.append(new Option(state.drivers.length ? 'Select driver' : state.driversLoaded ? 'No active drivers' : 'Loading drivers...', ''));
+      select.append(new Option(state.drivers.length ? 'Select driver' : state.driversFailed ? 'Drivers unavailable - refresh' : state.driversLoaded ? 'No active drivers' : 'Loading drivers...', ''));
       for (const driver of state.drivers) select.append(new Option(`${driver.name} · ${driver.username ? '@' + driver.username : driver.email}`, driver.uid));
       if (dispatch?.assignedDriverUid) select.value = dispatch.assignedDriverUid;
       else { try { select.value = sessionStorage.getItem(`grxDispatchDriver:${context.planId}:${routeId}`) || defaultDriver(); } catch { select.value = defaultDriver(); } }
@@ -384,6 +375,7 @@
       if (generation !== state.generation) { counters.staleResponses++; return; }
       state.drivers = result.drivers || [];
       state.driversLoaded = true;
+      state.driversFailed = false;
       dispatchTiming('dispatchLoadDriversEnd');
       if (state.drivers.length) dispatchTiming('dispatchDriversUsable');
       state.driverCache = { uid: user.uid, drivers: state.drivers, expiresAt: Date.now() + 30000 };
@@ -400,6 +392,8 @@
     const promise = Promise.allSettled([driversTask, statusTask]).then(results => {
       if (generation !== state.generation) { counters.staleResponses++; return; }
       const error = results.find(result => result.status === 'rejected');
+      // A failed driver request must not leave the picker on "Loading drivers..." forever.
+      if (results[0].status === 'rejected' && !state.drivers.length) { state.driversFailed = true; render(); }
       if (error) { notice(error.reason?.message || 'Dispatch refresh failed.', true); return; }
       dispatchTiming('dispatchPrimaryUsable');
       try { performance.measure('grx:dispatchControls', 'grx:dispatchOpenStart', 'grx:dispatchPrimaryUsable'); } catch {}
@@ -448,7 +442,7 @@
   }
 
   function reset() {
-    state.generation++; state.context = null; state.loadedPlan = null; state.drivers = []; state.driversLoaded = false; state.dispatched = [];
+    state.generation++; state.context = null; state.loadedPlan = null; state.drivers = []; state.driversLoaded = false; state.driversFailed = false; state.dispatched = [];
     state.driverCache = null; state.driverPrefetch = null; state.refreshPromise = null; state.refreshKey = ''; state.activeRouteId = null;
     render();
   }

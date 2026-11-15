@@ -1,4 +1,4 @@
-import { CAPACITY_UNITS, normalizeSettings, validateSettings } from './settings-model.js';
+import { CAPACITY_UNITS, validateSettings } from './settings-model.js';
 import { getTenantSettings, saveTenantSettings, getCachedSettings, listVehicles, activeVehicleCount, saveVehicle, setVehicleActive, driverAccountsApi } from './settings-store.js';
 const $ = id => document.getElementById(id);
 const state = { user: null, settings: null, baseline: '', loaded: false, saving: false, drivers: [], driverAccounts: [], driverEntitlement: null, vehicles: [], accountGeneration: 0,

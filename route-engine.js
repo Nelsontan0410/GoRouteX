@@ -213,18 +213,6 @@
     return routePlan.routes;
   }
 
-  function splitOptimizedStops(stops, maxPerRoute = DEFAULT_STOPS_PER_ROUTE) {
-    const safeStops = Array.isArray(stops) ? stops : [];
-    const safeMax = Number.isFinite(Number(maxPerRoute)) && Number(maxPerRoute) > 0
-      ? Number(maxPerRoute)
-      : 8;
-    const routes = [];
-    for (let index = 0; index < safeStops.length; index += safeMax) {
-      routes.push(safeStops.slice(index, index + safeMax));
-    }
-    return routes;
-  }
-
   function getPackedRouteStopId(stop) {
     if (!stop) return '';
     if (typeof stop === 'string') return stop;
@@ -450,27 +438,9 @@
     };
   }
 
-  function logRoutes() {
-    console.log('GoRouteX Route Engine routePlan:', routePlan);
-    console.table(routePlan.routes.map((route) => ({
-      id: route.id,
-      label: route.label,
-      stopCount: route.stops.length,
-      stops: route.stops.map((stop) => stop.name || stop.id || 'Unnamed')
-    })));
-    routePlan.routes.forEach((route) => {
-      console.log(
-        `${route.label} (${route.stops.length} stops):`,
-        route.stops.map((stop) => stop.name || stop.id || 'Unnamed')
-      );
-    });
-    return routePlan.routes;
-  }
-
   global.GoRouteXRouteEngine = {
     setSelectedStops,
     generateRoutes,
-    logRoutes,
     autoSplitStops,
     clusterStops,
     getRoutePlan: function () {
@@ -485,7 +455,6 @@
   };
 
   global.RouteEngine = {
-    splitOptimizedStops,
     splitOptimizedStopsIntoPackedRoutes,
     buildRouteRequest,
     buildPlannedRoutes,

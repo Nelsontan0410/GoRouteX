@@ -22,7 +22,6 @@
   #page-optimized-routes,
   #page-maps-preview,
   #page-fullscreen-map,
-  #page-gps-tracking,
   #page-add-stop {
     height: auto !important;
     min-height: var(--app-mobile-vh, 100dvh) !important;
@@ -280,29 +279,6 @@
   }
 
   /* GPS page */
-  #page-gps-tracking {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .gps-main-layout {
-    flex-direction: column !important;
-    overflow: visible !important;
-  }
-
-  .gps-left-panel {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    border-right: 0 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  }
-
-  .gps-right-panel {
-    height: 40vh !important;
-    min-height: 260px !important;
-  }
 
   /* Add stop page */
   #page-add-stop {
@@ -488,7 +464,6 @@
   body:not(.mobile-tab-hidden) #page-history-dashboard.active-page,
   body:not(.mobile-tab-hidden) #page-select-stops.active-page,
   body:not(.mobile-tab-hidden) #page-optimized-routes.active-page,
-  body:not(.mobile-tab-hidden) #page-gps-tracking.active-page,
   body:not(.mobile-tab-hidden) #page-add-stop.active-page {
     padding-bottom: calc(var(--ms-tab-height) + var(--ms-safe-bottom) + 24px) !important;
   }
@@ -509,8 +484,6 @@
   .modern-action-btn,
   .action-button-primary,
   .action-button-secondary,
-  .gps-action-btn,
-  .gps-nav-btn,
   .add-stop-nav-btn,
   .route-share-btn,
   .submit-btn,
@@ -525,8 +498,6 @@
   .modern-action-btn,
   .action-button-primary,
   .action-button-secondary,
-  .gps-action-btn,
-  .gps-nav-btn,
   .add-stop-nav-btn,
   .route-share-btn,
   .submit-btn,
@@ -580,7 +551,6 @@
   .account-access-actions,
   .access-upgrade-actions,
   .form-actions,
-  .gps-header-controls,
   .add-stop-header-controls {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -594,7 +564,6 @@
   .account-access-actions > *,
   .access-upgrade-actions > *,
   .form-actions > *,
-  .gps-header-controls > *,
   .add-stop-header-controls > * {
     width: 100% !important;
     min-width: 0 !important;
@@ -644,7 +613,6 @@
   }
 
   #topBarPage2,
-  .gps-tracking-header,
   .add-stop-header,
   .maps-preview-header,
   .fullscreen-header,
@@ -655,7 +623,6 @@
   }
 
   #topBarButtonsPage2,
-  .tracking-controls,
   .stop-actions,
   .route-communication-buttons,
   .page-actions-grid,
@@ -664,14 +631,12 @@
     min-width: 0;
   }
 
-  .tracking-controls,
   .stop-actions {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px !important;
   }
 
-  .tracking-controls > *,
   .stop-actions > * {
     width: 100% !important;
     min-width: 0 !important;
@@ -683,7 +648,6 @@
   #mapFullscreen,
   #trackingMap,
   #mapAddStop,
-  .gps-right-panel,
   .add-stop-map-panel {
     width: 100% !important;
     min-width: 0 !important;
@@ -720,9 +684,7 @@
   .account-access-actions,
   .access-upgrade-actions,
   .form-actions,
-  .gps-header-controls,
   .add-stop-header-controls,
-  .tracking-controls,
   .stop-actions,
   #topBarButtonsPage2,
   .page3-bottom-buttons {

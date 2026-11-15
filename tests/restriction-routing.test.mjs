@@ -96,9 +96,9 @@ test('manual detour points stay on their chosen leg and survive segmented naviga
 
 test('every app handoff uses the segmented navigation builder', () => {
   const app = readFileSync(new URL('../app.html', import.meta.url), 'utf8');
-  const page3Start = app.indexOf('function openRouteInGoogleMapsPage3');
-  const page3End = app.indexOf('function formatRouteDurationLabel', page3Start);
-  assert.match(app.slice(page3Start, page3End), /RouteSafety\.openNavigation\(routeData\)/);
+  // The unused Page 3 "open in Google Maps" handler was removed as dead code; no app page may bring back
+  // a hand-built Google Maps directions link.
+  assert.doesNotMatch(app, /function openRouteInGoogleMapsPage3/);
   const shareStart = app.indexOf('function buildRouteShareData');
   const shareEnd = app.indexOf('function updateRouteSharePreview', shareStart);
   assert.match(app.slice(shareStart, shareEnd), /const mapsUrl = RouteSafety\.navigationText\(routeData\)/);

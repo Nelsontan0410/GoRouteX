@@ -156,53 +156,6 @@ function initializeFirebase() {
 // FIREBASE AUTH FUNCTIONS
 // ============================================
 
-// Sign up with email and password
-async function firebaseSignUp(email, password, displayName) {
-    try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-
-        // Update display name
-        await userCredential.user.updateProfile({
-            displayName: displayName || email.split('@')[0]
-        });
-
-        const provisioned = await ensureInitialProfileForNewAccount(userCredential.user, displayName || email.split('@')[0]);
-        if (!provisioned.success) throw Error(provisioned.error || 'Could not create account profile.');
-
-        return { success: true, user: userCredential.user };
-    } catch (error) {
-        console.error('Sign up error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-// Sign in with email and password
-async function firebaseSignIn(email, password) {
-    try {
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        return { success: true, user: userCredential.user };
-    } catch (error) {
-        console.error('Sign in error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-// Sign in with Google
-async function firebaseSignInWithGoogle() {
-    try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        const userCredential = await auth.signInWithPopup(provider);
-        if (userCredential.additionalUserInfo?.isNewUser) {
-            const provisioned = await ensureInitialProfileForNewAccount(userCredential.user, userCredential.user.displayName);
-            if (!provisioned.success) throw Error(provisioned.error || 'Could not create account profile.');
-        }
-        return { success: true, user: userCredential.user };
-    } catch (error) {
-        console.error('Google sign in error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
 // Sign out
 async function firebaseSignOut() {
     try {
@@ -403,39 +356,6 @@ function createFirestoreError(error, fallbackMessage) {
     return wrappedError;
 }
 
-function toAccessExpiryDate(dateLike) {
-    if (!dateLike) return null;
-    const dateValue = dateLike && typeof dateLike.toDate === 'function'
-        ? dateLike.toDate()
-        : new Date(dateLike);
-    if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) return null;
-    return dateValue;
-}
-
-function normalizeProductPlanKeyValue(rawPlanKey, fallback = '') {
-    const candidate = String(rawPlanKey || '').trim().toLowerCase();
-    if (!candidate) return fallback;
-    if (['basic', 'free', 'starter', 'trial', 'free-trial', 'free trial'].includes(candidate)) return 'basic';
-    if (['goplan', 'go', 'go-plan', 'go plan', 'go_plan'].includes(candidate)) return 'goplan';
-    if (['proplan', 'pro', 'pro-plan', 'pro plan', 'pro_plan', 'professional', 'professional plan', 'team', 'business', 'enterprise'].includes(candidate)) return 'proplan';
-    return fallback;
-}
-
-function resolveProductPlanKeyForProfile(profile = {}) {
-    const productPlan = normalizeProductPlanKeyValue(profile.productPlanKey || profile.productPlan || profile.permanentPlanLabel, '');
-    const legacyPlan = normalizeProductPlanKeyValue(profile.planKey || profile.planName, '');
-    const legacyRaw = String(profile.planKey || profile.planName || '').trim().toLowerCase();
-    const planStatus = String(profile.planStatus || '').trim().toLowerCase();
-
-    if (legacyPlan === 'proplan' || productPlan === 'proplan') return 'proplan';
-    if (legacyPlan === 'goplan' || productPlan === 'goplan') return 'goplan';
-    if (productPlan === 'basic') return 'basic';
-    if (legacyRaw === 'basic' && planStatus === 'active') return 'goplan';
-    if (legacyPlan === 'basic') return 'basic';
-    if (planStatus === 'active') return 'goplan';
-    return 'basic';
-}
-
 function resolveAccessState({ user, profile, now } = {}) {
     if (typeof user === 'undefined') return 'loading';
     if (!user) return 'unauthenticated';
@@ -634,22 +554,6 @@ async function ensureUserProfile(user) {
     return loadUserProfile(user);
 }
 
-async function refreshLastLogin(user = getCurrentUser()) {
-    if (!db || !user) {
-        return { success: false, error: 'Not logged in' };
-    }
-
-    try {
-        await db.collection('users').doc(user.uid).set({
-            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        return { success: true };
-    } catch (error) {
-        console.warn('Last login refresh failed:', error);
-        return { success: false, error: error.message };
-    }
-}
-
 async function getCurrentUserProfile() {
     const user = getCurrentUser();
     if (!user) {
@@ -666,14 +570,6 @@ async function getCurrentUserProfile() {
         console.error('Error loading user profile:', error);
         return { success: false, error: error.message, profile: null };
     }
-}
-
-async function activateProfessionalPlan(days = 30) {
-    console.warn('Client-side Pro activation is disabled. Use verified backend/admin payment approval instead.');
-    return {
-        success: false,
-        error: 'Client-side Pro activation is disabled. Use verified backend/admin payment approval instead.'
-    };
 }
 
 // ============================================
@@ -1065,16 +961,6 @@ async function deleteStop(stopId, options = {}) {
     _stopsMem = _stopsMem.filter((s) => s.id !== stopId);
     if (_stopsMem.length === before) return { success: false, error: 'Stop not found' };
     return saveStopsCache(_stopsMem, options);
-}
-
-async function clearStopsCache() {
-    const user = getCurrentUser();
-    if (!user) return { success: false, error: 'Not logged in' };
-    _stopsMem = [];
-    _stopsLoaded = true;
-    _stopsStorageMode = 'single';
-    markStopsDirty();
-    return flushStopsCacheWrites();
 }
 
 async function backfillLegacyRoutes(uid) {
@@ -1591,7 +1477,7 @@ function normalizeVehicleDriverItems(items) {
         .filter(Boolean)
         .filter((item, index, list) => list.indexOf(item) === index)
         .slice(0, 50);
-    return normalized.length > 0 ? normalized : ['YQ3896B'];
+    return normalized.length > 0 ? normalized : ['Vehicle 1'];
 }
 
 async function loadVehicleDrivers() {
@@ -1664,62 +1550,6 @@ function subscribeToRoutes(callback) {
 function getTodayKey() {
     const today = new Date();
     return today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-}
-
-// Save GPS location point
-async function saveGPSPoint(locationData) {
-    const user = getCurrentUser();
-    if (!user) {
-        return { success: false, error: 'Not logged in' };
-    }
-
-    try {
-        const todayKey = getTodayKey();
-        const trackingRef = db.collection('users').doc(user.uid)
-            .collection('gpsTracking').doc(todayKey)
-            .collection('points').doc();
-
-        const pointData = {
-            lat: locationData.lat,
-            lng: locationData.lng,
-            accuracy: locationData.accuracy || null,
-            speed: locationData.speed || null,
-            heading: locationData.heading || null,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            localTime: new Date().toISOString()
-        };
-
-        await trackingRef.set(pointData);
-        return { success: true, id: trackingRef.id };
-    } catch (error) {
-        console.error('Error saving GPS point:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-// Update today's tracking summary
-async function updateTrackingSummary(summaryData) {
-    const user = getCurrentUser();
-    if (!user) {
-        return { success: false, error: 'Not logged in' };
-    }
-
-    try {
-        const todayKey = getTodayKey();
-        const summaryRef = db.collection('users').doc(user.uid)
-            .collection('gpsTracking').doc(todayKey);
-
-        await summaryRef.set({
-            date: todayKey,
-            ...summaryData,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        return { success: true };
-    } catch (error) {
-        console.error('Error updating tracking summary:', error);
-        return { success: false, error: error.message };
-    }
 }
 
 // Load today's GPS tracking points
@@ -2223,25 +2053,6 @@ async function loadDriverTrackingPoints(sessionId, { limitCount = 150 } = {}) {
     }
 }
 
-async function loadLiveDriverLocations({ limitCount = 25 } = {}) {
-    const user = getCurrentUser();
-    if (!user) {
-        return { success: false, drivers: [], error: 'Not logged in' };
-    }
-
-    try {
-        const snapshot = await getDriverLiveCollectionRef(user.uid)
-            .orderBy('lastUpdatedAt', 'desc')
-            .limit(Math.max(1, Math.min(Number(limitCount) || 25, 100)))
-            .get();
-        const drivers = snapshot.docs.map((doc) => mapDriverLiveDoc(doc)).filter(Boolean);
-        return { success: true, drivers };
-    } catch (error) {
-        console.error('Error loading live driver locations:', error);
-        return { success: false, drivers: [], error: error.message };
-    }
-}
-
 function subscribeToLiveDriverLocations(callback, { limitCount = 25 } = {}) {
     const user = getCurrentUser();
     if (!user) {
@@ -2545,9 +2356,6 @@ window.FirebaseApp = {
     init: initializeFirebase,
     isInitialized: () => _firebaseInitDone,
     auth: {
-        signUp: firebaseSignUp,
-        signIn: firebaseSignIn,
-        signInWithGoogle: firebaseSignInWithGoogle,
         signOut: firebaseSignOut,
         getCurrentUser: getCurrentUser,
         ensureWorkspacePersistence: ensureWorkspacePersistence,
@@ -2556,7 +2364,6 @@ window.FirebaseApp = {
         loadProfile: loadUserProfile,
         ensureInitialProfileForNewAccount,
         getProfile: getCurrentUserProfile,
-        refreshLastLogin: refreshLastLogin,
         resolveAccessState: resolveAccessState,
         sanitizeNextTarget: sanitizeNextTarget,
         isDriverAccount: isDriverAccount
@@ -2590,9 +2397,7 @@ window.FirebaseApp = {
         flushStopsCacheWrites: flushStopsCacheWrites
     },
     gps: {
-        savePoint: saveGPSPoint,
         loadTodayPoints: loadTodayGPSPoints,
-        updateSummary: updateTrackingSummary,
         loadSummary: loadTrackingSummary,
         subscribeToUpdates: subscribeToGPSUpdates,
         getTodayKey: getTodayKey
@@ -2603,7 +2408,6 @@ window.FirebaseApp = {
         recordLocation: recordDriverTrackingPoint,
         loadSession: loadDriverTrackingSession,
         loadSessionPoints: loadDriverTrackingPoints,
-        loadLiveDrivers: loadLiveDriverLocations,
         subscribeLiveDrivers: subscribeToLiveDriverLocations
     },
     routes: {

@@ -130,13 +130,6 @@
     return fallback;
   }
 
-  function getHighestPlanKey(planKeys = []) {
-    return planKeys
-      .map((planKey) => normalizePlanKey(planKey, ''))
-      .filter(Boolean)
-      .sort((left, right) => getPlanRank(right) - getPlanRank(left))[0] || 'basic';
-  }
-
   function toPlanDate(value) {
     if (!value) return null;
     if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;

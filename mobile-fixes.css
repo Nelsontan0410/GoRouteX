@@ -48,13 +48,11 @@
   }
 
   .history-list,
-  .stops-list,
   #customerList,
   #selectedListDisplay,
   .individual-route-list,
   #unassignedStopsList,
   .page3-top-container,
-  .gps-left-panel,
   .add-stop-form-panel,
   #stopsList,
   #routesSection {
@@ -831,119 +829,26 @@
 /* ===== GPS TRACKING PAGE - MOBILE ===== */
 
 @media (max-width: 767px) {
-  #page-gps-tracking {
-    height: auto !important;
-    min-height: var(--app-mobile-vh, 100dvh);
-    overflow-y: auto !important;
-  }
 
   /* GPS header */
-  .gps-tracking-header {
-    flex-direction: column !important;
-    gap: 8px !important;
-    text-align: center !important;
-    padding: 10px 12px !important;
-  }
-  .gps-tracking-title {
-    font-size: 1.1rem !important;
-  }
-  .gps-header-controls {
-    justify-content: center !important;
-    gap: 8px !important;
-  }
-  .gps-nav-btn {
-    padding: 8px 12px !important;
-    font-size: 0.8rem !important;
-    min-height: 40px !important;
-  }
 
   /* Main layout - stack vertically */
-  .gps-main-layout {
-    flex-direction: column !important;
-    overflow-y: auto !important;
-  }
 
   /* Left panel - full width, no fixed height */
-  .gps-left-panel {
-    width: 100% !important;
-    min-width: auto !important;
-    max-height: none !important;
-    border-right: none !important;
-    border-bottom: 2px solid #e2e8f0;
-    padding: 10px !important;
-    gap: 10px !important;
-    overflow-y: visible !important;
-  }
 
   /* GPS sections */
-  .gps-section {
-    padding: 12px !important;
-    border-radius: 10px !important;
-  }
-  .gps-section h3 {
-    font-size: 0.95rem !important;
-    margin-bottom: 10px !important;
-  }
 
   /* GPS action buttons - grid layout to prevent overlap */
-  .tracking-controls {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 6px !important;
-    margin-bottom: 10px !important;
-  }
-  .gps-action-btn {
-    min-width: auto !important;
-    width: 100% !important;
-    padding: 10px 8px !important;
-    font-size: 0.78rem !important;
-    margin: 0 !important;
-    min-height: 42px !important;
-  }
 
   /* Two-button row for Locate Me and Finish */
-  .tracking-controls + .tracking-controls {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
 
   /* Status and location display */
-  .status-message {
-    font-size: 0.8rem !important;
-    padding: 6px 10px !important;
-  }
-  .location-display {
-    font-size: 0.78rem !important;
-    padding: 8px !important;
-  }
 
   /* Performance grid */
-  .performance-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-  .performance-card {
-    padding: 10px !important;
-  }
-  .performance-label {
-    font-size: 0.7rem !important;
-  }
-  .performance-value {
-    font-size: 1rem !important;
-  }
 
   /* Progress header */
-  .progress-header {
-    flex-direction: column !important;
-    gap: 6px !important;
-  }
-  .progress-bar {
-    width: 100% !important;
-  }
 
   /* Stops list */
-  .stops-list {
-    max-height: none !important;
-  }
   .stop-item {
     padding: 10px !important;
     margin-bottom: 6px !important;
@@ -958,29 +863,11 @@
   }
 
   /* Right panel - map */
-  .gps-right-panel {
-    min-height: 40vh !important;
-    flex: none !important;
-    height: 40vh !important;
-  }
 
   /* Route info bar */
-  .route-info-bar {
-    padding: 8px 12px !important;
-    font-size: 0.85rem !important;
-    flex-direction: column !important;
-    gap: 4px !important;
-    text-align: center !important;
-  }
 }
 
 @media (max-width: 400px) {
-  .tracking-controls {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  .performance-grid {
-    grid-template-columns: 1fr 1fr !important;
-  }
   #topBarButtonsPage2 {
     grid-template-columns: 1fr !important;
   }

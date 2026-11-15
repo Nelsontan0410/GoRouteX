@@ -78,7 +78,6 @@
     measure('plan', 'planStart', 'planEnd');
     return resolved;
   }
-  function fromProfile(user, profile) { return resolvePlan(identityFromProfile(user, profile)); }
   function acceptProfile(user, profile) {
     const resolvedIdentity = identityFromProfile(user, profile);
     if (global.FirebaseApp?.auth?.getCurrentUser?.()?.uid !== user.uid) throw Error('Account changed while loading.');
@@ -158,7 +157,7 @@
     if (planNode) planNode.textContent = resolved?.planLabel || 'Plan unavailable';
   }
   global.GoRouteXAccountContext = {
-    load, loadIdentity, resolvePlan, fromProfile, acceptProfile, clear, render,
+    load, loadIdentity, resolvePlan,acceptProfile, clear, render,
     get: () => context, getIdentity: () => identity, getCachedDisplayName: () => cachedDisplayName, isLoading: () => !!pendingIdentity
   };
 })(window);

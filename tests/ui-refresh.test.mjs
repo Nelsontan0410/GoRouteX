@@ -10,8 +10,24 @@ test('the design layer loads last on every workspace page', () => {
     const html = read(page);
     const head = html.slice(0, html.indexOf('</head>'));
     const sheets = [...head.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
-    assert.equal(sheets.at(-1), 'styles/ui-refresh.css', page);
+    // The prebuilt Tailwind sheet follows the design layer, exactly where the CDN script used to inject it.
+    const design = sheets.filter((href) => !href.startsWith('styles/tailwind.css'));
+    assert.equal(design.at(-1), 'styles/ui-refresh.css', page);
   }
+});
+
+test('Tailwind is a prebuilt stylesheet loaded last, not the CDN runtime script', () => {
+  for (const page of ['app.html', 'login.html']) {
+    const html = read(page);
+    assert.doesNotMatch(html, /cdn\.tailwindcss\.com/, page);
+    const head = html.slice(0, html.indexOf('</head>'));
+    const sheets = [...head.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
+    assert.match(sheets.at(-1), /^styles\/tailwind\.css/, page);
+    assert.ok(head.lastIndexOf('<style') < head.lastIndexOf('styles/tailwind.css'), page);
+  }
+  const css = read('styles/tailwind.css');
+  assert.match(css, /\.hidden\{display:none\}/);
+  assert.match(css, /\[hidden\]/);
 });
 
 test('Stops Selection keeps its controls and adds the phone tabs, filters and sticky action bar', () => {

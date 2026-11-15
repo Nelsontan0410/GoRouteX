@@ -36,7 +36,6 @@ body {
 #page-optimized-routes,
 #page-maps-preview,
 #page-fullscreen-map,
-#page-gps-tracking,
 #page-add-stop {
   color: var(--saas-text) !important;
   background: var(--saas-bg) !important;
@@ -48,18 +47,14 @@ body {
 .history-item,
 .route-info-section,
 .route-list-wrapper,
-.gps-section,
 .form-section,
 .demo-section,
 #selectedListDisplay,
 #customerList,
 .individual-route-list,
 #unassignedStopsList,
-.status-message,
-.location-display,
 .stop-item,
 .add-stop-status,
-#kpiReportContent,
 .user-info-bar,
 .dashboard-header,
 .history-browser-header,
@@ -67,9 +62,7 @@ body {
 #messageBar,
 .maps-preview-header,
 .fullscreen-header,
-.gps-tracking-header,
 .add-stop-header,
-.route-info-bar,
 .map-instructions {
   background: var(--saas-card) !important;
   color: var(--saas-text) !important;
@@ -109,11 +102,7 @@ body {
 .history-detail,
 .customer-item-desc small,
 .form-description,
-.status-message,
-.location-display,
 .stop-address,
-.performance-label,
-.route-info-bar span,
 #syncStatusDisplay {
   color: var(--saas-text-muted) !important;
 }
@@ -172,8 +161,6 @@ textarea:focus {
 button,
 .modern-action-btn,
 .route-share-btn,
-.gps-action-btn,
-.gps-nav-btn,
 .add-stop-nav-btn,
 .back-to-routes-btn,
 .exit-fullscreen-btn,
@@ -194,8 +181,7 @@ button,
 #createNewRouteBtn,
 #addNewStopDashBtn,
 #goToManualAssignBtn,
-#proceedToOptimizeBtn,
-#startGPSTrackingBtn {
+#proceedToOptimizeBtn {
   background: var(--saas-primary) !important;
   color: #ffffff !important;
 }
@@ -215,8 +201,7 @@ button,
 #createNewRouteBtn:hover:not(:disabled),
 #addNewStopDashBtn:hover:not(:disabled),
 #goToManualAssignBtn:hover:not(:disabled),
-#proceedToOptimizeBtn:hover:not(:disabled),
-#startGPSTrackingBtn:hover:not(:disabled) {
+#proceedToOptimizeBtn:hover:not(:disabled) {
   background: var(--saas-primary-hover) !important;
 }
 
@@ -256,8 +241,6 @@ button,
 button:disabled,
 .modern-action-btn:disabled,
 .route-share-btn:disabled,
-.gps-action-btn:disabled,
-.gps-nav-btn:disabled,
 .add-stop-nav-btn:disabled {
   background: #e2e8f0 !important;
   color: #94a3b8 !important;
@@ -271,11 +254,7 @@ button:disabled,
 .stop-voice-btn,
 .delivery-not-attempted-btn,
 #clearSelectedStopsBtn,
-.delete-route-btn,
-.finish-btn,
-.pause-btn,
-.start-btn,
-.stop-btn {
+.delete-route-btn {
   background: var(--saas-card) !important;
   color: #334155 !important;
   border: 1px solid #cbd5e1 !important;

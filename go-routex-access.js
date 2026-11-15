@@ -305,21 +305,10 @@
     };
   }
 
-  function hasPlanAccess(currentPlanKey, requiredPlanKey) {
-    if (!requiredPlanKey) return true;
-    return getPlanRank(currentPlanKey) >= getPlanRank(requiredPlanKey);
-  }
-
   function hasPermission(roleKey, permissionKey) {
     if (!permissionKey) return true;
     const role = ROLE_DEFINITIONS[resolveRoleKey(roleKey)];
     return Boolean(role && role.permissions.includes(permissionKey));
-  }
-
-  function getLimit(planKey, limitKey) {
-    const plan = PLAN_DEFINITIONS[normalizePlanKey(planKey)];
-    if (!plan || !plan.limits) return null;
-    return typeof plan.limits[limitKey] === 'undefined' ? null : plan.limits[limitKey];
   }
 
   function formatLimitValue(limit, unitLabel = '') {
@@ -332,74 +321,9 @@
     return unitLabel ? `${limit} ${unitLabel}` : String(limit);
   }
 
-  function getLimitStatus(planKey, limitKey, usedValue) {
-    const limit = getLimit(planKey, limitKey);
-    const used = Number.isFinite(Number(usedValue)) ? Number(usedValue) : 0;
-    if (limit === Number.POSITIVE_INFINITY) {
-      return {
-        limit,
-        used,
-        remaining: Number.POSITIVE_INFINITY,
-        percent: 0,
-        reached: false,
-        nearLimit: false
-      };
-    }
-
-    if (!Number.isFinite(Number(limit)) || Number(limit) <= 0) {
-      return {
-        limit,
-        used,
-        remaining: 0,
-        percent: 100,
-        reached: true,
-        nearLimit: true
-      };
-    }
-
-    const safeLimit = Number(limit);
-    const percent = Math.min(100, Math.round((used / safeLimit) * 100));
-    return {
-      limit: safeLimit,
-      used,
-      remaining: Math.max(safeLimit - used, 0),
-      percent,
-      reached: used >= safeLimit,
-      nearLimit: used >= Math.ceil(safeLimit * 0.8)
-    };
-  }
-
   function getNextPlanKey(planKey) {
     const currentRank = getPlanRank(planKey);
     return PLAN_ORDER[currentRank + 1] || null;
-  }
-
-  function canAccessFeature(options = {}) {
-    const profile = options.profile || {};
-    const featureKey = options.featureKey;
-    const feature = FEATURE_DEFINITIONS[featureKey];
-    const context = resolveUserContext(profile);
-    if (!feature) {
-      return {
-        allowed: true,
-        context,
-        feature: null
-      };
-    }
-
-    const blockedByPlan = feature.minPlan ? !hasPlanAccess(context.planKey, feature.minPlan) : false;
-    const blockedByPermission = feature.permission ? !hasPermission(context.roleKey, feature.permission) : false;
-
-    return {
-      allowed: !blockedByPlan && !blockedByPermission,
-      context,
-      feature,
-      blockedByPlan,
-      blockedByPermission,
-      requiredPlanKey: feature.minPlan || null,
-      requiredRolePermission: feature.permission || null,
-      nextPlanKey: feature.minPlan || getNextPlanKey(context.planKey)
-    };
   }
 
   global.GoRouteXAccess = {
@@ -413,12 +337,8 @@
     resolveUserContext,
     normalizePlanKey,
     resolveRoleKey,
-    hasPlanAccess,
     hasPermission,
-    getLimit,
     formatLimitValue,
-    getLimitStatus,
-    getNextPlanKey,
-    canAccessFeature
+    getNextPlanKey
   };
 })(window);

@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GoRouteX - Login</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -122,6 +121,8 @@
   </script>
   <link rel="stylesheet" href="modern-theme.css?v=20260921-2">
   <link rel="stylesheet" href="styles/typography.css">
+  <!-- Tailwind (prebuilt). Keep this last in <head>: its reset and utilities must follow the app styles, as the CDN build did. -->
+  <link rel="stylesheet" href="styles/tailwind.css?v=20261115-1">
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
   <div class="auth-card bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
