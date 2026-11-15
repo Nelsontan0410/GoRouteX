@@ -41,7 +41,12 @@ function scheduleById(route) {
  * live: within LIVE_FRESH_MS. stale: older; warn: older than LIVE_STALE_WARN_MS. none: no position yet.
  * offline / paused / stopped / denied / error: as reported by the driver's phone. hint: gpsHint reason.
  */
+/** gpsState plus where the position comes from: 'device-app' (phone tracking app) or the driver's browser. */
 export function gpsState(gps, now = Date.now()) {
+  return { ...gpsStateCore(gps, now), source: gps?.source === 'device-app' ? 'device-app' : 'browser' };
+}
+
+function gpsStateCore(gps, now) {
   if (!gps) return { state: 'none', label: 'Live GPS unavailable', position: null, updatedAt: null };
   const updatedAt = time(gps.positionAt) || time(gps.lastUploadedClientAt) || time(gps.lastUpdatedAt);
   const lat = finite(gps.lat), lng = finite(gps.lng);

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeDriverUsername, validateDriverPin, hashDriverPin, verifyDriverPin, driverEntitlement, publicDriver, requireOwner } from '../netlify/functions/_shared/driver-domain.js';
-import { createDriver, setStatus, resetPin, listed, classifyDriverServiceFailure } from '../netlify/functions/driver-accounts.js';
+import { createDriver, setStatus, resetPin, listed, linkTracking, unlinkTracking, classifyDriverServiceFailure } from '../netlify/functions/driver-accounts.js';
+import { hashTrackingToken, isTrackingToken } from '../netlify/functions/_shared/tracking-domain.js';
 import { reserveAttempt, authenticateDriver } from '../netlify/functions/driver-login.js';
 
 class MemoryFirestore {
@@ -228,4 +229,42 @@ test('resetPin writes the PIN hash and session version in one transaction', asyn
   db.runTransaction = runTransaction;
   assert.equal(db.data.get(`users/${uid}`).sessionVersion, before);
   assert.equal(admin.users.get(uid).customClaims.sessionVersion, before);
+});
+
+test('phone tracking: link stores only the token hash, relinking replaces it, unlink removes it', async () => {
+  const { db, admin, owner } = context();
+  const { driver } = await createDriver(admin, db, owner, input('track01'));
+  const first = await linkTracking(db, owner, { driverUid: driver.uid });
+  assert.ok(isTrackingToken(first.token));
+  const firstHash = hashTrackingToken(first.token);
+  assert.deepEqual(db.data.get(`trackingDevices/${firstHash}`), { ownerUid: 'owner-a', driverUid: driver.uid, active: true, createdAt: db.data.get(`trackingDevices/${firstHash}`).createdAt });
+  assert.equal(JSON.stringify([...db.data.values()]).includes(first.token), false, 'plain token is never stored');
+  assert.equal(db.data.get(`users/${driver.uid}`).appTracking, true);
+  assert.equal(db.data.get(`users/owner-a/drivers/${driver.uid}`).tracking.tokenHint, first.token.slice(-4));
+  const listedDriver = (await listed(db, 'owner-a')).find(item => item.uid === driver.uid);
+  assert.equal(listedDriver.tracking.linked, true);
+  assert.equal(listedDriver.tracking.lastPositionAt, null);
+  assert.equal('tokenHash' in listedDriver.tracking, false);
+
+  const second = await linkTracking(db, owner, { driverUid: driver.uid });
+  assert.notEqual(second.token, first.token);
+  assert.equal(db.data.has(`trackingDevices/${firstHash}`), false, 'old identifier stops working');
+  assert.equal(db.data.has(`trackingDevices/${hashTrackingToken(second.token)}`), true);
+
+  db.data.set(`users/${driver.uid}/drivers_live/${driver.uid}`, { source: 'device-app', positionAt: '2026-11-16T01:02:03.000Z' });
+  assert.equal((await listed(db, 'owner-a')).find(item => item.uid === driver.uid).tracking.lastPositionAt, '2026-11-16T01:02:03.000Z');
+
+  await unlinkTracking(db, owner, { driverUid: driver.uid });
+  assert.equal([...db.data.keys()].some(key => key.startsWith('trackingDevices/')), false);
+  assert.equal(db.data.get(`users/${driver.uid}`).appTracking, false);
+  assert.equal((await listed(db, 'owner-a')).find(item => item.uid === driver.uid).tracking.linked, false);
+});
+
+test('phone tracking: another workspace cannot link or unlink a driver', async () => {
+  const { db, admin, owner } = context();
+  const { driver } = await createDriver(admin, db, owner, input('track02'));
+  db.data.set('users/owner-b', { role: 'admin', active: true });
+  const other = { ownerUid: 'owner-b', profile: { role: 'admin' } };
+  await assert.rejects(linkTracking(db, other, { driverUid: driver.uid }), /Driver not found/);
+  await assert.rejects(unlinkTracking(db, other, { driverUid: driver.uid }), /Driver not found/);
 });

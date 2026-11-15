@@ -60,7 +60,7 @@ function extract(source, name) {
 
 function trackingSandbox() {
   const source = read('driver-tracking.js');
-  const names = ['debugLog', 'clearFirstFixTimer', 'sendGpsHint', 'sendApproximatePosition', 'onFirstFixWait', 'handlePositionSuccess', 'getProblem', 'sanitizeText'];
+  const names = ['usesTrackingApp', 'debugLog', 'clearFirstFixTimer', 'sendGpsHint', 'sendApproximatePosition', 'onFirstFixWait', 'handlePositionSuccess', 'getProblem', 'sanitizeText'];
   const ctx = vm.createContext({
     clock: 0, uploads: [], updates: [], traces: [],
     console, Promise, Number, Math, String, Error,
@@ -173,4 +173,16 @@ test('Maps link during a route: sends the position first (at most 1500 ms), then
   assert.equal(native.location.href, 'https://maps.example/next');
   const page = read('driver/driver-page.js');
   assert.doesNotMatch(page.slice(page.indexOf('async function openMapsAfterUpload('), page.indexOf('// One tap opens Google Maps')), /window\.open/);
+});
+
+test('a driver set up with the phone tracking app: the page reports no location problem and sends no hints', async () => {
+  const ctx = trackingSandbox();
+  vm.runInContext(`state.profile = { appTracking: true }; state.permissionState = 'denied'; sendGpsHint('PAGE_BACKGROUND');`, ctx);
+  assert.equal(vm.runInContext('getProblem()', ctx), null);
+  assert.equal(ctx.updates.length, 0);
+  const source = read('driver-tracking.js');
+  for (const name of ['startTrackingFlow', 'pauseTrackingFlow', 'stopTrackingFlow', 'refreshNow', 'uploadCurrentPosition']) {
+    assert.match(extract(source, name), /usesTrackingApp\(\)/, name);
+  }
+  assert.match(source, /isNativeMode: \(\) => usesTrackingApp\(\)/);
 });

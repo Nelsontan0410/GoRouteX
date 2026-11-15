@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getFirebaseAdmin, verifyFirebaseUser, jsonResponse, readJson } from './_shared/firebase-admin.js';
+import { newTrackingToken, hashTrackingToken, tokenHint } from './_shared/tracking-domain.js';
 import { DriverError, normalizeDriverUsername, validateDriverPin, hashDriverPin, driverEntitlement, newDriverUid, publicDriver, requireOwner } from './_shared/driver-domain.js';
 
 const cleanName = value => String(value || '').trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 80);
@@ -19,7 +20,21 @@ function refs(db, ownerUid, driverUid) {
 }
 async function listed(db, ownerUid) {
   const snapshot = await db.collection('users').doc(ownerUid).collection('drivers').get();
-  return snapshot.docs.map(doc => publicDriver({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
+  const drivers = await Promise.all(snapshot.docs.map(async doc => {
+    const record = { id: doc.id, ...doc.data() };
+    const result = publicDriver(record);
+    const tracking = record.tracking?.linked ? record.tracking : null;
+    result.tracking = { linked: !!tracking, tokenHint: tracking?.tokenHint || '', linkedAt: tracking?.linkedAt || null, lastPositionAt: null };
+    if (tracking && safeUid(doc.id)) {
+      const live = await db.collection('users').doc(doc.id).collection('drivers_live').doc(doc.id).get().catch(() => null);
+      const data = live?.exists ? live.data() : null;
+      const at = data?.source === 'device-app' ? data.positionAt : null;
+      const date = at && typeof at.toDate === 'function' ? at.toDate() : at ? new Date(at) : null;
+      result.tracking.lastPositionAt = date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+    }
+    return result;
+  }));
+  return drivers.sort((a, b) => a.name.localeCompare(b.name));
 }
 async function getOwned(db, ownerUid, driverUid) {
   if (!safeUid(driverUid)) throw new DriverError('Driver not found.', 404, 'NOT_FOUND');
@@ -145,6 +160,33 @@ async function setStatus(admin, db, context, body) {
   return { success: true };
 }
 
+// Phone tracking app: a secret device identifier per driver. Only its hash is stored (trackingDevices/{hash},
+// readable by Netlify functions only). Linking again replaces the previous identifier.
+async function linkTracking(db, context, body) {
+  const uid = String(body.driverUid || '');
+  const { ref, record } = await getOwned(db, context.ownerUid, uid);
+  const token = newTrackingToken();
+  const hash = hashTrackingToken(token);
+  const timestamp = now();
+  await db.runTransaction(async tx => {
+    if (record.tracking?.tokenHash) tx.delete(db.collection('trackingDevices').doc(record.tracking.tokenHash));
+    tx.set(db.collection('trackingDevices').doc(hash), { ownerUid: context.ownerUid, driverUid: uid, active: true, createdAt: timestamp });
+    tx.set(ref, { tracking: { linked: true, tokenHash: hash, tokenHint: tokenHint(token), linkedAt: timestamp }, updatedAt: timestamp }, { merge: true });
+    tx.set(db.collection('users').doc(uid), { appTracking: true }, { merge: true });
+  });
+  return { token, tokenHint: tokenHint(token), linkedAt: timestamp };
+}
+async function unlinkTracking(db, context, body) {
+  const uid = String(body.driverUid || '');
+  const { ref, record } = await getOwned(db, context.ownerUid, uid);
+  await db.runTransaction(async tx => {
+    if (record.tracking?.tokenHash) tx.delete(db.collection('trackingDevices').doc(record.tracking.tokenHash));
+    tx.set(ref, { tracking: { linked: false, tokenHash: null, tokenHint: '', linkedAt: null }, updatedAt: now() }, { merge: true });
+    tx.set(db.collection('users').doc(uid), { appTracking: false }, { merge: true });
+  });
+  return { success: true };
+}
+
 export function classifyDriverServiceFailure(error) {
   const code = String(error?.code || '');
   if (code === 'auth/insufficient-permission') return { status: 503, code: 'AUTH_PERMISSION', error: 'Driver creation needs Firebase Authentication access for the server account. Contact the site administrator.' };
@@ -169,6 +211,8 @@ export default async req => {
       : body.action === 'edit' ? await editDriver(db, context, body)
       : body.action === 'reset-pin' ? await resetPin(admin, db, context, body)
       : body.action === 'status' ? await setStatus(admin, db, context, body)
+      : body.action === 'tracking-link' ? await linkTracking(db, context, body)
+      : body.action === 'tracking-unlink' ? await unlinkTracking(db, context, body)
       : (() => { throw new DriverError('Unknown Driver action.', 404); })();
     return jsonResponse({ success: true, ...result });
   } catch (error) {
@@ -179,4 +223,4 @@ export default async req => {
   }
 };
 
-export { createDriver, setStatus, resetPin, listed };
+export { createDriver, setStatus, resetPin, listed, linkTracking, unlinkTracking };

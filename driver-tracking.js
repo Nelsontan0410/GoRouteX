@@ -472,6 +472,7 @@
 
   /** Sends why the office may not see a fresh position. Best effort; repeated hints are skipped. */
   function sendGpsHint(hint) {
+    if (usesTrackingApp()) return;
     if (state.lastHint === hint) return;
     if (state.networkState !== 'online' || !state.sessionId || !state.sessionCreatedInCloud || !global.FirebaseApp?.tracking?.updateSession) return;
     state.lastHint = hint;
@@ -695,6 +696,7 @@
   }
 
   async function uploadCurrentPosition(forceUpload, statusValue) {
+    if (usesTrackingApp()) return false;
     if (state.uploadPromise) return state.uploadPromise;
     if (!state.lastKnownPosition || !global.FirebaseApp?.tracking || state.networkState !== 'online') return false;
     const position = { ...state.lastKnownPosition };
@@ -743,7 +745,20 @@
     if (await ensureCloudSession('stopped')) { state.pendingStopSync = false; clearStoredSession(); }
   }
 
+  // Drivers set up with the phone tracking app (Settings → Phone tracking) report their position from that app,
+  // which keeps running while Google Maps navigates. This page then does not track, so it never overwrites the
+  // app's position with a paused or background state.
+  function usesTrackingApp() {
+    return state.profile?.appTracking === true;
+  }
+
   async function startTrackingFlow() {
+    if (usesTrackingApp()) {
+      stopGeoWatch();
+      state.statusMessage = 'Location is sent by the tracking app on this phone.';
+      renderAll();
+      return true;
+    }
     if (!state.routeUnlocked || !state.trackingContext.routeId) return false;
     if (!navigator.geolocation) {
       state.runtimeStatus = 'error';
@@ -794,6 +809,7 @@
   }
 
   async function pauseTrackingFlow() {
+    if (usesTrackingApp()) return;
     if (state.runtimeStatus === 'paused') {
       state.runtimeStatus = 'active';
       state.statusMessage = 'Tracking resumed. Live uploads will continue on the next eligible location update.';
@@ -845,6 +861,7 @@
   }
 
   async function stopTrackingFlow() {
+    if (usesTrackingApp()) { stopGeoWatch(); return true; }
     stopGeoWatch();
     clearFirstFixTimer();
     releaseWakeLock();
@@ -1352,6 +1369,7 @@
    * Phones pause web pages in the background, so the watch is also restarted.
    */
   function refreshNow() {
+    if (usesTrackingApp()) return Promise.resolve(false);
     if (state.runtimeStatus !== 'active' || !state.routeUnlocked || !navigator.geolocation) return Promise.resolve(false);
     stopGeoWatch();
     state.watchId = navigator.geolocation.watchPosition(handlePositionSuccess, handlePositionError, GEO_OPTIONS);
@@ -1369,6 +1387,7 @@
    * code: PERMISSION_DENIED | PERMISSION_PROMPT | OFFLINE | UPLOAD_FAILED | WAITING_FIRST_FIX | ERROR
    */
   function getProblem() {
+    if (usesTrackingApp()) return null;
     if (state.runtimeStatus === 'error') {
       const denied = state.permissionState === 'denied';
       return { code: denied ? 'PERMISSION_DENIED' : 'ERROR', denied, message: state.statusMessage };
@@ -1383,7 +1402,7 @@
     }
     return null;
   }
-  global.DriverTrackingPage = { onMapApiReady, setRouteContext, refreshNow, getProblem, isNativeMode: () => false, startTracking: startTrackingFlow, stopTracking: stopTrackingFlow, getLatestPosition: () => state.lastKnownPosition, getStatus: () => getDisplayStatus(), isReady: () => state.bootstrapComplete };
+  global.DriverTrackingPage = { onMapApiReady, setRouteContext, refreshNow, getProblem, isNativeMode: () => usesTrackingApp(), usesTrackingApp, startTracking: startTrackingFlow, stopTracking: stopTrackingFlow, getLatestPosition: () => state.lastKnownPosition, getStatus: () => getDisplayStatus(), isReady: () => state.bootstrapComplete };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { void bootstrap(); }, { once: true });
   else void bootstrap();

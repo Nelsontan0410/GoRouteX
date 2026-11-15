@@ -132,5 +132,28 @@
     </form>
   </main>
 </div>
+<dialog id="trackingSetupDialog" class="tracking-dialog" aria-labelledby="trackingDialogTitle">
+  <div class="tracking-dialog-body">
+    <header class="tracking-dialog-head"><h2 id="trackingDialogTitle">Phone tracking · <span id="trackingDriverName"></span></h2><button id="trackingClose" type="button" class="tracking-close" aria-label="Close">×</button></header>
+    <p class="tracking-intro">Live position comes from the free <strong>Traccar Client</strong> app on the driver's Android phone. It keeps sending while Google Maps is navigating and the screen is locked.</p>
+    <p id="trackingStatus" class="tracking-status" aria-live="polite"></p>
+    <label class="tracking-field">Server URL<span class="tracking-copy"><input id="trackingServerUrl" type="text" readonly><button id="trackingCopyUrl" type="button">Copy</button></span></label>
+    <label id="trackingTokenRow" class="tracking-field" hidden>Device identifier<span class="tracking-copy"><input id="trackingToken" type="text" readonly autocomplete="off"><button id="trackingCopyToken" type="button">Copy</button></span></label>
+    <p id="trackingTokenHidden" class="tracking-note" hidden></p>
+    <div class="tracking-actions"><button id="trackingLink" type="button" class="primary">Create identifier</button><button id="trackingUnlink" type="button" class="danger" hidden>Remove</button></div>
+    <details class="tracking-steps" open><summary>Set up the driver's phone</summary>
+      <ol>
+        <li>Install <strong>Traccar Client</strong> from the Play Store.</li>
+        <li>In the app, enter the <strong>Device identifier</strong> and <strong>Server URL</strong> above.</li>
+        <li>Location accuracy: <strong>High</strong>. Interval: <strong>30</strong> seconds. Distance: <strong>0</strong>. Stationary heartbeat: <strong>300</strong> seconds.</li>
+        <li>Turn on <strong>Offline buffering</strong> and <strong>Wake lock</strong>.</li>
+        <li>Allow location <strong>All the time</strong>.</li>
+        <li>Phone Settings → Apps → Traccar Client → Battery: <strong>Unrestricted</strong>. On Xiaomi, OPPO, vivo and Huawei also allow autostart and background activity.</li>
+        <li>Switch the app's <strong>Service status</strong> on when the shift starts and off when it ends.</li>
+      </ol>
+    </details>
+    <p class="tracking-note">The identifier works like a password: anyone who has it can report this driver's position. If it is shared by mistake, choose Regenerate.</p>
+  </div>
+</dialog>
 </body>
 </html>

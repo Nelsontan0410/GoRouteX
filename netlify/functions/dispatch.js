@@ -284,7 +284,8 @@ export default async (req) => {
         const data = doc.data();
         const driverRoot = db.collection('users').doc(data.assignedDriverUid);
         const [execution, live, podDocs] = await Promise.all([driverRoot.collection('driverExecutions').doc(doc.id).get(), driverRoot.collection('drivers_live').doc(data.assignedDriverUid).get(), action === 'monitor' ? driverRoot.collection('driverPods').where('routeId', '==', doc.id).limit(100).get() : Promise.resolve(null)]);
-        const gps = live.exists && live.data().routeId === doc.id ? live.data() : null;
+        // The phone tracking app does not know the route: its position is the driver's, shown on every route assigned to them.
+        const gps = live.exists && (live.data().routeId === doc.id || live.data().source === 'device-app') ? live.data() : null;
         const pods = podDocs ? podDocs.docs.map(pod => ({ stopId: pod.data().stopId, recipientName: pod.data().recipientName || '', notes: pod.data().notes || '', completedAt: pod.data().completedAt || null })) : [];
         return { ...data, execution: execution.exists ? execution.data() : null, gps, pods };
       }));
