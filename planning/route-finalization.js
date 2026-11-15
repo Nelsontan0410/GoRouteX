@@ -409,8 +409,6 @@ async function enforceDeliveryWindows(etaResult, extraNotes = []) {
     }
 
 async function handleProceedToOptimizeRoutes(options = {}) {
-        const saveAfterPlan = options.saveAfterPlan === true;
-        const backgroundSave = options.backgroundSave === true;
         const validationResult = validateRouteInputs(options);
         if (!validationResult.success) return validationResult;
         // Where Confirm spends its time, printed once per confirm (console).

@@ -74,21 +74,6 @@ export async function readJson(req) {
   }
 }
 
-export function getAdminEmailSet() {
-  return new Set(
-    getEnv('ADMIN_APPROVAL_EMAILS')
-      .split(',')
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
-
-export function isAllowedAdmin(decodedToken) {
-  const email = String(decodedToken?.email || '').trim().toLowerCase();
-  const allowedEmails = getAdminEmailSet();
-  return decodedToken?.admin === true || (email && allowedEmails.has(email));
-}
-
 export function sanitizeText(value, maxLength = 160) {
   return String(value || '')
     .replace(/[\u0000-\u001F\u007F]+/g, ' ')
@@ -96,14 +81,3 @@ export function sanitizeText(value, maxLength = 160) {
     .slice(0, maxLength);
 }
 
-export function parsePlanExpiry({ planExpiresAt, days } = {}) {
-  const explicitDate = planExpiresAt ? new Date(planExpiresAt) : null;
-  if (explicitDate && !Number.isNaN(explicitDate.getTime())) {
-    return explicitDate;
-  }
-
-  const durationDays = Number.isFinite(Number(days)) && Number(days) > 0
-    ? Math.min(Number(days), 3660)
-    : 30;
-  return new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
-}

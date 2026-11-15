@@ -23,4 +23,3 @@ export function snapshotRouteStops(route){
  return stops;
 }
 export function progress(stops){const rows=Array.isArray(stops)?stops:[];const delivered=rows.filter(s=>s.executionStatus==='DELIVERED').length,failed=rows.filter(s=>s.executionStatus==='FAILED').length;return {total:rows.length,delivered,failed,processed:delivered+failed,remaining:rows.length-delivered-failed,next:rows.find(s=>!['DELIVERED','FAILED'].includes(s.executionStatus))||null};}
-export const isActionable=stop=>stop&&['PENDING','ARRIVED'].includes(stop.executionStatus||'PENDING');

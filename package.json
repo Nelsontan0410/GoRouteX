@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:css": "npx --yes tailwindcss@3.4.17 -c tailwind.config.cjs -i scripts/tailwind.input.css -o styles/tailwind.css --minify",
     "lta:update": "node scripts/update-lta-restrictions.mjs",
     "test:lta": "node --test tests/*.test.mjs",
     "test": "node --test tests/*.test.mjs",

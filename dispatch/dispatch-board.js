@@ -151,15 +151,6 @@
     const total = metres || Number(route.estimatedDistanceMeters || 0);
     return total ? `${(total / 1000).toFixed(1)} km` : '—';
   }
-  function gpsLabel(gps) {
-    if (!gps) return 'GPS unavailable';
-    const updated = new Date(gps.lastUpdatedAt || gps.lastUploadedClientAt || 0);
-    const age = Date.now() - updated.getTime();
-    if (!Number.isFinite(age) || age < 0) return 'GPS unavailable';
-    if (gps.status === 'stopped') return 'Tracking stopped';
-    if (age > 90000) return `GPS stale · ${Math.floor(age / 60000)}m ago`;
-    return `GPS live · ${Math.max(1, Math.floor(age / 1000))}s ago`;
-  }
 
   // Plan summary as KPI cards (values from the plan; '—' when the plan does not have them).
   function renderKpis(context) {

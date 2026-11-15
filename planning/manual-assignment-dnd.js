@@ -7,24 +7,6 @@
  * All duplicate declarations are retained in original order: trailing compatibility wrappers win.
  * Existing updateRouteLines preview calls and Retrieve All session sync are intentionally preserved.
  */
-function clearDraggedStopFromSource(sourceListType, customerId, sourceSlotIndex = null) {
-        if (sourceListType === 'unassigned') {
-            unassignedStops = unassignedStops.filter(id => id !== customerId);
-            return;
-        }
-        if (!isManualRouteListType(sourceListType)) return;
-
-        const numericSlotIndex = Number.parseInt(sourceSlotIndex, 10);
-        if (Number.isFinite(numericSlotIndex)) {
-            clearRouteSlot(sourceListType, numericSlotIndex);
-            return;
-        }
-
-        const slotKey = getRouteSlotKeys().find((key) => manualRouteSlots[sourceListType]?.[key]?.location === customerId);
-        if (slotKey) {
-            clearRouteSlot(sourceListType, Number(slotKey) - 1);
-        }
-    }
 
 function attachDragListenersToUnassignedList(listElement) {
         const items = listElement.querySelectorAll('.draggable-item');
@@ -39,42 +21,6 @@ function attachDragListenersToUnassignedList(listElement) {
         listElement.removeEventListener('drop', handleManualDrop);
         listElement.addEventListener('dragover', handleManualDragOver);
         listElement.addEventListener('drop', handleManualDrop);
-    }
-
-function attachDragListenersToSlots(container) {
-        const slots = container.querySelectorAll('.route-slot');
-        slots.forEach(slot => {
-            slot.removeEventListener('dragover', handleSlotDragOver);
-            slot.removeEventListener('dragleave', handleSlotDragLeave);
-            slot.removeEventListener('drop', handleSlotDrop);
-            slot.removeEventListener('dragstart', handleSlotDragStart);
-            slot.removeEventListener('dragend', handleManualDragEnd);
-            slot.addEventListener('dragover', handleSlotDragOver);
-            slot.addEventListener('dragleave', handleSlotDragLeave);
-            slot.addEventListener('drop', handleSlotDrop);
-            // Allow filled slots to be dragged
-            if (slot.classList.contains('filled')) {
-                slot.addEventListener('dragstart', handleSlotDragStart);
-                slot.addEventListener('dragend', handleManualDragEnd);
-            }
-        });
-    }
-
-function handleSlotDragStart(e) {
-        const slot = e.currentTarget;
-        draggedItemElement = slot;
-        draggedItemOriginalListType = slot.dataset.listType;
-        e.dataTransfer.setData('text/plain', slot.dataset.customerId);
-        e.dataTransfer.setData('sourceListType', draggedItemOriginalListType);
-        setTimeout(() => { if(draggedItemElement) draggedItemElement.classList.add('dragging'); }, 0);
-    }
-
-function handleManualDragStart(e) {
-        draggedItemElement = e.target;
-        draggedItemOriginalListType = e.target.dataset.listType;
-        e.dataTransfer.setData('text/plain', e.target.dataset.customerId);
-        e.dataTransfer.setData('sourceListType', draggedItemOriginalListType);
-        setTimeout(() => { if(draggedItemElement) draggedItemElement.classList.add('dragging'); }, 0);
     }
 
 function handleManualDragEnd(e) {
@@ -95,129 +41,7 @@ function handleSlotDragLeave(e) {
         e.currentTarget.classList.remove('drag-over');
     }
 
-function handleSlotDrop(e) {
-        e.preventDefault();
-        e.currentTarget.classList.remove('drag-over');
-
-        if (!draggedItemElement) return;
-
-        const slot = e.currentTarget;
-        const slotIndex = parseInt(slot.dataset.slot);
-        const targetListType = slot.dataset.listType;
-        const draggedCustomerId = e.dataTransfer.getData('text/plain');
-        const sourceListType = e.dataTransfer.getData('sourceListType');
-
-        if (!draggedCustomerId) return;
-
-        // Remove from source
-        if (sourceListType === 'unassigned') {
-            unassignedStops = unassignedStops.filter(id => id !== draggedCustomerId);
-        } else if (sourceListType === 'route1') {
-            manualRoute1Waypoints = manualRoute1Waypoints.filter(id => id !== draggedCustomerId);
-        } else if (sourceListType === 'route2') {
-            manualRoute2Waypoints = manualRoute2Waypoints.filter(id => id !== draggedCustomerId);
-        }
-
-        // Add to target slot
-        let targetArray = targetListType === 'route1' ? manualRoute1Waypoints : manualRoute2Waypoints;
-
-        // If slot already has something, move it back to unassigned
-        if (slot.classList.contains('filled') && slot.dataset.customerId) {
-            const existingCustomerId = slot.dataset.customerId;
-            targetArray = targetArray.filter(id => id !== existingCustomerId);
-            unassignedStops.push(existingCustomerId);
-        }
-
-        // Insert at the correct position
-        if (slotIndex >= targetArray.length) {
-            targetArray.push(draggedCustomerId);
-        } else {
-            targetArray.splice(slotIndex, 0, draggedCustomerId);
-        }
-
-        // Trim to max 8 items
-        if (targetArray.length > MAX_WAYPOINTS_PER_ROUTE) {
-            const overflow = targetArray.splice(MAX_WAYPOINTS_PER_ROUTE);
-            unassignedStops.push(...overflow);
-        }
-
-        if (targetListType === 'route1') {
-            manualRoute1Waypoints = targetArray;
-        } else {
-            manualRoute2Waypoints = targetArray;
-        }
-
-        draggedItemElement = null;
-        draggedItemOriginalListType = null;
-
-        populateManualAssignmentLists();
-        addSimpleMarkersForMasterList(unassignedStops.concat(manualRoute1Waypoints, manualRoute2Waypoints));
-        updateRouteLines();
-    }
-
 function handleManualDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
-
-function getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('.draggable-item:not(.dragging)')];
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
-            if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
-            else return closest;
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
-    }
-
-function handleManualDrop(e) {
-        e.preventDefault();
-        if (!draggedItemElement) { appLog("No draggedItemElement in handleManualDrop"); return; }
-
-        // This is for dropping back to unassigned list only
-        const targetListElement = e.currentTarget;
-        if (!targetListElement || targetListElement.id !== 'unassignedStopsList') return;
-
-        const targetListType = 'unassigned';
-        let draggedCustomerId = e.dataTransfer.getData('text/plain');
-        let sourceListType = e.dataTransfer.getData('sourceListType');
-
-        // Fallback if dataTransfer is empty
-        if (!draggedCustomerId && draggedItemElement && draggedItemElement.dataset.customerId) draggedCustomerId = draggedItemElement.dataset.customerId;
-        if (!sourceListType && draggedItemElement && draggedItemElement.dataset.listType) sourceListType = draggedItemElement.dataset.listType;
-
-        if (!draggedCustomerId || !sourceListType) {
-            appLog("Critical error: Cannot determine dragged item customer ID or source list type.");
-            if (draggedItemElement) draggedItemElement.classList.remove('dragging');
-            draggedItemElement = null; draggedItemOriginalListType = null;
-            return;
-        }
-
-        // If already in unassigned, do nothing
-        if (sourceListType === 'unassigned') {
-            draggedItemElement.classList.remove('dragging');
-            draggedItemElement = null; draggedItemOriginalListType = null;
-            return;
-        }
-
-        draggedItemElement.classList.remove('dragging');
-
-        // Remove from source array (route1 or route2)
-        if (sourceListType === 'route1') {
-            manualRoute1Waypoints = manualRoute1Waypoints.filter(id => id !== draggedCustomerId);
-        } else if (sourceListType === 'route2') {
-            manualRoute2Waypoints = manualRoute2Waypoints.filter(id => id !== draggedCustomerId);
-        }
-
-        // Add to unassigned
-        if (!unassignedStops.includes(draggedCustomerId)) {
-            unassignedStops.push(draggedCustomerId);
-        }
-
-        draggedItemElement = null;
-        draggedItemOriginalListType = null;
-
-        populateManualAssignmentLists();
-        addSimpleMarkersForMasterList(unassignedStops.concat(manualRoute1Waypoints, manualRoute2Waypoints));
-        updateRouteLines();
-    }
 
 function attachDragListenersToSlotsLegacy(container) {
         const slots = container.querySelectorAll('.route-slot');

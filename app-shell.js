@@ -108,8 +108,7 @@
       trialExpiredMessage: document.getElementById('trialExpiredMessage'),
       expiredUpgradeBtn: document.getElementById('expiredUpgradeBtn'),
       contactSalesLink: document.getElementById('contactSalesLink'),
-      expiredLogoutBtn: document.getElementById('expiredLogoutBtn'),
-      kpiReportModal: document.getElementById('kpiReportModal')
+      expiredLogoutBtn: document.getElementById('expiredLogoutBtn')
     };
   }
 
@@ -137,13 +136,10 @@
   }
 
   function setVisibleState(stateName) {
-    const { loadingState, trialExpiredView, activeSubscriberRoot, kpiReportModal } = getDom();
+    const { loadingState, trialExpiredView, activeSubscriberRoot } = getDom();
     if (loadingState) loadingState.hidden = stateName !== 'loading';
     if (trialExpiredView) trialExpiredView.hidden = stateName !== 'expired';
     if (activeSubscriberRoot) activeSubscriberRoot.hidden = stateName !== 'active';
-    if (kpiReportModal && stateName !== 'active') {
-      kpiReportModal.style.display = 'none';
-    }
   }
 
   function clearStoredSession() {

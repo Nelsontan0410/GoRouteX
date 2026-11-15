@@ -573,25 +573,6 @@
     return links.map((link, itemIndex) => `${links.length > 1 ? `Part ${itemIndex + 1}/${links.length}: ` : ''}${link.url}`).join('\n');
   }
 
-  function openNavigation(route) {
-    if (!gate(route)) return;
-    const links = global.RestrictionRouting.navigationLinks(route);
-    if (links.length === 1) { global.open(links[0].url, '_blank', 'noopener'); return; }
-    const dialog = document.createElement('dialog'); dialog.className = 'lorry-navigation-dialog';
-    const heading = document.createElement('h2'); heading.textContent = 'Google Maps navigation'; dialog.append(heading);
-    const note = document.createElement('p');
-    note.textContent = 'Open these parts in order. Delivery stops and your manual navigation points are preserved. Google Maps can recalculate between those points.';
-    dialog.append(note);
-    for (const [itemIndex, link] of links.entries()) {
-      const anchor = document.createElement('a'); anchor.href = link.url; anchor.target = '_blank'; anchor.rel = 'noopener';
-      anchor.textContent = `Open part ${itemIndex + 1} of ${links.length}`;
-      anchor.addEventListener('click', (event) => { if (!gate(route)) { event.preventDefault(); dialog.close(); } });
-      dialog.append(anchor);
-    }
-    const close = document.createElement('button'); close.textContent = 'Close'; close.addEventListener('click', () => dialog.close()); dialog.append(close);
-    dialog.addEventListener('close', () => dialog.remove()); document.body.append(dialog); dialog.showModal();
-  }
-
   function mount() {
     const host = document.querySelector('.select-page-route-settings .route-settings-body') || document.querySelector('.select-page-route-settings');
     if (!host) return;
@@ -609,7 +590,6 @@
     codeContainer = section.querySelector('[data-lorry-codes]'); codeFilter = section.querySelector('[data-lorry-search]');
     codeFilter.addEventListener('input', renderCodes);
     const hydrate = () => {
-      const config = settings();
       renderCodes(); render(); refreshMaps(); renderPanelPresentation();
       updateRegionOptions(optionRoutes);
     };
@@ -620,7 +600,7 @@
 
   global.RouteSafety = {
     validateRoutes, invalidate, bindRoutes, summary, permitted, gate, render, showConflicts, registerMap, placeOptions,
-    navigationText, openNavigation, enabled: () => settings().enabled, settings, isCurrent: cacheCurrent, rulesVersion: RULES_VERSION
+    navigationText,enabled: () => settings().enabled, settings, isCurrent: cacheCurrent, rulesVersion: RULES_VERSION
   };
   global.addEventListener?.('planned-routes-changed', () => {
     refreshMaps('final');

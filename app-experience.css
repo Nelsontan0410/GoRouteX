@@ -1830,7 +1830,6 @@
 #page-optimized-routes,
 #page-maps-preview,
 #page-fullscreen-map,
-#page-gps-tracking,
 #page-add-stop,
 #page-account-access {
   background: var(--saas-bg) !important;
@@ -1845,7 +1844,6 @@
 .history-browser-header,
 .maps-preview-header,
 .fullscreen-header,
-.gps-tracking-header,
 .add-stop-header {
   min-height: 72px;
   box-sizing: border-box;
@@ -1868,7 +1866,6 @@
 .history-browser-header h2,
 .maps-preview-title,
 .fullscreen-title,
-.gps-tracking-title,
 .add-stop-title {
   color: var(--saas-text) !important;
   letter-spacing: -0.02em;
@@ -1877,7 +1874,6 @@
 .history-browser-toolbar,
 .history-browser-list,
 .route-info-section,
-.gps-section,
 .form-section,
 .account-access-panel,
 .account-access-hero {
@@ -1896,8 +1892,7 @@
 .account-usage-card,
 .access-feature-item,
 .role-access-card,
-.account-plan-card,
-.performance-card {
+.account-plan-card {
   background: #f8fafc !important;
   border-color: var(--saas-border) !important;
   border-radius: 10px !important;
@@ -1935,7 +1930,6 @@
 .modern-action-btn,
 .back-to-routes-btn,
 .exit-fullscreen-btn,
-.gps-nav-btn,
 .add-stop-nav-btn {
   border-radius: 9px !important;
   box-shadow: none !important;
@@ -1944,7 +1938,6 @@
 .modern-action-btn:hover:not(:disabled),
 .back-to-routes-btn:hover,
 .exit-fullscreen-btn:hover,
-.gps-nav-btn:hover,
 .add-stop-nav-btn:hover {
   transform: none !important;
   box-shadow: none !important;
@@ -1952,7 +1945,6 @@
 
 .back-to-routes-btn,
 .exit-fullscreen-btn,
-.gps-nav-btn,
 .add-stop-nav-btn {
   background: #ffffff !important;
   color: var(--saas-primary) !important;
@@ -1961,7 +1953,6 @@
 
 .back-to-routes-btn[style*="6c757d"],
 .exit-fullscreen-btn[style*="6c757d"],
-.gps-nav-btn[style*="6c757d"],
 .add-stop-nav-btn[style*="6c757d"] {
   color: var(--saas-text-muted) !important;
   border-color: var(--saas-border) !important;
@@ -1977,33 +1968,28 @@
   border-radius: 0;
 }
 
-.gps-left-panel,
 .add-stop-form-panel {
   background: transparent !important;
   border-color: var(--saas-border) !important;
 }
 
-.gps-section h3,
 .form-section h3 {
   color: var(--saas-text) !important;
   border-color: var(--saas-border) !important;
 }
 
-.gps-action-btn,
 .search-address-btn,
 .submit-btn {
   box-shadow: none !important;
 }
 
-.gps-action-btn:hover:not(:disabled),
 .search-address-btn:hover,
 .submit-btn:hover {
   transform: none !important;
   box-shadow: none !important;
 }
 
-.map-instructions,
-.route-info-bar {
+.map-instructions {
   background: #eff6ff !important;
   color: #1e3a8a !important;
   border: 1px solid #bfdbfe !important;
@@ -2017,7 +2003,6 @@
 
   .maps-preview-header,
   .fullscreen-header,
-  .gps-tracking-header,
   .add-stop-header {
     min-height: 64px;
     padding: 10px 14px !important;

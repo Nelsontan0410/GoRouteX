@@ -9,7 +9,6 @@ export const BILLING_OFFERS = Object.freeze({
   })
 });
 
-export const TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
 export const GRACE_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
 
 export function normalizePlan(value) {
@@ -96,14 +95,3 @@ export function getGraceEndsAt({ existingGraceEndsAt, now = new Date() } = {}) {
   return new Date(now.getTime() + GRACE_DURATION_MS);
 }
 
-export function formatMoney(amount, currency, locale = 'en-SG') {
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0
-    }).format(amount);
-  } catch (error) {
-    return `${currency} ${amount}`;
-  }
-}
