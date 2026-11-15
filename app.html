@@ -1308,9 +1308,12 @@
         const saved = getSavedCustomerEntries();
         const plan = selection || window.GoRouteXOrderPlan?.read?.(window.FirebaseApp?.auth?.getCurrentUser?.()?.uid);
         const oneTime = (Array.isArray(plan?.oneTimeStops) ? plan.oneTimeStops : []).map((item) => {
-            const base = saved.find((entry) => entry.uniqueId === item.savedStopId);
-            if (!base || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lng))) return null;
+            const base = item.savedStopId ? saved.find((entry) => entry.uniqueId === item.savedStopId) : null;
+            if (!Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lng))) return null;
             const lat = Number(item.lat), lng = Number(item.lng);
+            // No saved customer: a stop built from the order itself (name, phone, address), planned for this selection only.
+            if (!base && item.savedStopId) return null;
+            if (!base) return { id: item.id, uniqueId: item.id, customerId: '', customerName: item.name || '', siteCode: '', Name: item.name || 'One-time order', Address: item.address, 'Hp No': item.phone || '', unit: '', postalCode: '', note: '', lat, lng, coordinate: `${lat},${lng}`, deliveryScheduleMode: 'default', customDeliverySchedule: null, serviceTimeMode: 'default', customServiceMinutes: null, isOneTimeAddress: true, baseStopId: '' };
             return { ...base, id: item.id, uniqueId: item.id, Address: item.address, postalCode: '', lat, lng, coordinate: `${lat},${lng}`, isOneTimeAddress: true, baseStopId: base.uniqueId };
         }).filter(Boolean);
         allCustomerEntries = [...saved, ...oneTime];

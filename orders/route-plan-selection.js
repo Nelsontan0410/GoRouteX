@@ -76,10 +76,10 @@
     const stopById = new Map((stops || []).filter(stop => stop?.id).map(stop => [String(stop.id), stop]));
     const orderIds = [...new Set(orders.map(order => String(order.internalId || '').trim()))];
     if (orderIds.some(id => !id)) throw Error('A selected order is missing its saved ID. Refresh Order Hub and try again.');
-    if (orders.some(order => !stopById.has(String(order.savedStopId || '').trim()))) throw Error('A selected order needs a saved delivery stop. Review the order before planning.');
+    if (orders.some(order => !stopById.has(String(order.savedStopId || '').trim()) && !oneTimeAddress(order))) throw Error('A selected order needs a saved delivery stop. Review the order before planning.');
     const stopIds = [...new Set(orders.map(planningStopId))];
     if (Number.isFinite(maxStops) && stopIds.length > maxStops) throw Error('This plan supports ' + maxStops + ' selected stops. Choose fewer orders or change plan.');
-    const oneTimeStops = orders.filter(oneTimeAddress).map(order => ({ id: planningStopId(order), savedStopId: String(order.savedStopId).trim(), orderId: String(order.internalId).trim(), ...oneTimeAddress(order) }));
+    const oneTimeStops = orders.filter(oneTimeAddress).map(order => ({ id: planningStopId(order), savedStopId: String(order.savedStopId || '').trim(), name: String(order.customerName || '').trim(), phone: String(order.contactPhone || order.phone || '').trim(), orderId: String(order.internalId).trim(), ...oneTimeAddress(order) }));
     const oneTimeById = new Map(oneTimeStops.map(stop => [stop.id, stop]));
     return { orderIds, stopIds, oneTimeStops, planningDateTime: selectedSchedule(orders), selectedAddresses: stopIds.map(id => (oneTimeById.get(id) || stopById.get(id)).address), stopConstraints: stopConstraints(orders) };
   }
