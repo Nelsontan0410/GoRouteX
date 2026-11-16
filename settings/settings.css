@@ -12,3 +12,30 @@
 .location-tools { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .location-results { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .location-results button { text-align: left; width: 100%; }
+
+/* Phone tracking setup dialog */
+.tracking-meta { display: block; color: #64748b; margin-top: 2px; }
+.tracking-dialog { border: 0; border-radius: 14px; padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-shadow: 0 20px 50px rgba(15, 23, 42, .25); }
+.tracking-dialog::backdrop { background: rgba(15, 23, 42, .45); }
+.tracking-dialog-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.tracking-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tracking-dialog-head h2 { font-size: 1.1rem; margin: 0; }
+.tracking-close { border: 0; background: transparent; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #475569; }
+.tracking-intro, .tracking-note { margin: 0; color: #475569; font-size: .9rem; }
+.tracking-status { margin: 0; font-weight: 600; color: #1e3a8a; }
+.tracking-field { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .9rem; }
+.tracking-copy { display: flex; gap: 8px; }
+.tracking-copy input { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; }
+.tracking-copy button, .tracking-actions button { padding: 8px 14px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-weight: 600; }
+.tracking-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.tracking-actions .primary { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.tracking-actions .danger { color: #b91c1c; border-color: #fca5a5; }
+.tracking-steps summary { cursor: pointer; font-weight: 600; }
+.tracking-steps ol { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: #334155; font-size: .9rem; }
+.tracking-dialog [hidden] { display: none !important; }
+/* Driver and vehicle rows: action buttons wrap instead of pushing the page sideways on phones. */
+.vehicle-item > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+@media (max-width: 520px) {
+  .vehicle-item { flex-direction: column; }
+  .vehicle-item > div:last-child { justify-content: flex-start; width: 100%; }
+}

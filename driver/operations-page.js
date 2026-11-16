@@ -66,7 +66,7 @@ function renderGpsLine(view) {
   line.className = `live-gps-line ${tone}`;
   if (!view.started) line.textContent = 'Live GPS unavailable: the driver has not started this route.';
   else if (gps.state === 'live') line.textContent = `${gps.approximate ? gps.label : 'GPS live'} · updated ${Math.max(1, Math.round(gps.ageMs / 1000))}s ago`;
-  else if (gps.state === 'stale') line.textContent = `${gps.label} · last position ${clock(gps.updatedAt)} (shown grey).${gps.hint ? '' : ' A browser pauses GoRouteX while Google Maps is open; it updates when the driver opens GoRouteX again.'}`;
+  else if (gps.state === 'stale') line.textContent = `${gps.label} · last position ${clock(gps.updatedAt)} (shown grey).${gps.source === 'device-app' ? ' Check that the tracking app on the driver\'s phone is switched on and its battery setting is Unrestricted.' : gps.hint ? '' : ' A browser pauses GoRouteX while Google Maps is open; it updates when the driver opens GoRouteX again.'}`;
   else line.textContent = gps.updatedAt ? `${gps.label} · last update ${clock(gps.updatedAt)}` : gps.label;
 }
 

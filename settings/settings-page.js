@@ -267,6 +267,65 @@ function editDriverAccount(driver) {
   driverStatus('Username stays the same. Enter a new PIN and choose Reset PIN only when needed.');
   go('drivers'); $('driverAccountName').focus();
 }
+// --- Phone tracking app (Traccar Client) -----------------------------------------------------------
+function trackingLabel(tracking) {
+  if (!tracking?.linked) return 'Phone tracking: not set up';
+  if (!tracking.lastPositionAt) return 'Phone tracking: connected · no position yet';
+  const at = new Date(tracking.lastPositionAt);
+  return `Phone tracking: connected · last position ${at.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
+}
+const trackingServerUrl = () => `${location.origin}/.netlify/functions/track`;
+function copyField(id, button) {
+  const value = $(id).value;
+  const done = () => { const label = button.textContent; button.textContent = 'Copied'; setTimeout(() => { button.textContent = label; }, 1500); };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(value).then(done, () => { $(id).select(); });
+  else { $(id).select(); }
+}
+function showTrackingDialog(driver, token = '') {
+  const dialog = $('trackingSetupDialog');
+  $('trackingDriverName').textContent = driver.name;
+  $('trackingServerUrl').value = trackingServerUrl();
+  const linked = !!token || !!driver.tracking?.linked;
+  $('trackingTokenRow').hidden = !token;
+  $('trackingToken').value = token;
+  $('trackingTokenHidden').hidden = !!token || !linked;
+  $('trackingTokenHidden').textContent = linked && !token ? `A device identifier ending in ${driver.tracking?.tokenHint || '····'} is set up. It is shown only once; choose Regenerate to get a new one (the old one stops working).` : '';
+  $('trackingStatus').textContent = token ? 'Copy the device identifier now. It is shown only this once.' : trackingLabel(driver.tracking);
+  $('trackingLink').textContent = linked ? 'Regenerate identifier' : 'Create identifier';
+  $('trackingUnlink').hidden = !linked;
+  $('trackingLink').onclick = async () => {
+    if (linked && !confirm('Create a new device identifier? The current one stops working, and the phone must be set up again.')) return;
+    $('trackingLink').disabled = true; $('trackingStatus').textContent = 'Creating…';
+    try {
+      const result = await driverAccountsApi('tracking-link', { driverUid: driver.uid });
+      driver.tracking = { linked: true, tokenHint: result.tokenHint, linkedAt: result.linkedAt, lastPositionAt: null };
+      showTrackingDialog(driver, result.token);
+      void refreshResources();
+    } catch (error) { $('trackingStatus').textContent = error.message; }
+    finally { $('trackingLink').disabled = false; }
+  };
+  $('trackingUnlink').onclick = async () => {
+    if (!confirm(`Remove phone tracking for ${driver.name}? The phone app stops updating the Live view.`)) return;
+    $('trackingUnlink').disabled = true; $('trackingStatus').textContent = 'Removing…';
+    try {
+      await driverAccountsApi('tracking-unlink', { driverUid: driver.uid });
+      driver.tracking = { linked: false, tokenHint: '', linkedAt: null, lastPositionAt: null };
+      showTrackingDialog(driver);
+      void refreshResources();
+    } catch (error) { $('trackingStatus').textContent = error.message; }
+    finally { $('trackingUnlink').disabled = false; }
+  };
+  if (!dialog.open) dialog.showModal();
+}
+function openTrackingSetup(driver) { showTrackingDialog(driver); }
+function setupTrackingDialog() {
+  const dialog = $('trackingSetupDialog'); if (!dialog) return;
+  $('trackingClose').onclick = () => { $('trackingToken').value = ''; dialog.close(); };
+  dialog.addEventListener('close', () => { $('trackingToken').value = ''; });
+  $('trackingCopyUrl').onclick = event => copyField('trackingServerUrl', event.currentTarget);
+  $('trackingCopyToken').onclick = event => copyField('trackingToken', event.currentTarget);
+}
+
 function renderDriverAccounts() {
   const list = $('driverAccountList'); list.replaceChildren();
   const entitlement = state.driverEntitlement;
@@ -276,7 +335,10 @@ function renderDriverAccounts() {
     const item = document.createElement('article'); item.className = 'vehicle-item';
     const details = document.createElement('div'), title = document.createElement('strong'), meta = document.createElement('small');
     title.textContent = driver.name; meta.textContent = `@${driver.username} · ${driver.active ? 'Active' : 'Inactive'}`; details.append(title, meta);
+    const tracking = document.createElement('small'); tracking.className = 'tracking-meta'; tracking.textContent = trackingLabel(driver.tracking); details.append(tracking);
     const actions = document.createElement('div');
+    const phone = document.createElement('button'); phone.type = 'button'; phone.textContent = driver.tracking?.linked ? 'Phone tracking' : 'Set up phone tracking'; phone.onclick = () => openTrackingSetup(driver);
+    actions.append(phone);
     const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'View / Edit'; edit.onclick = () => editDriverAccount(driver);
     const toggle = document.createElement('button'); toggle.type = 'button'; toggle.textContent = driver.active ? 'Deactivate' : 'Reactivate';
     toggle.onclick = async () => { toggle.disabled = true; driverStatus('Saving Driver status…'); try { await driverAccountsApi('status', { driverUid: driver.uid, active: !driver.active }); await refreshResources(); driverStatus(`Driver ${driver.active ? 'deactivated' : 'reactivated'}.`); } catch (error) { driverStatus(error.message, true); toggle.disabled = false; } };
@@ -386,6 +448,7 @@ async function save(event) {
   finally { state.saving = false; $('saveSettings').disabled = !dirty(); }
 }
 function bind() {
+  setupTrackingDialog();
   $('settingsNav').addEventListener('click', event => { const button = event.target.closest('[data-section]'); if (button) go(button.dataset.section); });
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => go(button.dataset.go)));
   $('settingsForm').addEventListener('input', event => { if (LOCATION_FIELDS.includes(event.target.id)) onLocationInput(event.target.id); updateSave(); });
