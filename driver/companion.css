@@ -134,3 +134,14 @@ body:not(.is-live-view) .driver-tracking-details > summary { font-size: .86rem; 
  #driverExecution .driver-stop-section { padding: 18px 16px; }
 }
 @media (prefers-reduced-motion: reduce) { #driverExecution :is(button,a) { transition: none; } }
+
+/* Each stop row: details button + its own navigate link, so the driver can go to any stop in any order. */
+#driverExecution .driver-stop-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e1e6ed; }
+#driverExecution .driver-stop-row:last-child { border-bottom: 0; }
+#driverExecution .driver-stop-row .driver-stop-item { flex: 1 1 auto; min-width: 0; border-bottom: 0; background: transparent; text-align: left; }
+#driverExecution .driver-stop-row.is-current { box-shadow: inset 3px 0 0 #1d47a5; }
+#driverExecution .driver-stop-row.is-delivered .driver-stop-item, #driverExecution .driver-stop-row.is-failed .driver-stop-item { opacity: .72; }
+.driver-stop-nav { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 52px; min-height: 40px; padding: 0 12px; border-radius: 10px; background: #edf3ff; color: #1d47a5; font-weight: 700; font-size: .85rem; text-decoration: none; }
+.driver-stop-nav:active { background: #dbe7ff; }
+.driver-stop-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.driver-stop-detail-actions > * { flex: 1 1 140px; }

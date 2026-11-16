@@ -51,6 +51,25 @@ test('arrival, POD, failure validation, next-stop preview and pause use existing
  await n.driverPauseBtn.onclick();assert.equal(n.driverNextStop.hidden,true);assert.equal(n.driverNavigateAll.hidden,true);
  await n.driverResumeBtn.onclick();assert.equal(n.driverNextStop.hidden,false);assert.equal(n.driverStopSequence.textContent,'Stop 3 of 12');
 });
+test('driver can pick any stop out of order, navigate to it from the list, and navigate back to a delivered stop',async()=>{
+ const {nodes:n,store}=await page();await n.driverStartBtn.onclick();
+ const rows=()=>n.driverStopList.children;
+ // Every row has its own navigation link, before and after delivery.
+ assert.equal(rows().length,12);assert.ok(rows().every(row=>row.children[1]?.className==='driver-stop-nav'));
+ const last=(await store.loadExecution()).stops[11];
+ n.driverStopList.onclick({target:{closest:sel=>sel==='a'?null:{dataset:{stopId:last.id}}}});
+ const pick=n.driverStopDetail.children.find(child=>child.className==='driver-stop-detail-actions').children.find(child=>child.dataset.action==='focus-stop');
+ assert.ok(pick);n.driverStopDetail.onclick({target:{closest:()=>pick}});
+ assert.equal(n.driverRouteView.dataset.screen,'current');assert.equal(n.driverStopSequence.textContent,'Stop 12 of 12');
+ await n.driverArriveBtn.onclick();n.driverDeliverBtn.onclick();await n.driverPodForm.onsubmit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
+ const after=await store.loadExecution();assert.equal(after.stops[11].executionStatus,'DELIVERED');assert.equal(after.stops[0].executionStatus,'PENDING');
+ // Nothing after stop 12, so the first open stop is next.
+ assert.equal(n.driverStopSequence.textContent,'Stop 1 of 12');
+ // The delivered stop keeps a navigate link so the driver can go back.
+ n.driverStopList.onclick({target:{closest:sel=>sel==='a'?null:{dataset:{stopId:last.id}}}});
+ const actions=n.driverStopDetail.children.find(child=>child.className==='driver-stop-detail-actions');
+ assert.match(actions.children[0].href,/google\.com\/maps/);assert.equal(actions.children.some(child=>child.dataset?.action==='focus-stop'),false);
+});
 test('empty and inactive accounts do not show an actionable route',async()=>{
  const empty=await page({route:{...fixtureRoute(),date:'2000-01-01'}});assert.equal(empty.nodes.driverRouteView.hidden,true);assert.equal(empty.nodes.driverCurrentTab.disabled,true);
  const denied=await page({profile:{role:'driver',active:false}});assert.match(denied.nodes.driverNotice.textContent,/Driver account required/);assert.equal(denied.store.calls.start,0);
