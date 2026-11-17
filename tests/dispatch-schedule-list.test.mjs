@@ -64,3 +64,23 @@ test('the schedule list can be shared to a WhatsApp group with the same content'
   assert.match(page, /<button id="shareWhatsApp">Share to WhatsApp group<\/button>/);
   assert.match(page, /popup\.open\(`https:\/\/wa\.me\/\?text=\$\{encodeURIComponent\(message\)\}`/);
 });
+
+test('WhatsApp ETA notice: template with customer name, address and ETA; SG/MY numbers get the country code', () => {
+  const d = board();
+  assert.equal(d.whatsappPhone('9123 4567'), '6591234567');
+  assert.equal(d.whatsappPhone('+65 9123-4567'), '6591234567');
+  assert.equal(d.whatsappPhone('012-345 6789'), '60123456789');
+  assert.equal(d.whatsappPhone('0065 9123 4567'), '6591234567');
+  assert.equal(d.whatsappPhone('12345'), null);
+  assert.equal(d.whatsappPhone(''), null);
+  const { url, hasPhone } = d.whatsappEtaUrl({ customerName: 'ABC Trading', address: '12 Tuas Ave', contactPhone: '9123 4567' }, '10:15 AM');
+  assert.equal(hasPhone, true);
+  assert.match(url, /^https:\/\/wa\.me\/6591234567\?text=/);
+  const message = decodeURIComponent(url.split('?text=')[1]);
+  assert.match(message, /^Hello ABC Trading,/);
+  assert.match(message, /arrive at 12 Tuas Ave around 10:15 AM today\./);
+  assert.match(message, /reply to this WhatsApp message/);
+  const none = d.whatsappEtaUrl({ customerName: 'No phone', address: 'X' }, '9:00 AM');
+  assert.equal(none.hasPhone, false);
+  assert.match(none.url, /^https:\/\/wa\.me\/\?text=/);
+});

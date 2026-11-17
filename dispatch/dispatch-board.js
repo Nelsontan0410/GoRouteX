@@ -141,6 +141,28 @@
     return lines.join('\n');
   }
 
+  // Customer ETA notice on WhatsApp (same template as the old planner page). Only the customer name, delivery
+  // address and ETA change per stop. Singapore and Malaysia local numbers are given their country code.
+  function whatsappPhone(value) {
+    let phone = text(value).replace(/[\s\-().]/g, '');
+    if (phone.startsWith('00')) phone = `+${phone.slice(2)}`;
+    if (/^\+65\d{8}$/.test(phone) || /^\+60\d{8,10}$/.test(phone)) return phone.slice(1);
+    if (/^65\d{8}$/.test(phone) || /^60\d{8,10}$/.test(phone)) return phone;
+    if (/^[89]\d{7}$/.test(phone)) return `65${phone}`;
+    if (/^01\d{8,9}$/.test(phone)) return `60${phone.slice(1)}`;
+    if (/^\+[1-9]\d{9,14}$/.test(phone)) return phone.slice(1);
+    return null;
+  }
+  function etaMessage({ name, address, eta }) {
+    return `Hello ${text(name) || 'Customer'},\n\nOur team is currently planned to arrive at ${text(address) || 'your delivery address'} around ${text(eta)} today.\nIf you need to reschedule or share access details, please reply to this WhatsApp message or contact your admin team.\n\nThank you.`;
+  }
+  // No usable number: WhatsApp opens with the message and the user picks the chat.
+  function whatsappEtaUrl(stop, eta) {
+    const phone = whatsappPhone(stop.contactPhone || stop.phone || stop['Hp No']);
+    const message = etaMessage({ name: stop.customerName || stop.Name || stop.contactName || stop.stopName || stop.name, address: stop.deliveryAddress || stop.address || stop.Address, eta });
+    return { url: `https://wa.me/${phone || ''}?text=${encodeURIComponent(message)}`, hasPhone: Boolean(phone) };
+  }
+
   function formatSeconds(seconds) {
     const total = Number(seconds);
     return total > 0 ? `${Math.floor(total / 3600)}h ${Math.round(total % 3600 / 60)}m` : '—';
@@ -273,6 +295,14 @@
         const detail = [stop.contactName, stop.contactPhone || stop.phone || stop['Hp No'], (stop.orderNumbers || []).join(' / ')].filter(Boolean).join(' · ');
         if (detail) row.append(element('small', detail));
         row.append(element('b', timing?.arrivalTimeStr ? `ETA ${timing.arrivalTimeStr}` : 'ETA unavailable'));
+        if (timing?.arrivalTimeStr) {
+          const { url, hasPhone } = whatsappEtaUrl(stop, timing.arrivalTimeStr);
+          const wa = element('a', 'WhatsApp ETA', 'dispatch-stop-wa');
+          wa.href = url; wa.target = '_blank'; wa.rel = 'noopener noreferrer';
+          wa.title = hasPhone ? 'Open WhatsApp with the ETA message for this customer' : 'No valid phone saved: WhatsApp opens and you choose the chat';
+          if (!hasPhone) wa.classList.add('is-no-phone');
+          row.append(wa);
+        }
         list.append(row);
       }
       card.append(list);
@@ -492,5 +522,5 @@
       if (!document.hidden && isViewActive() && state.dispatched.length) pollStatus();
     }, 30000);
   }
-  global.GoRouteXDispatch = { init, refresh, render, reset, suspend, selectRoute, contextFromPlan, routeStops, lookupTiming, prefetchDrivers, scheduleList, scheduleText };
+  global.GoRouteXDispatch = { init, refresh, render, reset, suspend, selectRoute, contextFromPlan, routeStops, lookupTiming, prefetchDrivers, scheduleList, scheduleText, whatsappPhone, etaMessage, whatsappEtaUrl };
 })(window);
