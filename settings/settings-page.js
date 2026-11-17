@@ -75,7 +75,7 @@ function populate(settings) {
   }
   window.GoRouteXScheduleEditor?.render($('defaultDeliverySchedule'), r.defaultDeliverySchedule, { idPrefix: 'defaultSchedule' });
   setValue('capacityMode', settings.capacityPlanning.mode); setChecked('contactRequired', settings.orders.contactRequired);
-  setChecked('liveTracking', a.liveTracking); setChecked('recipientRequired', a.pod.recipientRequired); setChecked('photoRequired', a.pod.photoRequired); setChecked('signatureRequired', a.pod.signatureRequired);
+  setChecked('liveTracking', a.liveTracking); setChecked('podRequireAll', a.pod.requireAll);
   updateCapacity(); renderOverrides();
 }
 const LOCATION_FIELDS = ['defaultStart', 'defaultEnd'];
@@ -223,7 +223,7 @@ function readForm() {
     routePlanning: { serviceMinutes: Number($('serviceMinutes').value), maxDurationMinutes: Number($('maxDurationMinutes').value), numberOfRoutes: Number($('numberOfRoutes').value), planningTime: $('planningTime').value, defaultStart: point('defaultStart'), defaultEnd: point('defaultEnd'), defaultDeliverySchedule: window.GoRouteXScheduleEditor ? window.GoRouteXScheduleEditor.read($('defaultDeliverySchedule')) : source.routePlanning.defaultDeliverySchedule },
     capacityPlanning: { enabled: mode !== 'off', mode, unit: CAPACITY_UNITS[mode] },
     orders: { contactRequired: $('contactRequired').checked },
-    driverApp: { liveTracking: $('liveTracking').checked, pod: { recipientRequired: $('recipientRequired').checked, photoRequired: $('photoRequired').checked, signatureRequired: $('signatureRequired').checked } }
+    driverApp: { liveTracking: $('liveTracking').checked, pod: { requireAll: $('podRequireAll').checked, recipientRequired: $('podRequireAll').checked, photoRequired: $('podRequireAll').checked, signatureRequired: source.driverApp?.pod?.signatureRequired === true } }
   };
 }
 function dirty() { return state.loaded && JSON.stringify(readForm()) !== state.baseline; }

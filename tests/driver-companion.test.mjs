@@ -16,14 +16,15 @@ class Element {
  addEventListener(name,fn){this.listeners[name]=fn;}
  focus(){} scrollIntoView(){} reset(){} closest(){return this;}
 }
-async function page({route=fixtureRoute(),initial=null,profile={role:'driver',active:true}}={}) {
+async function page({route=fixtureRoute(),initial=null,profile={role:'driver',active:true},podRequireAll=false}={}) {
  const nodes=Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(([,id])=>[id,new Element()]));
  const store=fixtureStore(route,initial), gps={starts:0,stops:0,refreshes:0};let status='ready';let authReady;
  const context=vm.createContext({console,URL,URLSearchParams,location:{search:''},setTimeout,clearTimeout,setInterval(){},confirm:()=>true,
-  document:{getElementById:id=>nodes[id],createElement:()=>new Element(),addEventListener(){}},
+  createImageBitmap:async()=>({width:10,height:10,close(){}}),
+  document:{getElementById:id=>nodes[id],createElement:tag=>tag==='canvas'?{getContext:()=>({drawImage(){}}),toDataURL:()=>'data:image/jpeg;base64,AAAA'}:new Element(),addEventListener(){}},
   window:{addEventListener(){},FirebaseApp:{auth:{onAuthStateChange:fn=>authReady=fn({uid:'drv_test'}),getProfile:async()=>({success:true,profile}),isDriverAccount:()=>true}},
    DriverTrackingPage:{isReady:()=>true,setRouteContext(){},getStatus:()=>status,getProblem:()=>null,startTracking:async()=>{gps.starts++;status='active';return true;},stopTracking:async()=>{gps.stops++;status='stopped';return true;},refreshNow:()=>gps.refreshes++}},
-  DriverRouteStore:{create:async()=>store},loadContactRequired:async()=>true,progress,snapshotRouteStops,navigationUrl,callUrl,navigationParts,whatsappUrl});
+  DriverRouteStore:{create:async()=>store},loadContactRequired:async()=>true,loadPodRule:async()=>podRequireAll,cachedPodRule:()=>false,progress,snapshotRouteStops,navigationUrl,callUrl,navigationParts,whatsappUrl});
  vm.runInContext(source,context);await authReady;return {nodes,store,gps,context};
 }
 test('Maps parts never create execution or GPS; Start Route does, then Continue only changes view',async()=>{
@@ -31,7 +32,7 @@ test('Maps parts never create execution or GPS; Start Route does, then Continue 
  assert.equal(parts.length,2);assert.match(parts[0].href,/origin=Test%20depot/);
  assert.deepEqual(parts[0].listeners,{});assert.equal(store.calls.start,0);assert.equal(gps.starts,0);
  await n.driverStartBtn.onclick();assert.equal(store.calls.start,1);assert.equal(gps.starts,1);
- assert.equal(n.driverRouteView.dataset.screen,'current');assert.equal(n.driverDeliverBtn.hidden,true);
+ assert.equal(n.driverRouteView.dataset.screen,'current');assert.equal(n.driverPodForm.hidden,false);
  assert.doesNotMatch(n.driverNavigateAll.children[1].children[0].href,/origin=/);
  n.driverOverviewTab.onclick();n.driverContinueBtn.onclick();assert.equal(store.calls.start,1);assert.equal(gps.starts,1);
 });
@@ -39,11 +40,12 @@ test('arrival, POD, failure validation, next-stop preview and pause use existing
  const {nodes:n,store}=await page();await n.driverStartBtn.onclick();
  n.driverUpcoming.onclick();assert.equal((await store.loadExecution()).stops[1].executionStatus,'PENDING');
  assert.equal(n.driverRouteView.dataset.screen,'route');assert.equal(n.driverStopDetail.hidden,false);
- n.driverCurrentTab.onclick();await n.driverArriveBtn.onclick();assert.equal(n.driverDeliverBtn.hidden,false);
- n.driverDeliverBtn.onclick();n.driverRecipient.value='Test receiver';
+ n.driverCurrentTab.onclick();n.driverRecipient.value='Test receiver';
+ // One tap: no separate Mark Arrived / Mark Delivered. Arrival is recorded together with the delivery.
  await n.driverPodForm.onsubmit({preventDefault(){}}); // perform is async; wait on its observable busy state.
  await new Promise(resolve=>setImmediate(resolve));
- assert.equal((await store.loadExecution()).stops[0].executionStatus,'DELIVERED');assert.equal(n.driverStopSequence.textContent,'Stop 2 of 12');
+ const done=(await store.loadExecution()).stops[0];assert.equal(done.executionStatus,'DELIVERED');assert.ok(done.actualArrivalAt);assert.equal(store.calls.complete,1);assert.equal(store.calls.lastPod.recipientName,'Test receiver');
+ assert.equal(n.driverStopSequence.textContent,'Stop 2 of 12');assert.equal(n.driverRecipient.value,'');
  n.driverFailureReason.value='Other';n.driverFailureNotes.value='';n.driverFailureForm.onsubmit({preventDefault(){}});
  await new Promise(resolve=>setImmediate(resolve));assert.match(n.driverNotice.textContent,/note/);assert.equal((await store.loadExecution()).stops[1].executionStatus,'PENDING');
  n.driverFailureNotes.value='Test access issue';n.driverFailureForm.onsubmit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
@@ -61,7 +63,7 @@ test('driver can pick any stop out of order, navigate to it from the list, and n
  const pick=n.driverStopDetail.children.find(child=>child.className==='driver-stop-detail-actions').children.find(child=>child.dataset.action==='focus-stop');
  assert.ok(pick);n.driverStopDetail.onclick({target:{closest:()=>pick}});
  assert.equal(n.driverRouteView.dataset.screen,'current');assert.equal(n.driverStopSequence.textContent,'Stop 12 of 12');
- await n.driverArriveBtn.onclick();n.driverDeliverBtn.onclick();await n.driverPodForm.onsubmit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
+ await n.driverPodForm.onsubmit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
  const after=await store.loadExecution();assert.equal(after.stops[11].executionStatus,'DELIVERED');assert.equal(after.stops[0].executionStatus,'PENDING');
  // Nothing after stop 12, so the first open stop is next.
  assert.equal(n.driverStopSequence.textContent,'Stop 1 of 12');
@@ -69,6 +71,25 @@ test('driver can pick any stop out of order, navigate to it from the list, and n
  n.driverStopList.onclick({target:{closest:sel=>sel==='a'?null:{dataset:{stopId:last.id}}}});
  const actions=n.driverStopDetail.children.find(child=>child.className==='driver-stop-detail-actions');
  assert.match(actions.children[0].href,/google\.com\/maps/);assert.equal(actions.children.some(child=>child.dataset?.action==='focus-stop'),false);
+});
+test('Completed & Next with the company rule off completes with nothing filled in',async()=>{
+ const {nodes:n,store}=await page({podRequireAll:false});await n.driverStartBtn.onclick();await new Promise(resolve=>setImmediate(resolve));
+ assert.match(n.driverPodHint.textContent,/optional/);n.driverRecipient.value='';n.driverPodNotes.value='';
+ await n.driverPodForm.onsubmit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal((await store.loadExecution()).stops[0].executionStatus,'DELIVERED');assert.equal(store.calls.lastPod.photoDataUrl,null);
+});
+test('Completed & Next with the company rule on needs recipient name, note and photo together',async()=>{
+ const {nodes:n,store}=await page({podRequireAll:true});await n.driverStartBtn.onclick();await new Promise(resolve=>setImmediate(resolve));
+ const tick=()=>new Promise(resolve=>setImmediate(resolve)),submit=async()=>{await n.driverPodForm.onsubmit({preventDefault(){}});await tick();};
+ assert.match(n.driverPodHint.textContent,/all required/);
+ n.driverRecipient.value='';n.driverPodNotes.value='';await submit();
+ assert.match(n.driverNotice.textContent,/recipient name, note and photo/);assert.equal(store.calls.complete,undefined);
+ n.driverRecipient.value='Test receiver';await submit();assert.match(n.driverNotice.textContent,/note and photo/);assert.equal(store.calls.complete,undefined);
+ n.driverPodNotes.value='Left at the door';await submit();assert.match(n.driverNotice.textContent,/Add photo/);assert.equal(store.calls.complete,undefined);
+ assert.equal((await store.loadExecution()).stops[0].executionStatus,'PENDING');
+ n.driverPhoto.files=[{type:'image/jpeg',size:1000}];await submit();
+ assert.equal(store.calls.complete,1);assert.equal(store.calls.lastPod.photoDataUrl,'data:image/jpeg;base64,AAAA');assert.equal(store.calls.lastPod.notes,'Left at the door');
+ assert.equal((await store.loadExecution()).stops[0].executionStatus,'DELIVERED');
 });
 test('empty and inactive accounts do not show an actionable route',async()=>{
  const empty=await page({route:{...fixtureRoute(),date:'2000-01-01'}});assert.equal(empty.nodes.driverRouteView.hidden,true);assert.equal(empty.nodes.driverCurrentTab.disabled,true);

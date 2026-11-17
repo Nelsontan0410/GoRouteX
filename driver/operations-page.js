@@ -6,7 +6,7 @@ import { navigationUrl, callUrl } from './navigation.js';
 
 const $ = id => document.getElementById(id);
 const routeId = new URLSearchParams(location.search).get('dispatchId');
-const REFRESH_MS = 15000;
+const REFRESH_MS = 60000;
 const state = { view: null, selectedId: null, search: '', loading: false, loadedAt: null, map: null, markers: new Map(), extraMarkers: [], info: null, fittedKey: '' };
 
 const text = value => String(value ?? '').trim();
