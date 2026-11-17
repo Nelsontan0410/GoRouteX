@@ -140,6 +140,14 @@ export default async (req) => {
       return respond({ success: true, updated });
     }
 
+    // The Driver's company rule for Completed & Next. Drivers cannot read the owner's Settings directly.
+    if (action === 'driver-settings' && req.method === 'GET') {
+      const authenticatedDriver = await driverIdentity(admin, db, uid, null, profile);
+      const operations = await db.collection('users').doc(authenticatedDriver.tenantId).collection('settings').doc('operationsV1').get();
+      counts.firestoreReads += 1;
+      return respond({ success: true, podRequireAll: operations.exists && operations.data()?.driverApp?.pod?.requireAll === true });
+    }
+
     try { requireOwner(decoded, profile); } catch (error) { return respond({ success: false, error: 'Dispatch management requires a workspace account.', code: error?.code || 'FORBIDDEN' }, 403); }
 
     if (action === 'invite' && req.method === 'POST') {

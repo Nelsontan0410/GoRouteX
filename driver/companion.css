@@ -145,3 +145,8 @@ body:not(.is-live-view) .driver-tracking-details > summary { font-size: .86rem; 
 .driver-stop-nav:active { background: #dbe7ff; }
 .driver-stop-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .driver-stop-detail-actions > * { flex: 1 1 140px; }
+
+/* Completed & Next: the delivery details sit on the stop card itself. */
+#driverExecution .driver-pod-inline { padding: 16px 0 0; margin-top: 4px; border-top: 1px solid #e1e6ed; display: grid; gap: 12px; }
+#driverExecution .driver-pod-inline h3 { margin: 0; font-size: 1rem; }
+#driverExecution .driver-pod-inline #driverPodSubmit { width: 100%; min-height: 52px; font-size: 1.05rem; }

@@ -155,3 +155,14 @@ test('default start and end coordinates survive save, reload and an unrelated se
   assert.equal(again.drivers.maxStops, 12);
   assert.deepEqual(again.routePlanning.defaultStart.latLng, { lat: 1.3329, lng: 103.7436 });
 });
+
+test('Completed & Next rule is one switch: all of name, note and photo, or none', async () => {
+  const { defaultSettings, normalizeSettings } = await import('../settings/settings-model.js');
+  assert.equal(defaultSettings().driverApp.pod.requireAll, false);
+  assert.equal(normalizeSettings({}).driverApp.pod.requireAll, false);
+  assert.equal(normalizeSettings({ driverApp: { pod: { requireAll: true } } }).driverApp.pod.requireAll, true);
+  assert.equal(normalizeSettings({ driverApp: { pod: { requireAll: 'yes' } } }).driverApp.pod.requireAll, false);
+  const html = (await import('node:fs')).readFileSync(new URL('../settings.html', import.meta.url), 'utf8');
+  assert.match(html, /id="podRequireAll"/);
+  assert.doesNotMatch(html, /id="recipientRequired"|id="photoRequired"/);
+});

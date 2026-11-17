@@ -123,10 +123,8 @@
       <section id="section-driverApp" class="settings-section" aria-labelledby="driverAppHeading" hidden>
         <div class="section-heading"><h2 id="driverAppHeading">Driver App</h2><p>Store the company policy for live tracking and Proof of Delivery.</p></div>
         <label class="policy-row"><span><strong>Live Tracking</strong><small>Keep location sharing available while a route is in progress.</small></span><input id="liveTracking" type="checkbox" role="switch"></label>
-        <div class="subsection-heading"><h3>Proof of Delivery</h3><p>Choose which evidence your company expects at delivery.</p></div>
-        <label class="policy-row"><span><strong>Recipient Name</strong><small>Ask the Driver to record who received the goods.</small></span><input id="recipientRequired" type="checkbox" role="switch"></label>
-        <label class="policy-row"><span><strong>Photo</strong><small>Require a delivery photo.</small></span><input id="photoRequired" type="checkbox" role="switch"></label>
-        <label class="policy-row"><span><strong>Signature</strong><small>Policy can be saved; signature capture is not yet available in the Driver Page.</small></span><input id="signatureRequired" type="checkbox" role="switch"></label>
+        <div class="subsection-heading"><h3>Proof of Delivery</h3><p>Choose the rule for completing a stop: all three items, or none.</p></div>
+        <label class="policy-row"><span><strong>Require full proof for Completed &amp; Next</strong><small>On: the Driver must enter the recipient name, a note and a photo before a stop can be completed. Off: all three are optional and a stop can be completed with one tap.</small></span><input id="podRequireAll" type="checkbox" role="switch"></label>
       </section>
       <div class="save-bar"><span id="saveStatus" role="status">No changes</span><button id="retryLoad" class="secondary" type="button" hidden>Retry loading</button><button id="saveSettings" class="primary" type="submit" disabled>Save Changes</button></div>
     </form>

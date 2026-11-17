@@ -29,7 +29,7 @@ export function defaultSettings() {
     routePlanning: { serviceMinutes: 15, maxDurationMinutes: 480, numberOfRoutes: 1, planningTime: '09:00', defaultStart: null, defaultEnd: null, defaultDeliverySchedule: DeliveryConstraints.defaultSchedule() },
     capacityPlanning: { enabled: false, mode: 'off', unit: null },
     orders: { contactRequired: true },
-    driverApp: { liveTracking: true, pod: { recipientRequired: false, photoRequired: false, signatureRequired: false } }
+    driverApp: { liveTracking: true, pod: { requireAll: false, recipientRequired: false, photoRequired: false, signatureRequired: false } }
   };
 }
 // options.fromStore: the data was read from Firestore or the cache (allows the legacy coordinate migration).
@@ -74,6 +74,8 @@ export function normalizeSettings(raw = {}, contactRequired = false, options = {
     driverApp: {
       liveTracking: a.liveTracking !== false,
       pod: {
+        // One company rule for Completed & Next: recipient name, note and photo are all required, or none is.
+        requireAll: a.pod?.requireAll === true,
         recipientRequired: a.pod?.recipientRequired === true,
         photoRequired: a.pod?.photoRequired === true,
         signatureRequired: a.pod?.signatureRequired === true

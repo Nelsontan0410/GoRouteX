@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {snapshotRouteStops,progress} from '../driver/route-model.js';
-import {startExecution,arrive,deliver,fail,finish} from '../driver/execution.js';
+import {startExecution,arrive,deliver,completeStop,fail,finish} from '../driver/execution.js';
 import {navigationUrl,callUrl} from '../driver/navigation.js';
 const route={id:'route-100',assignedDriverUid:'driver-1',routeName:'Morning route',vehicleDriver:'Van A / Ahmad',date:'2026-09-28',plannedRoutes:[{id:1,originalWaypoints:['rawang','kl'],customerStops:[{uniqueId:'rawang',customerId:'abc',Name:'ABC Trading',label:'Rawang Warehouse',Address:'12 Rawang Road',coordinate:'3.32,101.51',phone:'012-345 6789',orderIds:['ORD-1','ORD-2']},{uniqueId:'kl',customerId:'abc',Name:'ABC Trading',label:'KL Warehouse',Address:'24 KL Road',lat:3.15,lng:101.7,orderIds:['ORD-3']}]}]};
 test('uses saved route snapshots in planned physical sequence and keeps orders grouped',()=>{const stops=snapshotRouteStops(route);assert.equal(stops.length,2);assert.equal(stops[0].stopName,'Rawang Warehouse');assert.equal(stops[0].deliveryAddress,'12 Rawang Road');assert.deepEqual(stops[0].orderIds,['ORD-1','ORD-2']);assert.equal(stops[1].savedStopId,'kl');assert.equal(stops[0].lat,3.32);});
@@ -24,4 +24,14 @@ test('pause blocks delivery activity until resumed; stop ends the route early', 
   assert.equal(stopped.status, 'STOPPED');
   assert.ok(stopped.stops.every(stop => (stop.executionStatus || 'PENDING') === 'PENDING'));
   assert.throws(() => _resume(stopped));
+});
+
+test('Completed & Next moves a pending stop to delivered in one step and keeps the arrival record',()=>{
+ const start=startExecution(route,'driver-1'),first=start.stops[0].id;
+ const done=completeStop(start,first,{id:'pod-1'},{lat:1.1,lng:2.2,accuracy:9});
+ const stop=done.stops[0];assert.equal(stop.executionStatus,'DELIVERED');assert.equal(stop.podId,'pod-1');assert.ok(stop.actualArrivalAt);assert.ok(stop.actualCompletedAt);assert.equal(stop.actualArrivalLat,1.1);
+ assert.equal(completeStop(done,first,{id:'pod-2'}),done,'completing twice changes nothing');
+ const arrived=arrive(start,first);assert.equal(completeStop(arrived,first,{id:'pod-3'}).stops[0].executionStatus,'DELIVERED');
+ const failed=fail(start,first,'Customer closed');assert.throws(()=>completeStop(failed,first,{id:'pod-4'}),/already marked failed/);
+ assert.throws(()=>completeStop({...start,status:'PAUSED'},first,{id:'pod-5'}),/paused/);
 });
